@@ -1,0 +1,576 @@
+# DC3Q_YOLO_BOT_ADB
+# File: config/config.yaml
+# Cấu hình trung tâm cho toàn bộ hệ thống Automation + ADB + Vision + YOLO
+
+app:
+  name: "DC3Q_YOLO_BOT_ADB"
+  version: "0.1.0"
+
+  # Môi trường chạy: development / production
+  environment: "development"
+
+  # Bật chế độ debug để ghi thêm thông tin phục vụ kiểm tra lỗi
+  debug: true
+
+  # Thư mục dữ liệu chính của chương trình
+  data_dir: "data"
+
+  # Thư mục chứa dữ liệu tạm
+  temp_dir: "data/temp"
+
+
+# Cấu hình ADB dùng để giao tiếp với Android và các giả lập
+adb:
+  # Đường dẫn tới adb.exe của dự án
+  executable: "tools/adb/adb.exe"
+
+  # Thời gian tối đa chờ một lệnh ADB hoàn thành, đơn vị giây
+  command_timeout: 15
+
+  # Thời gian tối đa chờ thiết bị phản hồi
+  device_timeout: 10
+
+  # Khoảng thời gian kiểm tra lại danh sách thiết bị, đơn vị giây
+  scan_interval: 3
+
+  # Tự động khởi động ADB server khi chương trình chạy
+  auto_start_server: true
+
+  # Tự động kết nối lại thiết bị khi mất kết nối
+  auto_reconnect: true
+
+  # Số lần thử kết nối lại tối đa
+  reconnect_attempts: 5
+
+  # Thời gian chờ giữa các lần kết nối lại, đơn vị giây
+  reconnect_delay: 2
+
+  # Cho phép sử dụng thiết bị kết nối qua TCP/IP
+  allow_tcp_devices: true
+
+  # Cổng ADB server mặc định
+  server_port: 5037
+
+
+# Cấu hình quản lý nhiều thiết bị / nhiều giả lập cùng lúc
+devices:
+  # Số worker thiết bị tối đa được phép chạy đồng thời
+  max_workers: 8
+
+  # Tự động phát hiện thiết bị khi chương trình khởi động
+  auto_discover: true
+
+  # Khoảng thời gian cập nhật trạng thái thiết bị, đơn vị giây
+  status_check_interval: 5
+
+  # Nếu thiết bị không phản hồi trong khoảng thời gian này
+  # hệ thống sẽ đánh dấu là offline
+  offline_timeout: 30
+
+  # Tự động tạo worker khi phát hiện thiết bị mới
+  auto_create_worker: true
+
+  # Dừng worker nếu thiết bị bị mất kết nối quá lâu
+  stop_worker_on_disconnect: false
+
+  # Khởi động lại worker khi thiết bị kết nối trở lại
+  restart_worker_on_reconnect: true
+
+
+# Cấu hình chụp màn hình thiết bị
+screenshot:
+  # Phương thức chụp ảnh
+  # adb_exec_out: adb exec-out screencap -p
+  method: "adb_exec_out"
+
+  # Định dạng ảnh
+  format: "png"
+
+  # Thư mục lưu ảnh chụp khi cần debug
+  save_dir: "data/screenshots"
+
+  # Có lưu toàn bộ screenshot xuống ổ đĩa hay không
+  # Nên để false khi chạy thực tế để giảm ghi ổ cứng
+  save_all: false
+
+  # Lưu screenshot khi xảy ra lỗi
+  save_on_error: true
+
+  # Thời gian tối đa chờ chụp ảnh, đơn vị giây
+  timeout: 5
+
+
+# Cấu hình hệ thống Computer Vision
+vision:
+  # Bật hệ thống nhận diện hình ảnh
+  enabled: true
+
+  # Ngưỡng mặc định khi so khớp template
+  # Giá trị từ 0.0 đến 1.0
+  template_threshold: 0.80
+
+  # Ngưỡng thấp nhất cho phép khi cần nhận diện gần đúng
+  minimum_threshold: 0.65
+
+  # Có chuyển ảnh sang grayscale trước khi template matching hay không
+  grayscale: false
+
+  # Cho phép tìm kiếm template với nhiều tỷ lệ kích thước
+  multi_scale: false
+
+  # Danh sách tỷ lệ dùng khi multi_scale = true
+  scales:
+    - 0.80
+    - 0.90
+    - 1.00
+    - 1.10
+    - 1.20
+
+  # Thư mục chứa ảnh mẫu dùng để nhận diện
+  templates_dir: "assets/templates"
+
+  # Thư mục chứa ảnh phục vụ debug vision
+  debug_dir: "data/vision_debug"
+
+  # Lưu ảnh khi không nhận diện được đối tượng
+  save_failed_detection: true
+
+
+# Cấu hình YOLO
+yolo:
+  # Bật nhận diện YOLO
+  enabled: true
+
+  # Đường dẫn model YOLO mặc định
+  model_path: "models/yolo/best.pt"
+
+  # Thiết bị thực hiện inference
+  # auto = tự chọn CUDA nếu có, nếu không dùng CPU
+  # Có thể đặt "cpu", "0", "1"
+  device: "auto"
+
+  # Ngưỡng confidence
+  confidence: 0.50
+
+  # Ngưỡng IoU dùng cho Non-Maximum Suppression
+  iou: 0.45
+
+  # Kích thước ảnh đầu vào YOLO
+  image_size: 640
+
+  # Số lượng detection tối đa trên một ảnh
+  max_detections: 100
+
+  # Chỉ nhận diện class chỉ định
+  # [] nghĩa là nhận diện tất cả class
+  classes: []
+
+  # Half precision FP16 nếu GPU hỗ trợ
+  half: false
+
+  # Tắt hiển thị log inference của Ultralytics
+  verbose: false
+
+  # Warm-up model khi chương trình khởi động
+  warmup: true
+
+
+# Cấu hình Vision Engine kết hợp Template Matching và YOLO
+vision_engine:
+  # Phương thức mặc định:
+  # template
+  # yolo
+  # hybrid
+  default_mode: "hybrid"
+
+  # Nếu template không tìm thấy thì thử YOLO
+  fallback_to_yolo: true
+
+  # Nếu YOLO không tìm thấy thì thử template
+  fallback_to_template: true
+
+  # Thời gian tối đa cho một lần nhận diện, đơn vị giây
+  detection_timeout: 5
+
+  # Số lần thử nhận diện lại
+  retry_count: 2
+
+  # Khoảng nghỉ giữa các lần thử
+  retry_delay: 0.3
+
+
+# Cấu hình thao tác ADB
+actions:
+  # Khoảng delay mặc định sau mỗi thao tác click
+  click_delay: 0.30
+
+  # Khoảng delay sau thao tác swipe
+  swipe_delay: 0.50
+
+  # Khoảng delay sau nhập text
+  input_delay: 0.30
+
+  # Thời gian swipe mặc định, đơn vị millisecond
+  swipe_duration: 300
+
+  # Kiểm tra tọa độ trước khi click
+  validate_coordinates: true
+
+  # Không cho phép click ra ngoài màn hình
+  prevent_out_of_bounds: true
+
+
+# Cấu hình Automation Engine
+automation:
+  # Bật automation engine
+  enabled: true
+
+  # Chu kỳ chính của engine, đơn vị giây
+  loop_interval: 0.10
+
+  # Thời gian chờ mặc định giữa các bước kịch bản
+  default_step_delay: 0.30
+
+  # Thời gian tối đa của một bước automation
+  step_timeout: 30
+
+  # Thời gian tối đa của một task
+  task_timeout: 1800
+
+  # Số lần retry mặc định khi một action thất bại
+  action_retry_count: 3
+
+  # Thời gian nghỉ giữa các retry
+  action_retry_delay: 1
+
+  # Dừng task khi gặp lỗi nghiêm trọng
+  stop_on_critical_error: true
+
+  # Cho phép recovery khi lỗi
+  enable_recovery: true
+
+  # Cho phép tiếp tục kịch bản sau khi recovery thành công
+  continue_after_recovery: true
+
+  # Thư mục chứa các kịch bản automation
+  scripts_dir: "scripts"
+
+
+# Cấu hình State Machine
+state_machine:
+  # Trạng thái ban đầu của mỗi worker
+  initial_state: "IDLE"
+
+  # Thời gian tối đa được phép đứng tại một state
+  state_timeout: 120
+
+  # Khi state timeout sẽ chuyển sang recovery
+  recovery_on_timeout: true
+
+  # Ghi log khi chuyển state
+  log_transitions: true
+
+
+# Cấu hình hệ thống Recovery
+recovery:
+  enabled: true
+
+  # Số lần recovery tối đa liên tiếp
+  max_attempts: 5
+
+  # Khoảng thời gian giữa các lần recovery
+  retry_delay: 2
+
+  # Khi recovery thất bại thì chụp màn hình
+  screenshot_on_failure: true
+
+  # Restart app Android khi recovery liên tục thất bại
+  restart_app_on_failure: true
+
+  # Restart worker khi lỗi nghiêm trọng
+  restart_worker_on_failure: true
+
+  # Thời gian chờ sau khi restart ứng dụng
+  app_restart_delay: 5
+
+
+# Cấu hình quản lý tài khoản
+accounts:
+  # File chứa danh sách tài khoản
+  source_file: "data/accounts/accounts.xlsx"
+
+  # Cho phép nhiều worker sử dụng tài khoản khác nhau cùng lúc
+  concurrent_usage: true
+
+  # Một tài khoản chỉ được sử dụng bởi một worker tại cùng thời điểm
+  exclusive_lock: true
+
+  # Tự động lấy tài khoản tiếp theo sau khi hoàn thành tài khoản hiện tại
+  auto_next_account: true
+
+  # Khi tài khoản lỗi đăng nhập có thử lại hay không
+  retry_failed_login: true
+
+  # Số lần thử đăng nhập lại
+  login_retry_count: 3
+
+  # Thời gian chờ giữa các lần đăng nhập lại
+  login_retry_delay: 3
+
+  # Tự động đăng xuất khi tài khoản hoàn thành nhiệm vụ
+  auto_logout: true
+
+  # Trạng thái mặc định khi tài khoản mới được thêm
+  default_status: "READY"
+
+
+# Cấu hình luồng xử lý tài khoản
+account_flow:
+  # Luồng cơ bản:
+  # login -> task -> logout -> next_account
+  login_before_task: true
+  logout_after_task: true
+  continue_next_account: true
+
+  # Nếu task thất bại thì có tiếp tục tài khoản tiếp theo không
+  continue_on_task_failure: true
+
+  # Nếu login thất bại thì bỏ qua tài khoản
+  skip_on_login_failure: true
+
+
+# Cấu hình database
+database:
+  # SQLite mặc định cho dữ liệu local
+  type: "sqlite"
+
+  # Đường dẫn database
+  url: "sqlite:///data/database/dc3q.db"
+
+  # Hiển thị SQL query khi debug
+  echo: false
+
+  # Tự động tạo bảng khi chương trình khởi động
+  auto_create_tables: true
+
+
+# Cấu hình lưu lịch sử
+history:
+  enabled: true
+
+  # Lưu lịch sử chạy task
+  save_tasks: true
+
+  # Lưu lịch sử thao tác
+  save_actions: true
+
+  # Lưu lịch sử tài khoản
+  save_accounts: true
+
+  # Lưu lỗi
+  save_errors: true
+
+  # Số ngày giữ lịch sử
+  retention_days: 30
+
+
+# Cấu hình logging
+logging:
+  # Mức log:
+  # TRACE / DEBUG / INFO / WARNING / ERROR / CRITICAL
+  level: "INFO"
+
+  # In log ra terminal
+  console: true
+
+  # Ghi log ra file
+  file: true
+
+  # Thư mục log
+  directory: "logs"
+
+  # File log chính
+  filename: "dc3q.log"
+
+  # Tạo file log riêng cho từng thiết bị
+  per_device_log: true
+
+  # Kích thước tối đa mỗi file log
+  rotation: "20 MB"
+
+  # Thời gian giữ log
+  retention: "30 days"
+
+  # Nén file log cũ
+  compression: "zip"
+
+  # Hiển thị stacktrace chi tiết
+  backtrace: true
+
+  # Hiển thị thông tin biến khi exception
+  diagnose: false
+
+
+# Cấu hình Scheduler
+scheduler:
+  enabled: true
+
+  # Số task scheduler tối đa có thể chạy đồng thời
+  max_instances: 10
+
+  # Kiểm tra device định kỳ
+  device_health_check:
+    enabled: true
+    interval_seconds: 10
+
+  # Dọn dữ liệu tạm
+  temp_cleanup:
+    enabled: true
+    interval_minutes: 60
+
+  # Dọn log cũ
+  log_cleanup:
+    enabled: true
+    interval_hours: 24
+
+
+# Cấu hình hiệu năng
+performance:
+  # Giới hạn số thread chung
+  max_threads: 16
+
+  # Số tiến trình xử lý CPU tối đa
+  max_processes: 4
+
+  # Bật cache ảnh template
+  template_cache: true
+
+  # Bật cache model YOLO
+  yolo_model_cache: true
+
+  # Hạn chế screenshot khi thiết bị đang idle
+  reduce_idle_screenshots: true
+
+  # Khoảng thời gian screenshot khi idle
+  idle_screenshot_interval: 2.0
+
+
+# Cấu hình giới hạn tài nguyên
+resource_limits:
+  # RAM tối đa cảnh báo cho toàn chương trình, đơn vị MB
+  memory_warning_mb: 4096
+
+  # CPU sử dụng quá mức này sẽ ghi warning
+  cpu_warning_percent: 90
+
+  # GPU memory warning, đơn vị phần trăm
+  gpu_memory_warning_percent: 90
+
+
+# Cấu hình watchdog
+watchdog:
+  enabled: true
+
+  # Khoảng thời gian watchdog kiểm tra worker
+  interval: 5
+
+  # Worker không heartbeat trong khoảng này được coi là treo
+  worker_timeout: 30
+
+  # Tự động restart worker bị treo
+  auto_restart_worker: true
+
+  # Số lần restart worker tối đa
+  max_restart_attempts: 5
+
+
+# Cấu hình thư mục của dự án
+paths:
+  # Thư mục chứa asset
+  assets: "assets"
+
+  # Ảnh template
+  templates: "assets/templates"
+
+  # Model AI / YOLO
+  models: "models"
+
+  # Kịch bản automation
+  scripts: "scripts"
+
+  # Dữ liệu chương trình
+  data: "data"
+
+  # Screenshot
+  screenshots: "data/screenshots"
+
+  # Dữ liệu tài khoản
+  accounts: "data/accounts"
+
+  # Database
+  database: "data/database"
+
+  # Dữ liệu tạm
+  temp: "data/temp"
+
+  # Log
+  logs: "logs"
+
+  # Tool bên ngoài
+  tools: "tools"
+
+
+# Cấu hình ứng dụng Android được bot điều khiển
+target_app:
+  # Package name của ứng dụng/game
+  # Điền package thật sau khi xác định được
+  package_name: ""
+
+  # Activity khởi động
+  # Có thể để trống nếu dùng monkey hoặc package launcher
+  launch_activity: ""
+
+  # Tự động mở ứng dụng khi worker bắt đầu
+  auto_launch: true
+
+  # Tự động restart ứng dụng nếu phát hiện app bị đóng
+  auto_restart: true
+
+  # Thời gian chờ app mở hoàn tất
+  launch_wait: 5
+
+  # Force-stop trước khi mở lại app
+  force_stop_before_launch: false
+
+
+# Cấu hình bảo mật dữ liệu
+security:
+  # Không ghi password tài khoản ra log
+  mask_password_in_logs: true
+
+  # Không ghi token ra log
+  mask_tokens_in_logs: true
+
+  # Không ghi dữ liệu nhạy cảm trong exception
+  sanitize_exceptions: true
+
+
+# Cấu hình debug
+debug:
+  # Lưu ảnh khi Vision phát hiện thành công
+  save_detection_images: false
+
+  # Lưu ảnh khi Vision thất bại
+  save_failed_images: true
+
+  # Hiển thị bounding box lên ảnh debug
+  draw_detection_boxes: true
+
+  # Ghi thời gian xử lý từng bước
+  profile_actions: false
+
+  # Ghi thời gian inference YOLO
+  profile_yolo: false
+
+  # Ghi thời gian chụp screenshot
+  profile_screenshot: false

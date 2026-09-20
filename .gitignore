@@ -1,0 +1,27 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Runtime/local data
+logs/
+temp/
+data/
+*.log
+*.db
+*.sqlite*
+
+# Models and generated artifacts
+models/
+runs/
+
+# Local editor/environment
+.vscode/
+.idea/
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
