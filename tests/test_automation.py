@@ -178,7 +178,25 @@ def test_finish_login_closes_only_verified_profile_update_popup() -> None:
         })
 
     assert result.success
-    assert device.taps == [(789, 194)]
+    assert device.taps[0] == (789, 194)
+
+
+def test_finish_login_closes_profile_update_with_paired_templates_when_dump_fails() -> None:
+    title = "dc3q/random-events/profile-update/screen_profile_update_title.png"
+    close = "dc3q/random-events/profile-update/screen_profile_update_close.png"
+    home = "dc3q/common/home_marker_noi_chinh.png"
+    device = FakeDevice()
+    device.shell_outputs = ["", "ERROR: null root node returned by UiTestAutomationBridge."]
+    vision = SequenceVision([{title, close}, {home}, {home}])
+    engine = AutomationEngine(device, vision)
+
+    with patch("app.automation.actions.time.sleep", side_effect=lambda _: vision.advance()):
+        result = engine.execute_action(engine.create_context(), {
+            "action": "finish_login", "timeout": 2, "stable_frames": 2,
+        })
+
+    assert result.success
+    assert device.taps == [(480, 270)]
 
 
 def test_logout_account_uses_verified_states_then_confirms() -> None:

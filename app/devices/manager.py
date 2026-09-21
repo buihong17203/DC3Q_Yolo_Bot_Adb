@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -8,6 +9,7 @@ from app.accounts import AccountManager
 from app.adb import ADBDeviceManager
 from app.core.config import settings
 from app.core.logger import get_logger
+from app.core.shutdown import terminate_child_processes
 
 from .worker import DeviceWorker, WorkerSnapshot
 
@@ -31,6 +33,7 @@ class DeviceManager:
         self.max_workers = max(1, int(max_workers or settings.devices.max_workers))
         self._workers: dict[str, DeviceWorker] = {}
         self._lock = threading.RLock()
+        self._interrupted = False
 
     def discover(self) -> list[DeviceWorker]:
         devices = self.adb_manager.refresh(online_only=True)
@@ -74,8 +77,46 @@ class DeviceManager:
                 worker.stop()
 
     def join_all(self, timeout: float | None = None) -> None:
-        for worker in self.workers():
-            worker.join(timeout=timeout)
+        workers = self.workers()
+        if timeout is None:
+            for worker in workers:
+                worker.join()
+            return
+
+        # One shared timeout budget; do not wait timeout * number_of_workers.
+        deadline = time.monotonic() + max(0.0, float(timeout))
+        for worker in workers:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            worker.join(timeout=remaining)
+
+    def shutdown(self, grace_timeout: float = 5.0) -> None:
+        """Stop every worker and every subprocess created by this project."""
+        self.stop_all()
+
+        # A worker can be blocked inside subprocess.run(adb ...). Killing only
+        # descendants of this Python PID unblocks it without killing the global
+        # ADB server used by Android Studio/other tools.
+        terminate_child_processes(timeout=1.0)
+        self.join_all(timeout=grace_timeout)
+
+        alive = [worker.serial for worker in self.workers() if worker.alive]
+        if alive:
+            logger.warning(
+                "Worker chưa thoát sau %.1fs: %s; tiến trình chính sẽ kết thúc và daemon worker sẽ bị hủy",
+                grace_timeout,
+                ", ".join(alive),
+            )
+
+        if self.account_manager is not None:
+            worker_ids = [worker.serial for worker in self.workers()]
+            released = self.account_manager.release_all_in_use(worker_ids)
+            if released:
+                logger.info("Đã trả %d account IN_USE về READY khi shutdown", released)
+
+        # Final sweep in case a child process appeared while workers were unwinding.
+        terminate_child_processes(timeout=0.5)
 
     def run_until_complete(self) -> list[WorkerSnapshot]:
         count = self.start_all()
@@ -84,9 +125,9 @@ class DeviceManager:
         try:
             self.join_all()
         except KeyboardInterrupt:
-            logger.warning("Nhận Ctrl+C, đang dừng tất cả worker")
-            self.stop_all()
-            self.join_all(timeout=5.0)
+            self._interrupted = True
+            logger.warning("Nhận Ctrl+C: dừng toàn bộ worker và child process của project")
+            self.shutdown()
         return self.snapshots()
 
     def snapshots(self) -> list[WorkerSnapshot]:
@@ -95,3 +136,7 @@ class DeviceManager:
     @property
     def active_count(self) -> int:
         return sum(1 for worker in self.workers() if worker.alive)
+
+    @property
+    def interrupted(self) -> bool:
+        return self._interrupted

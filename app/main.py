@@ -15,6 +15,7 @@ from app.automation import AutomationEngine
 from app.core.config import settings
 from app.core.game_day import DailyRuntimeStore, GameDayClock
 from app.core.logger import configure_logging, get_logger
+from app.core.shutdown import terminate_child_processes
 from app.devices import DeviceManager, WorkerState
 
 configure_logging()
@@ -212,10 +213,12 @@ def _run_automation(
         )
         failed = failed or stats.failed > 0
 
+    if manager.interrupted:
+        return 130
     return 9 if failed else 0
 
 
-def main(argv: list[str] | None = None) -> int:
+def _main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     settings.ensure_directories()
@@ -286,6 +289,15 @@ def main(argv: list[str] | None = None) -> int:
         return 6
 
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    try:
+        return _main(argv)
+    except KeyboardInterrupt:
+        logger.warning("Nhận Ctrl+C: dừng toàn bộ child process của project")
+        terminate_child_processes(timeout=1.0)
+        return 130
 
 
 if __name__ == "__main__":

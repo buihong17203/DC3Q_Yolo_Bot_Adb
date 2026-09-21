@@ -6,7 +6,7 @@ variables:
 
 steps:
   - run_scenario: "auth/login.yaml"
-  # Nhiệm vụ tài khoản sẽ được chèn tại đây.
+  - run_scenario: "tasks/tam_quoc_lenh.yaml"
   - run_scenario: "auth/logout.yaml"
   - action: log
     message: "Hoàn thành account-${account.id}; worker lấy account tiếp theo"

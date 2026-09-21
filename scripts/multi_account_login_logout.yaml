@@ -1,0 +1,5 @@
+name: dc3q_multi_account_login_logout_legacy
+
+# Tương thích lệnh cũ; luồng thật nằm trong multi_account_manager.yaml.
+steps:
+  - run_scenario: "multi_account_manager.yaml"

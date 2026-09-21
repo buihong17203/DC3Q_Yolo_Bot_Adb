@@ -134,6 +134,27 @@ class AccountManager:
             account.assigned_worker = None
             self._persist()
 
+    def release_all_in_use(self, worker_ids: Iterable[str] | None = None) -> int:
+        """Return active leases to READY during application shutdown.
+
+        When ``worker_ids`` is provided, only leases owned by those workers are
+        released. This prevents Ctrl+C from leaving accounts stuck at IN_USE.
+        """
+        with self._lock:
+            allowed = {str(value) for value in worker_ids} if worker_ids is not None else None
+            count = 0
+            for account in self._accounts:
+                if account.status != AccountStatus.IN_USE:
+                    continue
+                if allowed is not None and account.assigned_worker not in allowed:
+                    continue
+                account.status = AccountStatus.READY
+                account.assigned_worker = None
+                count += 1
+            if count:
+                self._persist()
+            return count
+
     def reset_failed(self) -> int:
         with self._lock:
             count = 0

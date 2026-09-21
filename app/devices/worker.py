@@ -253,7 +253,8 @@ class DeviceWorker:
             except Exception as exc:
                 self._last_error = str(exc)
             if attempt + 1 < attempts:
-                time.sleep(settings.adb.reconnect_delay)
+                if self._stop_event.wait(settings.adb.reconnect_delay):
+                    return False
         return False
 
     def _claim_account(self) -> Account | None:
@@ -312,7 +313,8 @@ class DeviceWorker:
                         self._handle_rollover(None)
                         self._set_state(WorkerState.IDLE)
                         continue
-                    time.sleep(min(1.0, max(0.1, settings.automation.loop_interval)))
+                    if self._stop_event.wait(min(1.0, max(0.1, settings.automation.loop_interval))):
+                        break
                     continue
 
                 self._current_account = account

@@ -45,7 +45,19 @@ class DailyRuntimeStore:
         self._lock = threading.RLock()
 
     @staticmethod
-    def _record(account: Any) -> dict[str, Any]:
+    def _default_tasks() -> dict[str, Any]:
+        return {
+            "tam_quoc_lenh": {
+                "status": "NOT_STARTED",
+                "que_boi": "NOT_STARTED",
+                "diem_binh": "NOT_STARTED",
+                "rewards": [],
+                "error": None,
+            }
+        }
+
+    @staticmethod
+    def _record(account: Any, tasks: dict[str, Any] | None = None) -> dict[str, Any]:
         status = getattr(account, "status", "READY")
         status_value = getattr(status, "value", status)
         return {
@@ -56,6 +68,7 @@ class DailyRuntimeStore:
             "current_task": None,
             "last_run": None,
             "error_message": getattr(account, "last_error", None),
+            "tasks": tasks or DailyRuntimeStore._default_tasks(),
         }
 
     def _read(self) -> dict[str, Any] | list[Any] | None:
@@ -73,12 +86,19 @@ class DailyRuntimeStore:
             handle.write("\n")
         temporary.replace(path)
 
-    def _document(self, accounts: Iterable[Any], game_day: str, events: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    def _document(
+        self,
+        accounts: Iterable[Any],
+        game_day: str,
+        events: list[dict[str, Any]] | None = None,
+        tasks_by_id: dict[str, dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        tasks_by_id = tasks_by_id or {}
         return {
             "game_day": game_day,
             "reset_hour": self.clock.reset_hour,
             "updated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-            "accounts": [self._record(account) for account in accounts],
+            "accounts": [self._record(account, tasks_by_id.get(str(account.id))) for account in accounts],
             "events": list(events or []),
         }
 
@@ -89,6 +109,13 @@ class DailyRuntimeStore:
             raw = self._read()
             if isinstance(raw, dict) and raw.get("game_day") == current_key:
                 self._apply(accounts, raw.get("accounts", []))
+                changed = False
+                for row in raw.get("accounts", []):
+                    if isinstance(row, dict) and "tasks" not in row:
+                        row["tasks"] = self._default_tasks()
+                        changed = True
+                if changed:
+                    self._write_json(self.path, raw)
                 return False
             if isinstance(raw, dict) and raw.get("game_day"):
                 self._archive(raw)
@@ -104,10 +131,15 @@ class DailyRuntimeStore:
         with self._lock:
             raw = self._read()
             events = raw.get("events", []) if isinstance(raw, dict) else []
+            tasks_by_id = {
+                str(row.get("id")): dict(row.get("tasks") or self._default_tasks())
+                for row in raw.get("accounts", [])
+                if isinstance(row, dict)
+            } if isinstance(raw, dict) else {}
             # Only rollover() may advance game_day. A status write at exactly
             # 23:00 must not relabel old-day data before it is archived.
             game_day = str(raw.get("game_day")) if isinstance(raw, dict) and raw.get("game_day") else self.clock.key()
-            self._write_json(self.path, self._document(accounts, game_day, events))
+            self._write_json(self.path, self._document(accounts, game_day, events, tasks_by_id))
 
     def rollover(self, accounts: list[Any], *, now: datetime | None = None) -> bool:
         with self._lock:
@@ -135,6 +167,29 @@ class DailyRuntimeStore:
             })
             raw["updated_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
             self._write_json(self.path, raw)
+
+    def get_task(self, account_id: str, task_name: str) -> dict[str, Any]:
+        with self._lock:
+            raw = self._read()
+            if not isinstance(raw, dict):
+                return {}
+            for row in raw.get("accounts", []):
+                if isinstance(row, dict) and str(row.get("id")) == str(account_id):
+                    return dict((row.get("tasks") or {}).get(task_name) or {})
+            return {}
+
+    def update_task(self, account_id: str, task_name: str, state: dict[str, Any]) -> None:
+        with self._lock:
+            raw = self._read()
+            if not isinstance(raw, dict):
+                raise RuntimeError("Daily runtime is not initialized")
+            for row in raw.get("accounts", []):
+                if isinstance(row, dict) and str(row.get("id")) == str(account_id):
+                    row.setdefault("tasks", self._default_tasks())[task_name] = dict(state)
+                    raw["updated_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
+                    self._write_json(self.path, raw)
+                    return
+            raise KeyError(f"Runtime account not found: {account_id}")
 
     @staticmethod
     def _apply(accounts: list[Any], records: Iterable[Any]) -> None:

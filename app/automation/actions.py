@@ -16,6 +16,11 @@ class ActionContext(Protocol):
     device: Any
     vision: Any
     variables: dict[str, Any]
+    stop_event: Any
+
+
+class ActionStopRequested(RuntimeError):
+    """Raised when Ctrl+C/worker shutdown interrupts an action wait."""
 
 
 @dataclass(slots=True)
@@ -91,6 +96,22 @@ def _call_first(obj: Any, method_names: tuple[str, ...], *args, **kwargs) -> Any
     raise AttributeError(f"None of these methods exist: {', '.join(method_names)}")
 
 
+def _stop_requested(context: ActionContext) -> bool:
+    event = getattr(context, "stop_event", None)
+    return bool(event is not None and callable(getattr(event, "is_set", None)) and event.is_set())
+
+
+def _wait_interruptibly(context: ActionContext, seconds: float) -> None:
+    """Sleep without making Ctrl+C wait for the full action delay."""
+    delay = max(0.0, float(seconds))
+    event = getattr(context, "stop_event", None)
+    if event is not None and callable(getattr(event, "wait", None)):
+        if event.wait(delay):
+            raise ActionStopRequested("Stop requested")
+        return
+    time.sleep(delay)
+
+
 class ActionRegistry:
     """Registry of automation actions. No subprocess/OpenCV logic belongs here."""
 
@@ -114,6 +135,8 @@ class ActionRegistry:
         return tuple(sorted(self._handlers))
 
     def execute(self, context: ActionContext, spec: str | Mapping[str, Any]) -> ActionResult:
+        if _stop_requested(context):
+            raise ActionStopRequested("Stop requested")
         if isinstance(spec, str):
             name = spec
             params: dict[str, Any] = {}
@@ -150,6 +173,7 @@ class ActionRegistry:
             "handle_random_server_events": self._handle_random_server_events,
             "logout_account": self._logout_account,
             "reset_day_logout": self._reset_day_logout,
+            "tam_quoc_lenh": self._tam_quoc_lenh,
             "keyevent": self._keyevent,
             "back": self._back,
             "home": self._home,
@@ -218,6 +242,8 @@ class ActionRegistry:
 
         deadline = time.monotonic() + timeout
         while time.monotonic() <= deadline:
+            if _stop_requested(context):
+                raise ActionStopRequested("Stop requested")
             if context.device.get_current_activity() == login_activity:
                 return ActionResult(True, "ensure_login_screen", "Authentication Activity ready")
             time.sleep(interval)
@@ -238,6 +264,8 @@ class ActionRegistry:
             params.get("activity", "com.daichien.mobile/com.vtcmobile.gamesdk.AuthenActivity")
         )
         while time.monotonic() <= deadline:
+            if _stop_requested(context):
+                raise ActionStopRequested("Stop requested")
             if context.device.get_current_activity() == expected_activity:
                 break
             time.sleep(interval)
@@ -324,9 +352,29 @@ class ActionRegistry:
         enemy_dialog = "dc3q/random-events/enemy-raid/full_screen_enemy_raid_event_dialog.png"
         enemy_close = "dc3q/random-events/enemy-raid/screen_enemy_raid_close_button.png"
         while time.monotonic() <= deadline:
+            if _stop_requested(context):
+                raise ActionStopRequested("Stop requested")
             close_center = ActionRegistry._profile_update_close_center(context)
             if close_center is not None:
                 context.device.tap(*close_center)
+                closed += 1
+                stable = 0
+                time.sleep(interval)
+                continue
+            profile_title = ActionRegistry._template(
+                context,
+                "dc3q/random-events/profile-update/screen_profile_update_title.png",
+                0.92,
+            )
+            if profile_title is not None:
+                profile_close = ActionRegistry._template(
+                    context,
+                    "dc3q/random-events/profile-update/screen_profile_update_close.png",
+                    0.92,
+                )
+                if profile_close is None:
+                    return ActionResult(False, "finish_login", "Profile update visible but close X not verified")
+                context.device.tap(*profile_close.center)
                 closed += 1
                 stable = 0
                 time.sleep(interval)
@@ -387,6 +435,8 @@ class ActionRegistry:
         enemy_dialog = "dc3q/random-events/enemy-raid/full_screen_enemy_raid_event_dialog.png"
         enemy_close = "dc3q/random-events/enemy-raid/screen_enemy_raid_close_button.png"
         while time.monotonic() <= deadline:
+            if _stop_requested(context):
+                raise ActionStopRequested("Stop requested")
             dialog_match = ActionRegistry._template(context, enemy_dialog, threshold)
             if dialog_match is not None:
                 close_match = ActionRegistry._template(context, enemy_close, threshold)
@@ -456,6 +506,8 @@ class ActionRegistry:
             deadline = time.monotonic() + timeout
             match = None
             while time.monotonic() <= deadline:
+                if _stop_requested(context):
+                    raise ActionStopRequested("Stop requested")
                 match = ActionRegistry._template(context, marker, threshold)
                 if match is not None:
                     break
@@ -475,10 +527,686 @@ class ActionRegistry:
                 context.device.tap(*coordinate)
         deadline = time.monotonic() + max(timeout, 60.0)
         while time.monotonic() <= deadline:
+            if _stop_requested(context):
+                raise ActionStopRequested("Stop requested")
             if context.device.get_current_activity() == login_activity:
                 return ActionResult(True, "logout_account", "Returned to authentication Activity")
             time.sleep(interval)
         return ActionResult(False, "logout_account", "Confirmed change account but login Activity did not appear")
+
+    @staticmethod
+    def _tam_quoc_lenh(context: ActionContext, params: dict[str, Any]) -> ActionResult:
+        """
+        Complete the two daily free Tam Quốc Lệnh actions robustly.
+
+        Design goals:
+        - tolerate the HOME event icon moving horizontally between accounts;
+        - tolerate normal/alert/active/inactive tab variants;
+        - wait for UI transitions instead of sampling only one frame;
+        - use the existing real screenshots/templates as state markers;
+        - resume safely after partial progress or an interrupted reward popup;
+        - never tap the paid 99/100 buttons;
+        - preserve Ctrl+C responsiveness through interruptible waits.
+        """
+        import json
+        from pathlib import Path
+
+        account_id = str(_require(params, "account_id"))
+        runtime_file = Path(str(_require(params, "runtime_file")))
+
+        # Control/template thresholds. Entry is intentionally a little lower because
+        # its appearance varies more between HOME layouts; all important action
+        # buttons remain at the stricter threshold.
+        threshold = float(params.get("threshold", 0.92))
+        entry_threshold = float(params.get("entry_threshold", min(threshold, 0.88)))
+        tab_threshold = float(params.get("tab_threshold", min(threshold, 0.90)))
+        reward_threshold = float(params.get("reward_threshold", min(threshold, 0.90)))
+        close_threshold = float(params.get("close_threshold", min(threshold, 0.90)))
+        home_threshold = float(params.get("home_threshold", 0.75))
+
+        timeout = max(1.0, float(params.get("timeout", 30.0)))
+        open_timeout = max(2.0, float(params.get("open_timeout", 12.0)))
+        state_timeout = max(2.0, float(params.get("state_timeout", 10.0)))
+        interval = max(0.05, float(params.get("interval", 0.5)))
+
+        base = "dc3q/targets/Tam-Quốc-Lệnh/screen/"
+        home = "dc3q/common/home_marker_noi_chinh.png"
+
+        # Current production templates.
+        entry_templates = (
+            base + "home_tam_quoc_lenh_entry.png",
+            base + "home_tam_quoc_lenh_entry_alert.png",
+        )
+        que_tabs = (
+            base + "que_boi_tab_alert_active.png",
+            base + "que_boi_tab_alert_inactive.png",
+            base + "que_boi_tab_inactive.png",
+        )
+        diem_tabs = (
+            base + "diem_binh_tab_alert_active.png",
+            base + "diem_binh_tab_alert_inactive.png",
+            base + "diem_binh_tab_inactive.png",
+        )
+        all_module_tabs = que_tabs + diem_tabs
+
+        que_free = (
+            base + "free_boi_toan_once_button.png",
+            base + "free_boi_toan_once_button_alt.png",
+        )
+        que_paid = (base + "boi_toan_once_99_button.png",)
+
+        diem_free = (base + "free_danh_trong_once_button.png",)
+        diem_paid = (base + "danh_trong_once_100_button.png",)
+
+        reward_banner = base + "reward_received_banner.png"
+        module_close = base + "tam_quoc_lenh_close_button.png"
+
+        # Reference layout is the actual ADB frame used by the captured live
+        # screenshots in this project: 960 x 540.
+        try:
+            screen_width, screen_height = context.device.get_screen_size()
+            screen_width = int(screen_width)
+            screen_height = int(screen_height)
+        except Exception:
+            screen_width, screen_height = 960, 540
+
+        scale_x = screen_width / 960.0
+        scale_y = screen_height / 540.0
+
+        def scaled_roi(reference: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
+            x1, y1, x2, y2 = reference
+            return (
+                max(0, int(round(x1 * scale_x))),
+                max(0, int(round(y1 * scale_y))),
+                min(screen_width, int(round(x2 * scale_x))),
+                min(screen_height, int(round(y2 * scale_y))),
+            )
+
+        # Restrict matching to the real areas where each control exists. This both
+        # speeds matching and prevents "99/100" from accidentally matching the x10
+        # paid button on the right side.
+        entry_roi = scaled_roi((180, 35, 900, 195))
+        que_tab_roi = scaled_roi((20, 95, 235, 225))
+        diem_tab_roi = scaled_roi((20, 175, 235, 315))
+        left_action_roi = scaled_roi((235, 345, 540, 510))
+        reward_roi = scaled_roi((170, 35, 810, 210))
+        close_roi = scaled_roi((800, 0, 950, 95))
+
+        # If the emulator resolution ever changes proportionally, allow a narrow
+        # multi-scale search around that ratio. At the normal 960x540 resolution
+        # this stays exactly (1.0,) for speed and maximum precision.
+        ui_scale = min(scale_x, scale_y)
+        if 0.985 <= ui_scale <= 1.015:
+            match_scales = (1.0,)
+        else:
+            match_scales = tuple(
+                scale for scale in (
+                    max(0.50, ui_scale * 0.96),
+                    max(0.50, ui_scale),
+                    max(0.50, ui_scale * 1.04),
+                )
+                if scale > 0
+            )
+
+        def read_runtime() -> tuple[dict[str, Any], dict[str, Any]]:
+            raw = json.loads(runtime_file.read_text(encoding="utf-8"))
+            for row in raw.get("accounts", []):
+                if str(row.get("id")) == account_id:
+                    task = row.setdefault("tasks", {}).setdefault(
+                        "tam_quoc_lenh",
+                        {
+                            "status": "NOT_STARTED",
+                            "que_boi": "NOT_STARTED",
+                            "diem_binh": "NOT_STARTED",
+                            "rewards": [],
+                            "error": None,
+                        },
+                    )
+                    task.setdefault("rewards", [])
+                    task.setdefault("que_boi", "NOT_STARTED")
+                    task.setdefault("diem_binh", "NOT_STARTED")
+                    task.setdefault("error", None)
+                    return raw, task
+
+            raise KeyError(f"Runtime account not found: {account_id}")
+
+        def save_runtime(raw: dict[str, Any]) -> None:
+            temporary = runtime_file.with_suffix(runtime_file.suffix + ".tmp")
+            temporary.write_text(
+                json.dumps(raw, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            temporary.replace(runtime_file)
+
+        def capture_frame():
+            capture = getattr(context.vision, "capture", None)
+            if not callable(capture):
+                return None
+            try:
+                return capture(force=True)
+            except TypeError:
+                try:
+                    return capture()
+                except Exception:
+                    return None
+            except Exception:
+                return None
+
+        def find_best(
+            paths: str | tuple[str, ...] | list[str],
+            *,
+            roi: tuple[int, int, int, int] | None = None,
+            score: float = threshold,
+        ):
+            if isinstance(paths, str):
+                candidates = (paths,)
+            else:
+                candidates = tuple(paths)
+
+            frame = capture_frame()
+            best_path = None
+            best_match = None
+
+            for template_path in candidates:
+                kwargs = {
+                    "threshold": score,
+                    "roi": roi,
+                    "scales": match_scales,
+                }
+                if frame is not None:
+                    kwargs["frame"] = frame
+                    kwargs["refresh"] = False
+                else:
+                    kwargs["refresh"] = True
+
+                found = context.vision.find_template(template_path, **kwargs)
+                if found is None:
+                    continue
+
+                if (
+                    best_match is None
+                    or float(getattr(found, "confidence", 1.0))
+                    > float(getattr(best_match, "confidence", 1.0))
+                ):
+                    best_path = template_path
+                    best_match = found
+
+            if best_match is None:
+                return None
+            return best_path, best_match
+
+        def probe_best_confidence(
+            paths: str | tuple[str, ...] | list[str],
+            *,
+            roi: tuple[int, int, int, int] | None = None,
+        ) -> tuple[str | None, float | None]:
+            """
+            Diagnostic only: find the best current score even below the normal
+            threshold. This never causes a tap.
+            """
+            try:
+                result = find_best(paths, roi=roi, score=0.0)
+            except Exception:
+                return None, None
+
+            if result is None:
+                return None, None
+
+            template_path, found = result
+            return template_path, float(getattr(found, "confidence", 0.0))
+
+        def wait_best(
+            paths: str | tuple[str, ...] | list[str],
+            *,
+            roi: tuple[int, int, int, int] | None = None,
+            score: float = threshold,
+            wait_timeout: float = state_timeout,
+            label: str = "template",
+        ):
+            deadline = time.monotonic() + max(0.0, float(wait_timeout))
+
+            while True:
+                if _stop_requested(context):
+                    raise ActionStopRequested("Stop requested")
+
+                result = find_best(paths, roi=roi, score=score)
+                if result is not None:
+                    return result
+
+                if time.monotonic() >= deadline:
+                    template_path, confidence = probe_best_confidence(paths, roi=roi)
+                    if confidence is None:
+                        LOGGER.warning(
+                            "%s not verified: no usable match candidate | threshold=%.3f roi=%s",
+                            label,
+                            score,
+                            roi,
+                        )
+                    else:
+                        LOGGER.warning(
+                            "%s not verified: best=%s confidence=%.4f threshold=%.3f roi=%s",
+                            label,
+                            template_path,
+                            confidence,
+                            score,
+                            roi,
+                        )
+                    return None
+
+                _wait_interruptibly(context, interval)
+
+        def wait_absent(
+            path: str,
+            *,
+            roi: tuple[int, int, int, int] | None = None,
+            score: float = threshold,
+            wait_timeout: float = state_timeout,
+        ) -> bool:
+            deadline = time.monotonic() + max(0.0, float(wait_timeout))
+
+            while True:
+                if _stop_requested(context):
+                    raise ActionStopRequested("Stop requested")
+
+                if find_best(path, roi=roi, score=score) is None:
+                    return True
+
+                if time.monotonic() >= deadline:
+                    return False
+
+                _wait_interruptibly(context, interval)
+
+        def tap_match(found) -> None:
+            context.device.tap(*found.center)
+            _wait_interruptibly(context, interval)
+
+        def reward_overlay_visible() -> bool:
+            return (
+                find_best(
+                    reward_banner,
+                    roi=reward_roi,
+                    score=reward_threshold,
+                )
+                is not None
+            )
+
+        def dismiss_reward_overlay(wait_timeout: float = state_timeout) -> bool:
+            """
+            Reward popup explicitly says "Ấn vào chỗ trống để thoát".
+            Detect it by the unique reward banner, tap a safe lower blank area,
+            then prove the banner disappeared.
+            """
+            reward = find_best(
+                reward_banner,
+                roi=reward_roi,
+                score=reward_threshold,
+            )
+            if reward is None:
+                return False
+
+            LOGGER.info(
+                "Tam Quốc Lệnh reward popup detected: confidence=%.4f",
+                float(getattr(reward[1], "confidence", 0.0)),
+            )
+
+            # 960x540 reference -> approximately (480, 475).
+            safe_x = int(round(screen_width * 0.50))
+            safe_y = int(round(screen_height * 0.88))
+            context.device.tap(safe_x, safe_y)
+            _wait_interruptibly(context, interval)
+
+            if not wait_absent(
+                reward_banner,
+                roi=reward_roi,
+                score=reward_threshold,
+                wait_timeout=wait_timeout,
+            ):
+                raise RuntimeError(
+                    "Tam Quốc Lệnh reward popup did not close after blank-area tap"
+                )
+
+            return True
+
+        def module_is_open() -> bool:
+            close_found = find_best(
+                module_close,
+                roi=close_roi,
+                score=close_threshold,
+            )
+            if close_found is None:
+                return False
+
+            tab_found = find_best(
+                all_module_tabs,
+                roi=scaled_roi((20, 95, 235, 315)),
+                score=tab_threshold,
+            )
+            return tab_found is not None
+
+        def ensure_module_open() -> None:
+            # Resume cleanly if the previous run was interrupted on a reward popup.
+            if reward_overlay_visible():
+                dismiss_reward_overlay()
+
+            if module_is_open():
+                LOGGER.info("Tam Quốc Lệnh module already open; resuming current account")
+                return
+
+            entry = wait_best(
+                entry_templates,
+                roi=entry_roi,
+                score=entry_threshold,
+                wait_timeout=open_timeout,
+                label="Tam Quốc Lệnh HOME entry",
+            )
+            if entry is None:
+                raise RuntimeError(
+                    "Tam Quốc Lệnh entry not verified on HOME "
+                    f"(threshold={entry_threshold:.3f}, roi={entry_roi})"
+                )
+
+            entry_path, entry_match = entry
+            LOGGER.info(
+                "Tam Quốc Lệnh entry detected: template=%s confidence=%.4f center=%s",
+                entry_path,
+                float(getattr(entry_match, "confidence", 0.0)),
+                entry_match.center,
+            )
+            tap_match(entry_match)
+
+            close_ready = wait_best(
+                module_close,
+                roi=close_roi,
+                score=close_threshold,
+                wait_timeout=open_timeout,
+                label="Tam Quốc Lệnh close button after opening",
+            )
+            tabs_ready = wait_best(
+                all_module_tabs,
+                roi=scaled_roi((20, 95, 235, 315)),
+                score=tab_threshold,
+                wait_timeout=open_timeout,
+                label="Tam Quốc Lệnh left tabs after opening",
+            )
+            if close_ready is None or tabs_ready is None:
+                raise RuntimeError(
+                    "Tam Quốc Lệnh window did not finish opening "
+                    f"within {open_timeout:.1f}s"
+                )
+
+        def run_branch(
+            *,
+            key: str,
+            tab_templates: tuple[str, ...],
+            tab_roi: tuple[int, int, int, int],
+            free_templates: tuple[str, ...],
+            paid_templates: tuple[str, ...],
+            reward_name: str,
+        ) -> None:
+            if task.get(key) == "DONE":
+                LOGGER.info("Tam Quốc Lệnh %s already DONE in runtime; skipping", key)
+                return
+
+            # Clean up an interrupted reward popup before changing tabs.
+            if reward_overlay_visible():
+                dismiss_reward_overlay()
+
+            tab = wait_best(
+                tab_templates,
+                roi=tab_roi,
+                score=tab_threshold,
+                wait_timeout=state_timeout,
+                label=f"{key} tab",
+            )
+            if tab is None:
+                raise RuntimeError(
+                    f"{key} tab not verified "
+                    f"(threshold={tab_threshold:.3f}, roi={tab_roi})"
+                )
+
+            tab_path, tab_match = tab
+            LOGGER.info(
+                "Tam Quốc Lệnh %s tab detected: template=%s confidence=%.4f center=%s",
+                key,
+                tab_path,
+                float(getattr(tab_match, "confidence", 0.0)),
+                tab_match.center,
+            )
+
+            # It is safe to tap the branch tab even if that tab is already active.
+            tap_match(tab_match)
+
+            # Wait until this branch exposes either the free daily button or the
+            # paid/used button. This is the actual proof that the branch finished
+            # loading; it avoids the old race where one screenshot was taken too soon.
+            state = wait_best(
+                free_templates + paid_templates,
+                roi=left_action_roi,
+                score=threshold,
+                wait_timeout=state_timeout,
+                label=f"{key} action state",
+            )
+            if state is None:
+                raise RuntimeError(
+                    f"{key} action state not verified "
+                    f"(free/paid control missing, threshold={threshold:.3f})"
+                )
+
+            state_path, state_match = state
+
+            if state_path in paid_templates:
+                # Already completed earlier today (or by a previous interrupted run).
+                task[key] = "DONE"
+                task["status"] = "PARTIAL"
+                if reward_name not in task["rewards"]:
+                    task["rewards"].append(reward_name)
+                save_runtime(raw)
+                LOGGER.info(
+                    "Tam Quốc Lệnh %s already completed: paid/used control=%s confidence=%.4f",
+                    key,
+                    state_path,
+                    float(getattr(state_match, "confidence", 0.0)),
+                )
+                return
+
+            # Free daily action is available.
+            LOGGER.info(
+                "Tam Quốc Lệnh %s free action detected: template=%s confidence=%.4f center=%s",
+                key,
+                state_path,
+                float(getattr(state_match, "confidence", 0.0)),
+                state_match.center,
+            )
+            tap_match(state_match)
+
+            # After the free tap, valid transitions are:
+            # 1) reward popup appears -> dismiss it;
+            # 2) paid/used state appears directly (server/UI skipped popup).
+            deadline = time.monotonic() + timeout
+            reward_seen = False
+            paid_after = None
+
+            while time.monotonic() <= deadline:
+                if _stop_requested(context):
+                    raise ActionStopRequested("Stop requested")
+
+                reward = find_best(
+                    reward_banner,
+                    roi=reward_roi,
+                    score=reward_threshold,
+                )
+                if reward is not None:
+                    reward_seen = True
+                    dismiss_reward_overlay(wait_timeout=state_timeout)
+                    break
+
+                paid_after = find_best(
+                    paid_templates,
+                    roi=left_action_roi,
+                    score=threshold,
+                )
+                if paid_after is not None:
+                    break
+
+                _wait_interruptibly(context, interval)
+
+            if paid_after is None:
+                paid_after = wait_best(
+                    paid_templates,
+                    roi=left_action_roi,
+                    score=threshold,
+                    wait_timeout=state_timeout,
+                    label=f"{key} paid/used postcondition",
+                )
+
+            if paid_after is None:
+                raise RuntimeError(
+                    f"{key} free action postcondition not verified "
+                    "(paid/used control did not appear)"
+                )
+
+            task[key] = "DONE"
+            task["status"] = "PARTIAL"
+
+            # If we initiated the free action in this run, the reward is known even
+            # when the popup is skipped by the server/UI.
+            if reward_name not in task["rewards"]:
+                task["rewards"].append(reward_name)
+
+            save_runtime(raw)
+            LOGGER.info(
+                "Tam Quốc Lệnh %s completed%s",
+                key,
+                " with reward popup" if reward_seen else "",
+            )
+
+        raw, task = read_runtime()
+
+        if task.get("status") == "DONE":
+            return ActionResult(
+                True,
+                "tam_quoc_lenh",
+                "Already completed today",
+                dict(task),
+            )
+
+        task["status"] = "IN_PROGRESS"
+        task["error"] = None
+        save_runtime(raw)
+
+        try:
+            ensure_module_open()
+
+            run_branch(
+                key="que_boi",
+                tab_templates=que_tabs,
+                tab_roi=que_tab_roi,
+                free_templates=que_free,
+                paid_templates=que_paid,
+                reward_name="5 Quẻ lành",
+            )
+
+            run_branch(
+                key="diem_binh",
+                tab_templates=diem_tabs,
+                tab_roi=diem_tab_roi,
+                free_templates=diem_free,
+                paid_templates=diem_paid,
+                reward_name="20 Nguyên linh ngọc",
+            )
+
+            # Defensive cleanup in case a slow reward popup arrived after the
+            # paid-state transition was already observed.
+            if reward_overlay_visible():
+                dismiss_reward_overlay()
+
+            # If the module somehow already closed, accepting verified HOME is safe.
+            current_home = find_best(home, score=home_threshold)
+            current_close = find_best(
+                module_close,
+                roi=close_roi,
+                score=close_threshold,
+            )
+
+            if current_close is not None:
+                _, close_match = current_close
+                LOGGER.info(
+                    "Tam Quốc Lệnh close button detected: confidence=%.4f center=%s",
+                    float(getattr(close_match, "confidence", 0.0)),
+                    close_match.center,
+                )
+                tap_match(close_match)
+            elif current_home is None:
+                raise RuntimeError(
+                    "Tam Quốc Lệnh close button not verified and HOME not visible"
+                )
+
+            # Require stable HOME twice. This proves the module actually closed and
+            # prevents the account manager from continuing while an overlay remains.
+            stable_home = 0
+            deadline = time.monotonic() + timeout
+
+            while time.monotonic() <= deadline:
+                if _stop_requested(context):
+                    raise ActionStopRequested("Stop requested")
+
+                close_still_visible = (
+                    find_best(
+                        module_close,
+                        roi=close_roi,
+                        score=close_threshold,
+                    )
+                    is not None
+                )
+                home_visible = find_best(home, score=home_threshold) is not None
+
+                if home_visible and not close_still_visible:
+                    stable_home += 1
+                    if stable_home >= 2:
+                        task["status"] = "DONE"
+                        task["error"] = None
+                        save_runtime(raw)
+
+                        return ActionResult(
+                            True,
+                            "tam_quoc_lenh",
+                            "Completed and returned to stable HOME",
+                            dict(task),
+                        )
+                else:
+                    stable_home = 0
+
+                _wait_interruptibly(context, interval)
+
+            raise RuntimeError(
+                "Tam Quốc Lệnh did not return to stable HOME after closing"
+            )
+
+        except ActionStopRequested:
+            done = sum(
+                task.get(key) == "DONE"
+                for key in ("que_boi", "diem_binh")
+            )
+            task["status"] = "PARTIAL" if done else "NOT_STARTED"
+            task["error"] = "Stop requested"
+            save_runtime(raw)
+            raise
+
+        except Exception as exc:
+            done = sum(
+                task.get(key) == "DONE"
+                for key in ("que_boi", "diem_binh")
+            )
+            task["status"] = "PARTIAL" if done else "FAILED"
+            task["error"] = str(exc)
+            save_runtime(raw)
+
+            return ActionResult(
+                False,
+                "tam_quoc_lenh",
+                str(exc),
+                dict(task),
+            )
 
     @staticmethod
     def _reset_day_logout(context: ActionContext, params: dict[str, Any]) -> ActionResult:
@@ -545,7 +1273,7 @@ class ActionRegistry:
         seconds = float(params.get("seconds", params.get("duration", params.get("value", 1.0))))
         if seconds < 0:
             raise ValueError("sleep duration cannot be negative")
-        time.sleep(seconds)
+        _wait_interruptibly(context, seconds)
         return ActionResult(True, "sleep", data={"seconds": seconds})
 
     @staticmethod
@@ -579,6 +1307,8 @@ class ActionRegistry:
         match = None
 
         while True:
+            if _stop_requested(context):
+                raise ActionStopRequested("Stop requested")
             match = context.vision.find_template(
                 template,
                 threshold=params.get("threshold"),

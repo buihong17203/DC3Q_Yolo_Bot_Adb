@@ -1,0 +1,21 @@
+name: dc3q_tam_quoc_lenh
+
+steps:
+  - action: tam_quoc_lenh
+    account_id: "${account.id}"
+    runtime_file: "data/accounts/account_runtime.json"
+
+    # Ngưỡng riêng cho từng nhóm ảnh để tránh false-positive nhưng vẫn chịu được
+    # biến thiên icon/event theo account.
+    threshold: 0.92
+    entry_threshold: 0.88
+    tab_threshold: 0.90
+    reward_threshold: 0.90
+    close_threshold: 0.90
+    home_threshold: 0.75
+
+    # Không kiểm tra một frame duy nhất: chờ UI/animation hoàn tất.
+    open_timeout: 12
+    state_timeout: 10
+    timeout: 30
+    interval: 0.5

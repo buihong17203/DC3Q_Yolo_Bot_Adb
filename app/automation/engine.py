@@ -11,7 +11,7 @@ from typing import Any, Mapping
 from app.core.config import settings
 from app.core.game_day import GameDayRollover
 
-from .actions import ActionRegistry, ActionResult
+from .actions import ActionRegistry, ActionResult, ActionStopRequested
 from .conditions import ConditionRegistry, ConditionResult
 from .recovery import RecoveryManager
 from .state_machine import StateMachine, StateMachineResult
@@ -38,6 +38,7 @@ class AutomationContext:
     step_index: int = -1
     last_action: ActionResult | None = None
     last_condition: ConditionResult | None = None
+    stop_event: threading.Event | None = None
 
 
 @dataclass(slots=True)
@@ -83,6 +84,10 @@ class AutomationEngine:
 
     def reset_stop(self) -> None:
         self._stop_event.clear()
+
+    def _wait_or_stopped(self, seconds: float) -> bool:
+        """Wait interruptibly; return True when a stop was requested."""
+        return self._stop_event.wait(max(0.0, float(seconds)))
 
     @staticmethod
     def load_scenario(path: str | Path) -> dict[str, Any]:
@@ -130,6 +135,7 @@ class AutomationEngine:
             account=account,
             variables=merged,
             current_scenario=scenario_name,
+            stop_event=self._stop_event,
         )
 
     def execute_action(self, context: AutomationContext, spec: Any) -> ActionResult:
@@ -178,7 +184,8 @@ class AutomationEngine:
                 return True
             if time.monotonic() >= deadline:
                 return False
-            time.sleep(sleep_interval)
+            if self._wait_or_stopped(sleep_interval):
+                return False
         return False
 
     def configure_recovery(self, config: Any) -> None:
@@ -215,12 +222,14 @@ class AutomationEngine:
             try:
                 result = self.execute_action(context, step_copy)
                 if result.success:
-                    if delay_after:
-                        time.sleep(delay_after)
+                    if delay_after and self._wait_or_stopped(delay_after):
+                        return False
                     return True
                 last_error = result.message or f"Action failed: {result.action}"
             except GameDayRollover:
                 raise
+            except ActionStopRequested:
+                return False
             except Exception as exc:
                 last_error = exc
                 LOGGER.exception("Automation action failed on attempt %d/%d", attempt + 1, retry + 1)
@@ -229,14 +238,16 @@ class AutomationEngine:
                 try:
                     result = self.execute_action(context, step_copy)
                     if result.success:
-                        if delay_after:
-                            time.sleep(delay_after)
+                        if delay_after and self._wait_or_stopped(delay_after):
+                            return False
                         return True
+                except ActionStopRequested:
+                    return False
                 except Exception as exc:
                     last_error = exc
 
-            if attempt < retry:
-                time.sleep(retry_delay)
+            if attempt < retry and self._wait_or_stopped(retry_delay):
+                return False
 
         if continue_on_error:
             LOGGER.warning("Continuing after failed step: %s", last_error)
@@ -296,7 +307,11 @@ class AutomationEngine:
             child = self.load_scenario(scenario_path)
             if self.run_steps(context, list(child.get("steps", []) or [])):
                 return True
-            detail = context.last_action.message if context.last_action else "unknown child step"
+            detail = (
+                context.last_action.message
+                if context.last_action is not None
+                else "unknown child step"
+            )
             LOGGER.error("Child scenario failed: %s | %s", scenario_path.name, detail)
             return False
 
@@ -370,12 +385,22 @@ class AutomationEngine:
                 success = self.run_steps(context, steps)
                 completed = context.step_index + 1 if context.step_index >= 0 else 0
                 if not success:
+                    if self.stopped:
+                        return AutomationRunResult(
+                            False, name, time.monotonic() - started, completed,
+                            final_state=context.state, error="Stopped by request",
+                        )
                     raise StepExecutionError("Scenario steps did not complete successfully")
 
             state_machine_config = data.get("state_machine")
             if state_machine_config:
                 sm_result = self.run_state_machine(context, state_machine_config)
                 if not sm_result.success:
+                    if self.stopped:
+                        return AutomationRunResult(
+                            False, name, time.monotonic() - started, completed,
+                            final_state=context.state, error="Stopped by request",
+                        )
                     raise StepExecutionError(sm_result.message or "State machine failed")
 
             return AutomationRunResult(
