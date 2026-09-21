@@ -1,0 +1,80 @@
+# Mẫu luồng: login -> task -> logout -> worker tự lấy account tiếp theo.
+# Thay package, tọa độ và tên ảnh template theo game/app thực tế.
+name: account_login_task_logout
+
+variables:
+  package: "com.example.game"
+
+recovery:
+  rules:
+    - name: close_common_popup
+      priority: 100
+      max_attempts: 5
+      cooldown: 1.0
+      when:
+        condition: template_exists
+        template: common/close_popup.png
+        threshold: 0.80
+      actions:
+        - action: tap_template
+          template: common/close_popup.png
+          threshold: 0.80
+
+steps:
+  - action: start_app
+    package: "${package}"
+  - action: sleep
+    seconds: 2
+
+  # LOGIN
+  - action: tap_template
+    template: login/username_box.png
+    threshold: 0.80
+    timeout: 10
+  - action: input_text
+    text: "${account.username}"
+  - action: tap_template
+    template: login/password_box.png
+    threshold: 0.80
+    timeout: 10
+  - action: input_text
+    text: "${account.password}"
+  - action: tap_template
+    template: login/login_button.png
+    threshold: 0.80
+    timeout: 10
+
+  - wait_until:
+      condition:
+        condition: template_exists
+        template: home/home_marker.png
+        threshold: 0.80
+      timeout: 30
+      interval: 0.5
+
+  # TASK - thay bằng nhiệm vụ thật của bạn.
+  - action: tap_template
+    template: task/task_button.png
+    threshold: 0.80
+    timeout: 10
+    retry: 2
+    retry_delay: 1
+  - action: sleep
+    seconds: 1
+
+  # LOGOUT
+  - action: tap_template
+    template: menu/settings_button.png
+    threshold: 0.80
+    timeout: 10
+  - action: tap_template
+    template: menu/logout_button.png
+    threshold: 0.80
+    timeout: 10
+  - wait_until:
+      condition:
+        condition: template_exists
+        template: login/login_button.png
+        threshold: 0.80
+      timeout: 20
+      interval: 0.5

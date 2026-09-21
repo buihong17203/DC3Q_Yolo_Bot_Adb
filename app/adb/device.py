@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import time
 from pathlib import Path
+from typing import Callable
 
 from app.adb.client import (
     ADBClient,
@@ -44,6 +45,14 @@ class ADBDevice:
             if client is not None
             else ADBClient()
         )
+        self._action_guard: Callable[[], None] | None = None
+
+    def set_action_guard(self, guard: Callable[[], None] | None) -> None:
+        self._action_guard = guard
+
+    def _guard_action(self) -> None:
+        if self._action_guard is not None:
+            self._action_guard()
 
     def __repr__(self) -> str:
         return (
@@ -109,6 +118,7 @@ class ADBDevice:
         y: int,
     ) -> None:
 
+        self._guard_action()
         logger.debug(
             "[%s] tap (%d, %d)",
             self.serial,
@@ -132,6 +142,7 @@ class ADBDevice:
         duration_ms: int = 300,
     ) -> None:
 
+        self._guard_action()
         logger.debug(
             "[%s] swipe (%d,%d) -> (%d,%d), %dms",
             self.serial,
@@ -176,6 +187,7 @@ class ADBDevice:
         keycode: int | str,
     ) -> None:
 
+        self._guard_action()
         self.shell(
             "input",
             "keyevent",
@@ -265,6 +277,7 @@ class ADBDevice:
         text: str,
     ) -> None:
 
+        self._guard_action()
         encoded = self._escape_input_text(
             text
         )
@@ -274,6 +287,14 @@ class ADBDevice:
             "text",
             encoded,
         )
+
+    def clear_text(self, max_characters: int = 128) -> None:
+        """Clear the focused field without reading or logging its value."""
+        limit = int(max_characters)
+        if limit <= 0 or limit > 512:
+            raise ValueError("max_characters must be between 1 and 512")
+        self.keyevent("KEYCODE_MOVE_END")
+        self.shell("input", "keyevent", *(["KEYCODE_DEL"] * limit))
 
     # ========================================================
     # SCREENSHOT
@@ -289,6 +310,7 @@ class ADBDevice:
         tầng ADB và tầng Vision.
         """
 
+        self._guard_action()
         data = self.client.exec_out(
             "screencap",
             "-p",
@@ -425,6 +447,7 @@ class ADBDevice:
             dùng monkey để launch main activity.
         """
 
+        self._guard_action()
         if activity:
 
             component = (
@@ -454,6 +477,7 @@ class ADBDevice:
         package_name: str,
     ) -> None:
 
+        self._guard_action()
         self.shell(
             "am",
             "force-stop",
@@ -505,6 +529,7 @@ class ADBDevice:
         self,
     ) -> str | None:
 
+        self._guard_action()
         output = self.shell(
             "dumpsys",
             "window",

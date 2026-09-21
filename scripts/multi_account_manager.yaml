@@ -1,0 +1,12 @@
+name: dc3q_multi_account_manager
+
+variables:
+  package: "com.daichien.mobile"
+  threshold: 0.80
+
+steps:
+  - run_scenario: "auth/login.yaml"
+  # Nhiệm vụ tài khoản sẽ được chèn tại đây.
+  - run_scenario: "auth/logout.yaml"
+  - action: log
+    message: "Hoàn thành account-${account.id}; worker lấy account tiếp theo"

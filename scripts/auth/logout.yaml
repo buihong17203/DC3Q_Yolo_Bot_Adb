@@ -1,0 +1,7 @@
+name: dc3q_logout
+
+steps:
+  - action: logout_account
+    timeout: 30
+    interval: 0.5
+    threshold: 0.75

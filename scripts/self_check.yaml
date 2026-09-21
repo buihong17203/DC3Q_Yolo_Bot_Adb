@@ -1,0 +1,8 @@
+name: self_check
+variables:
+  message: "DC3Q automation engine is running"
+steps:
+  - action: log
+    message: "${message}"
+  - action: sleep
+    seconds: 0.1

@@ -4,7 +4,7 @@
 
 app:
   name: "DC3Q_YOLO_BOT_ADB"
-  version: "0.1.0"
+  version: "0.1.1"
 
   # Môi trường chạy: development / production
   environment: "development"
@@ -296,8 +296,15 @@ recovery:
 
 # Cấu hình quản lý tài khoản
 accounts:
-  # File chứa danh sách tài khoản
-  source_file: "data/accounts/accounts.xlsx"
+  # File credential gốc; không ghi trạng thái chạy vào đây
+  source_file: "data/accounts/accounts.json"
+
+  # Trạng thái theo ngày game, không chứa username/password
+  runtime_file: "data/accounts/account_runtime.json"
+  archive_dir: "data/accounts/history"
+
+  # Game reset ngày mới lúc 23:00 theo giờ máy
+  reset_hour: 23
 
   # Cho phép nhiều worker sử dụng tài khoản khác nhau cùng lúc
   concurrent_usage: true

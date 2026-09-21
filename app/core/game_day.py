@@ -1,0 +1,189 @@
+from __future__ import annotations
+
+import json
+import shutil
+import threading
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Iterable
+
+
+class GameDayRollover(RuntimeError):
+    """Raised before a physical action crosses the 23:00 game-day boundary."""
+
+
+@dataclass(frozen=True, slots=True)
+class GameDayClock:
+    reset_hour: int = 23
+
+    def __post_init__(self) -> None:
+        if not 0 <= self.reset_hour <= 23:
+            raise ValueError("reset_hour must be between 0 and 23")
+
+    def key(self, now: datetime | None = None) -> str:
+        current = now or datetime.now().astimezone().replace(tzinfo=None)
+        if current.hour >= self.reset_hour:
+            current += timedelta(days=1)
+        return current.date().isoformat()
+
+    def seconds_until_next_reset(self, now: datetime | None = None) -> float:
+        current = now or datetime.now().astimezone().replace(tzinfo=None)
+        boundary = current.replace(hour=self.reset_hour, minute=0, second=0, microsecond=0)
+        if current >= boundary:
+            boundary += timedelta(days=1)
+        return max(0.0, (boundary - current).total_seconds())
+
+
+class DailyRuntimeStore:
+    """Credential-free daily account state with immutable per-day archives."""
+
+    def __init__(self, path: str | Path, archive_dir: str | Path, *, clock: GameDayClock | None = None) -> None:
+        self.path = Path(path)
+        self.archive_dir = Path(archive_dir)
+        self.clock = clock or GameDayClock()
+        self._lock = threading.RLock()
+
+    @staticmethod
+    def _record(account: Any) -> dict[str, Any]:
+        status = getattr(account, "status", "READY")
+        status_value = getattr(status, "value", status)
+        return {
+            "id": str(account.id),
+            "status": str(status_value),
+            "attempts": int(getattr(account, "attempts", 0) or 0),
+            "assigned_device": getattr(account, "assigned_worker", None),
+            "current_task": None,
+            "last_run": None,
+            "error_message": getattr(account, "last_error", None),
+        }
+
+    def _read(self) -> dict[str, Any] | list[Any] | None:
+        if not self.path.is_file():
+            return None
+        with self.path.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+
+    @staticmethod
+    def _write_json(path: Path, data: Any) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_suffix(path.suffix + ".tmp")
+        with temporary.open("w", encoding="utf-8") as handle:
+            json.dump(data, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+        temporary.replace(path)
+
+    def _document(self, accounts: Iterable[Any], game_day: str, events: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        return {
+            "game_day": game_day,
+            "reset_hour": self.clock.reset_hour,
+            "updated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "accounts": [self._record(account) for account in accounts],
+            "events": list(events or []),
+        }
+
+    def initialize(self, accounts: list[Any], *, now: datetime | None = None) -> bool:
+        """Load today's state; archive/reset stale state. Returns True on rollover."""
+        with self._lock:
+            current_key = self.clock.key(now)
+            raw = self._read()
+            if isinstance(raw, dict) and raw.get("game_day") == current_key:
+                self._apply(accounts, raw.get("accounts", []))
+                return False
+            if isinstance(raw, dict) and raw.get("game_day"):
+                self._archive(raw)
+                self._reset_accounts(accounts)
+                self._write_json(self.path, self._document(accounts, current_key))
+                return True
+            # The legacy list was never connected to the active queue and may be stale.
+            # Preserve current source progress once, then runtime becomes authoritative.
+            self._write_json(self.path, self._document(accounts, current_key))
+            return False
+
+    def save(self, accounts: Iterable[Any]) -> None:
+        with self._lock:
+            raw = self._read()
+            events = raw.get("events", []) if isinstance(raw, dict) else []
+            # Only rollover() may advance game_day. A status write at exactly
+            # 23:00 must not relabel old-day data before it is archived.
+            game_day = str(raw.get("game_day")) if isinstance(raw, dict) and raw.get("game_day") else self.clock.key()
+            self._write_json(self.path, self._document(accounts, game_day, events))
+
+    def rollover(self, accounts: list[Any], *, now: datetime | None = None) -> bool:
+        with self._lock:
+            new_key = self.clock.key(now)
+            raw = self._read()
+            if isinstance(raw, dict) and raw.get("game_day") == new_key:
+                self._apply(accounts, raw.get("accounts", []))
+                return False
+            if isinstance(raw, dict) and raw.get("game_day"):
+                self._archive(raw)
+            self._reset_accounts(accounts)
+            self._write_json(self.path, self._document(accounts, new_key))
+            return True
+
+    def record_event(self, account_id: str, event_type: str, *, items: list[str] | None = None) -> None:
+        with self._lock:
+            raw = self._read()
+            if not isinstance(raw, dict):
+                return
+            raw.setdefault("events", []).append({
+                "at": datetime.now().astimezone().isoformat(timespec="seconds"),
+                "account_id": str(account_id),
+                "type": str(event_type),
+                "items": list(items or []),
+            })
+            raw["updated_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
+            self._write_json(self.path, raw)
+
+    @staticmethod
+    def _apply(accounts: list[Any], records: Iterable[Any]) -> None:
+        by_id = {str(row.get("id")): row for row in records if isinstance(row, dict)}
+        for account in accounts:
+            row = by_id.get(str(account.id))
+            if row is None:
+                continue
+            status_type = type(account.status)
+            normalize = getattr(status_type, "normalize", None)
+            account.status = normalize(row.get("status")) if callable(normalize) else row.get("status", account.status)
+            account.attempts = max(0, int(row.get("attempts", 0) or 0))
+            account.assigned_worker = row.get("assigned_device") or None
+            account.last_error = row.get("error_message") or None
+
+    @staticmethod
+    def _reset_accounts(accounts: Iterable[Any]) -> None:
+        for account in accounts:
+            status_type = type(account.status)
+            disabled = getattr(status_type, "DISABLED", "DISABLED")
+            ready = getattr(status_type, "READY", "READY")
+            if account.status != disabled:
+                account.status = ready
+            account.attempts = 0
+            account.assigned_worker = None
+            account.last_error = None
+
+    def _archive(self, raw: dict[str, Any]) -> None:
+        game_day = str(raw["game_day"])
+        target = self.archive_dir / game_day
+        target.mkdir(parents=True, exist_ok=True)
+        self._write_json(target / "account_runtime.json", raw)
+        accounts = [row for row in raw.get("accounts", []) if isinstance(row, dict)]
+        events = [row for row in raw.get("events", []) if isinstance(row, dict)]
+        counts: dict[str, int] = {}
+        for row in accounts:
+            status = str(row.get("status", "UNKNOWN"))
+            counts[status] = counts.get(status, 0) + 1
+        known_items = [item for event in events for item in event.get("items", []) if item]
+        lines = [
+            f"# Tổng kết ngày game {game_day}",
+            "",
+            f"- Tổng tài khoản: {len(accounts)}",
+            *[f"- {status}: {count}" for status, count in sorted(counts.items())],
+            f"- Sự kiện đã ghi nhận: {len(events)}",
+            f"- Vật phẩm xác định được: {len(known_items)}",
+        ]
+        if known_items:
+            lines.extend(["", "## Vật phẩm", *[f"- {item}" for item in known_items]])
+        else:
+            lines.extend(["", "Chưa có dữ liệu OCR/định danh vật phẩm đủ tin cậy; không suy đoán."])
+        (target / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")

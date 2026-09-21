@@ -1,0 +1,8 @@
+# DC3Q YOLOv8 Detection Classes
+names:
+  0: monster
+  1: reward
+  2: npc
+  3: button
+  4: item
+  5: popup_close

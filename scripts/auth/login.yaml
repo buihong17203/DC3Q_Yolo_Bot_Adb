@@ -1,0 +1,21 @@
+name: dc3q_login
+
+steps:
+  - action: ensure_login_screen
+    package: "${package}"
+    activity: "com.qtz.game.main.Logo"
+    timeout: 120
+    interval: 1.0
+  - action: login_credentials
+    username: "${account.username}"
+    password: "${account.password}"
+    timeout: 120
+    interval: 1.0
+  - action: handle_random_server_events
+    timeout: 30
+    interval: 0.5
+    quiet_frames: 2
+  - action: finish_login
+    timeout: 180
+    interval: 1.0
+    stable_frames: 3
