@@ -1,0 +1,14 @@
+name: dc3q_cua_hang
+
+steps:
+  - action: cua_hang
+    account_id: "${account.id}"
+    runtime_file: "data/accounts/account_runtime.json"
+    package: "com.daichien.mobile"
+    required: true
+    threshold: 0.82
+    state_threshold: 0.82
+    entry_threshold: 0.80
+    timeout: 20
+    entry_timeout: 15
+    interval: 0.5

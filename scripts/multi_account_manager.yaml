@@ -33,14 +33,23 @@ steps:
   - run_scenario: "tasks/tam_quoc_lenh.yaml"
 
   # 2) Hoạt động -> Phúc lợi
-  # Điểm danh là task con của Phúc lợi, không phải bước workflow riêng.
+  # Phúc lợi tự mở Hoạt động, xử lý Điểm danh/Trưng thu thuế và xác nhận HOME.
   - action: set_workflow_step
     account_id: "${account.id}"
     runtime_file: "data/accounts/account_runtime.json"
     step: "PHUC_LOI"
   - run_scenario: "tasks/phuc_loi.yaml"
+    continue_on_error: false
 
-  # 3) Đăng xuất
+  # 3) Cửa hàng — chỉ chạy sau khi Phúc lợi đã thành công và đã về HOME.
+  - action: set_workflow_step
+    account_id: "${account.id}"
+    runtime_file: "data/accounts/account_runtime.json"
+    step: "CUA_HANG"
+  - run_scenario: "tasks/cua_hang.yaml"
+    continue_on_error: false
+
+  # 4) Đăng xuất
   - action: set_workflow_step
     account_id: "${account.id}"
     runtime_file: "data/accounts/account_runtime.json"

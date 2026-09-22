@@ -201,6 +201,65 @@ class AutomationEngine:
         result = self.recovery.try_recover(context, reason=reason)
         return result.recovered
 
+    def _is_critical_step(self, context: AutomationContext, action_name: str) -> bool:
+        """Xác định bước không được phép nuốt lỗi, chủ yếu là đăng nhập."""
+        action = action_name.casefold().strip()
+        scenario = str(context.current_scenario or "").casefold()
+        critical_actions = {
+            "ensure_login_screen",
+            "login_credentials",
+            "prepare_account_session",
+            "set_workflow_step",
+            "tam_quoc_lenh",
+            "phuc_loi",
+            "cua_hang",
+            "complete_account_flow",
+        }
+        if action in critical_actions:
+            return True
+        if "login" in scenario and action not in {"logout_account"}:
+            return True
+        return False
+
+    def _recover_function_failure(
+        self,
+        context: AutomationContext,
+        reason: Exception | str,
+    ) -> bool:
+        """Recovery sau lỗi function; chỉ thành công khi xác nhận HOME."""
+        try:
+            if self._recover(context, reason):
+                home = self.execute_action(
+                    context,
+                    {
+                        "action": "recover_to_home",
+                        "timeout": 60,
+                        "interval": 0.8,
+                    },
+                )
+                if home.success:
+                    return True
+        except ActionStopRequested:
+            return False
+        except Exception:
+            LOGGER.exception("Recovery rule failed after function error")
+
+        try:
+            result = self.execute_action(
+                context,
+                {
+                    "action": "recover_to_home",
+                    "timeout": 60,
+                    "interval": 0.8,
+                },
+            )
+            return bool(result.success)
+        except ActionStopRequested:
+            return False
+        except Exception:
+            LOGGER.exception("Direct HOME recovery failed after function error")
+            return False
+
     def _run_action_step(self, context: AutomationContext, step: Mapping[str, Any]) -> bool:
         step_copy = dict(step)
         retry = max(0, int(step_copy.pop("retry", 0)))
@@ -214,6 +273,11 @@ class AutomationEngine:
             return True
         if unless is not None and self.check_condition(context, unless).met:
             return True
+
+        action_name = str(
+            step_copy.get("action", step_copy.get("type", step_copy.get("name", "")))
+        )
+        critical = self._is_critical_step(context, action_name)
 
         last_error: Exception | str | None = None
         for attempt in range(retry + 1):
@@ -232,7 +296,11 @@ class AutomationEngine:
                 return False
             except Exception as exc:
                 last_error = exc
-                LOGGER.exception("Automation action failed on attempt %d/%d", attempt + 1, retry + 1)
+                LOGGER.exception(
+                    "Automation action failed on attempt %d/%d",
+                    attempt + 1,
+                    retry + 1,
+                )
 
             if self._recover(context, last_error):
                 try:
@@ -247,11 +315,43 @@ class AutomationEngine:
                     last_error = exc
 
             if attempt < retry and self._wait_or_stopped(retry_delay):
-                return False
+                continue
 
         if continue_on_error:
             LOGGER.warning("Continuing after failed step: %s", last_error)
             return True
+
+        if critical:
+            LOGGER.error(
+                "Critical function failed; account cannot continue safely: action=%s error=%s",
+                action_name,
+                last_error,
+            )
+            return False
+
+        # Function không critical: ghi nhận lỗi, recovery về HOME rồi cho phép
+        # scenario chạy tiếp function kế tiếp.
+        failed = context.variables.setdefault("_failed_functions", [])
+        if isinstance(failed, list):
+            failed.append(
+                {
+                    "function": action_name or "unknown",
+                    "error": str(last_error),
+                }
+            )
+
+        recovered = self._recover_function_failure(context, last_error or "function failed")
+        if recovered:
+            LOGGER.warning(
+                "Non-critical function failed but account recovered to HOME; continuing: %s",
+                last_error,
+            )
+            return True
+
+        LOGGER.error(
+            "Non-critical function failed and HOME recovery was impossible: %s",
+            last_error,
+        )
         return False
 
     def _run_control_step(self, context: AutomationContext, step: Mapping[str, Any]) -> bool | None:
@@ -304,14 +404,55 @@ class AutomationEngine:
             scenario_path = Path(str(step["run_scenario"])).expanduser()
             if not scenario_path.is_absolute():
                 scenario_path = settings.automation.scripts_dir / scenario_path
+            child_name = scenario_path.stem.casefold()
+
+            # Login và toàn bộ nhiệm vụ bắt buộc của account đều phải fail-closed.
+            # Không được nuốt lỗi Phúc lợi/Cửa hàng rồi đánh dấu account DONE.
+            critical_child = any(token in child_name for token in (
+                "login", "prepare", "ensure_login", "auth",
+                "tam_quoc", "phuc_loi", "cua_hang", "multi_account_manager",
+            ))
+            continue_on_error = bool(step.get("continue_on_error", not critical_child))
             child = self.load_scenario(scenario_path)
-            if self.run_steps(context, list(child.get("steps", []) or [])):
+
+            parent_scenario = context.current_scenario
+            context.current_scenario = str(child.get("name", scenario_path.stem))
+            try:
+                child_ok = self.run_steps(context, list(child.get("steps", []) or []))
+            finally:
+                context.current_scenario = parent_scenario
+
+            if child_ok:
                 return True
+
             detail = (
                 context.last_action.message
                 if context.last_action is not None
-                else "unknown child step")
+                else "unknown child step"
+            )
             LOGGER.error("Child scenario failed: %s | %s", scenario_path.name, detail)
+
+            if not continue_on_error:
+                return False
+
+            failed = context.variables.setdefault("_failed_functions", [])
+            if isinstance(failed, list):
+                failed.append({
+                    "function": scenario_path.stem,
+                    "error": str(detail),
+                })
+
+            # Lỗi function chỉ ảnh hưởng function đó. Trước khi đi tiếp,
+            # đưa session về HOME và xác minh HOME.
+            recovered = self._recover_function_failure(context, detail)
+            if recovered:
+                return True
+
+            context.variables["_recovery_failed"] = True
+            LOGGER.error(
+                "Child scenario %s failed and HOME recovery failed",
+                scenario_path.name,
+            )
             return False
 
         if "state_machine" in step:
@@ -404,12 +545,19 @@ class AutomationEngine:
                         )
                     raise StepExecutionError(sm_result.message or "State machine failed")
 
+            failed_functions = context.variables.get("_failed_functions", [])
+            failed_text = "; ".join(
+                f"{item.get('scenario', 'unknown')}: {item.get('error', '')}"
+                for item in failed_functions
+                if isinstance(item, Mapping)
+            ) or None
             return AutomationRunResult(
                 True,
                 name,
                 time.monotonic() - started,
                 completed,
                 final_state=context.state,
+                error=failed_text,
             )
         except GameDayRollover:
             raise

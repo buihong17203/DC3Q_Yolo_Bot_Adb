@@ -295,9 +295,17 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return _main(argv)
     except KeyboardInterrupt:
+        # Ctrl+C kết thúc Python theo đường thoát bình thường để PowerShell
+        # nhận lại prompt hiện tại, không cần mở terminal mới.
         logger.warning("Nhận Ctrl+C: dừng toàn bộ child process của project")
         terminate_child_processes(timeout=1.0)
         return 130
+    except Exception as exc:
+        # Không để exception chưa bắt làm văng traceback ra ngoài CLI.
+        # Cleanup rồi trả exit code để PowerShell nhận lại prompt.
+        logger.exception("Lỗi không xử lý được ở CLI: %s", exc)
+        terminate_child_processes(timeout=1.0)
+        return 1
 
 
 if __name__ == "__main__":

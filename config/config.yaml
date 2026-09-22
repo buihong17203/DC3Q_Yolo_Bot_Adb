@@ -4,7 +4,7 @@
 
 app:
   name: "DC3Q_YOLO_BOT_ADB"
-  version: "0.1.3"
+  version: "0.1.4"
 
   # Môi trường chạy: development / production
   environment: "development"

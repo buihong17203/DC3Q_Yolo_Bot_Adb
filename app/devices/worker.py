@@ -308,7 +308,18 @@ class DeviceWorker:
                 if account is None:
                     self._set_state(WorkerState.WAITING_ACCOUNT)
                     if self.stop_when_no_accounts:
-                        break
+                        # Thuế có 3 khung/ngày. Sau khi toàn bộ account đã xong
+                        # khung hiện tại, giữ worker sống tới khung kế tiếp để
+                        # AccountManager requeue lại đúng các account chưa claim slot.
+                        wait_for_tax = None
+                        seconds_fn = getattr(self.account_manager, "seconds_until_next_tax_window", None)
+                        if callable(seconds_fn):
+                            wait_for_tax = seconds_fn()
+                        if wait_for_tax is None:
+                            break
+                        if self._stop_event.wait(min(1.0, max(0.1, settings.automation.loop_interval))):
+                            break
+                        continue
                     if self._game_clock.key() != self._active_game_day:
                         self._handle_rollover(None)
                         self._set_state(WorkerState.IDLE)
@@ -329,17 +340,55 @@ class DeviceWorker:
                     if result.success:
                         self.account_manager.mark_done(account, worker_id=self.serial)
                         self._completed_accounts += 1
-                        logger.info(
-                            "[%s] Hoàn thành account-%s elapsed=%.2fs",
-                            self.serial,
-                            account.id,
-                            result.elapsed,
-                        )
+                        if result.error:
+                            # Account vẫn hoàn tất; error chỉ là chức năng con đã lỗi
+                            # nhưng được cấu hình continue_on_error.
+                            logger.warning(
+                                "[%s] account-%s hoàn tất với chức năng lỗi có thể phục hồi: %s",
+                                self.serial,
+                                account.id,
+                                result.error,
+                            )
+                        else:
+                            logger.info(
+                                "[%s] Hoàn thành account-%s elapsed=%.2fs",
+                                self.serial,
+                                account.id,
+                                result.elapsed,
+                            )
                     else:
                         if self._stop_event.is_set():
                             # Dừng thủ công không được tính là lỗi của account.
                             self.account_manager.release(account, worker_id=self.serial)
                             break
+
+                        # Không để session/popup của account lỗi làm bẩn account kế tiếp.
+                        # Chỉ chuyển sang account mới sau khi đã cố gắng chuẩn hóa HOME và
+                        # đăng xuất; nếu không chuẩn hóa được thì account kế tiếp vẫn được
+                        # phép chạy, nhưng lỗi hiện tại phải được ghi FAILED rõ ràng.
+                        try:
+                            cleanup_context = self.engine.create_context(
+                                account=account,
+                                variables=self._scenario_variables(account),
+                            )
+                            home_result = self.engine.execute_action(cleanup_context, {
+                                "action": "recover_to_home",
+                                "timeout": 90,
+                                "interval": 0.8,
+                            })
+                            if home_result.success:
+                                self.engine.execute_action(cleanup_context, {
+                                    "action": "logout_account",
+                                    "timeout": 60,
+                                    "interval": 0.8,
+                                    "threshold": 0.75,
+                                })
+                        except Exception:
+                            logger.exception(
+                                "[%s] Cleanup sau account-%s thất bại; vẫn ghi FAILED và tiếp tục queue",
+                                self.serial, account.id,
+                            )
+
                         self._failed_runs += 1
                         self._last_error = result.error
                         self.account_manager.mark_failed(
@@ -348,13 +397,13 @@ class DeviceWorker:
                             worker_id=self.serial,
                         )
                         logger.error(
-                            "[%s] account-%s thất bại: %s. Dừng batch ngày hiện tại vì trạng thái thiết bị không còn được chứng minh.",
+                            "[%s] account-%s không thể recovery: %s. Bỏ qua account này và tiếp tục account kế tiếp.",
                             self.serial,
                             account.id,
                             result.error or "unknown error",
                         )
-                        if self.stop_when_no_accounts or not self._wait_for_rollover_after_failure():
-                            break
+                        # Chỉ account hiện tại bị FAILED. Worker vẫn phải lấy account
+                        # kế tiếp; không được dừng cả batch vì một account lỗi.
                         continue
                 except GameDayRollover:
                     self._handle_rollover(account)
@@ -362,10 +411,13 @@ class DeviceWorker:
                 except Exception as exc:
                     self._failed_runs += 1
                     self._last_error = str(exc)
-                    logger.exception("[%s] Worker run failed for account id=%s", self.serial, account.id)
+                    logger.exception(
+                        "[%s] Worker run failed for account id=%s; bỏ qua account và tiếp tục",
+                        self.serial,
+                        account.id,
+                    )
                     self.account_manager.mark_failed(account, exc, worker_id=self.serial)
-                    if self.stop_when_no_accounts or not self._wait_for_rollover_after_failure():
-                        break
+                    # Lỗi runtime của một account không được làm chết worker/batch.
                     continue
                 finally:
                     self._current_account = None

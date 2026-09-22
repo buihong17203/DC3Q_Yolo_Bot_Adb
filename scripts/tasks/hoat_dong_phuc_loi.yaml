@@ -2,4 +2,6 @@ name: dc3q_hoat_dong_phuc_loi
 
 steps:
   - run_scenario: "tasks/phuc_loi.yaml"
-
+    # Nếu function Phúc lợi lỗi, engine đánh dấu riêng function, recover HOME,
+    # rồi cho flow account tiếp tục function kế tiếp.
+    continue_on_error: false

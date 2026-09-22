@@ -9,6 +9,11 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
+# All workers and task actions share this process-wide lock when updating the
+# same account_runtime.json. This prevents Windows replace races (WinError 5).
+RUNTIME_FILE_LOCK = threading.RLock()
+
+
 class GameDayRollover(RuntimeError):
     """Raised before a physical action crosses the 23:00 game-day boundary."""
 
@@ -75,6 +80,18 @@ class DailyRuntimeStore:
                 "trung_thu_thue_reason": None,
                 "error": None,
             },
+            "cua_hang": {
+                "status": "NOT_STARTED",
+                "cua_hang_goi_y": "NOT_STARTED",
+                "cua_hang_goi_y_reason": None,
+                "cua_hang_thoi_han": "NOT_STARTED",
+                "cua_hang_thoi_han_tabs": {},
+                "cua_hang_thoi_han_reason": None,
+                "tiem_than_bi": "NOT_STARTED",
+                "tiem_than_bi_reason": None,
+                "chieu_hien_lenh_bought": 0,
+                "error": None,
+            },
         }
 
     @staticmethod
@@ -106,12 +123,39 @@ class DailyRuntimeStore:
 
     @staticmethod
     def _write_json(path: Path, data: Any) -> None:
+        import os
+        import time
+
         path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = path.with_suffix(path.suffix + ".tmp")
-        with temporary.open("w", encoding="utf-8") as handle:
-            json.dump(data, handle, ensure_ascii=False, indent=2)
-            handle.write("\n")
-        temporary.replace(path)
+        with RUNTIME_FILE_LOCK:
+            # Use a worker-specific temporary file and retry the atomic replace.
+            # On Windows another thread/process can briefly hold the destination.
+            for attempt in range(8):
+                temporary = path.with_name(
+                    f"{path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+                )
+                try:
+                    with temporary.open("w", encoding="utf-8") as handle:
+                        json.dump(data, handle, ensure_ascii=False, indent=2)
+                        handle.write("\n")
+                        handle.flush()
+                        os.fsync(handle.fileno())
+                    os.replace(temporary, path)
+                    return
+                except PermissionError:
+                    try:
+                        temporary.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+                    if attempt >= 7:
+                        raise
+                    time.sleep(0.05 * (attempt + 1))
+                except Exception:
+                    try:
+                        temporary.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+                    raise
 
     def _document(
         self,

@@ -78,8 +78,90 @@ class AccountManager:
         with self._lock:
             return next((account for account in self._accounts if account.id == str(account_id)), None)
 
+    @staticmethod
+    def _tax_slot_key(now=None) -> str | None:
+        try:
+            from datetime import datetime
+            from zoneinfo import ZoneInfo
+            current = now or datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
+        except Exception:
+            from datetime import datetime
+            current = now or datetime.now().astimezone()
+        windows = ((12 * 60, 14 * 60, "12:00"), (18 * 60, 20 * 60, "18:00"), (21 * 60, 23 * 60, "21:00"))
+        minute = current.hour * 60 + current.minute
+        for start, end, label in windows:
+            if start <= minute < end:
+                return f"{current.date().isoformat()}@{label}"
+        return None
+
+    def _requeue_tax_accounts_locked(self) -> int:
+        if self.runtime_store is None:
+            return 0
+        slot = self._tax_slot_key()
+        if slot is None:
+            return 0
+        count = 0
+        for account in self._accounts:
+            if account.status != AccountStatus.DONE:
+                continue
+            task = self.runtime_store.get_task(account.id, "phuc_loi")
+            claimed = task.get("trung_thu_thue_claimed_slots", []) if isinstance(task, dict) else []
+            if slot in claimed:
+                continue
+            # Nếu game vừa báo chưa mở/chưa sẵn sàng, không đăng nhập lại ngay.
+            # Sau cooldown 120s mới cho account quay lại trong cùng khung.
+            last_attempt = task.get("trung_thu_thue_last_attempt_at") if isinstance(task, dict) else None
+            if last_attempt:
+                try:
+                    from datetime import datetime
+                    from zoneinfo import ZoneInfo
+                    attempted_at = datetime.fromisoformat(str(last_attempt))
+                    now = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
+                    if attempted_at.tzinfo is None:
+                        attempted_at = attempted_at.replace(tzinfo=now.tzinfo)
+                    if (now - attempted_at).total_seconds() < 120:
+                        continue
+                except Exception:
+                    pass
+            account.status = AccountStatus.READY
+            account.assigned_worker = None
+            count += 1
+        if count:
+            self._persist()
+        return count
+
+    def seconds_until_next_tax_window(self) -> float | None:
+        """Return seconds until a future tax window when DONE accounts still need it."""
+        if self.runtime_store is None:
+            return None
+        pending = False
+        for account in self._accounts:
+            if account.status != AccountStatus.DONE:
+                continue
+            task = self.runtime_store.get_task(account.id, "phuc_loi")
+            claimed = task.get("trung_thu_thue_claimed_slots", []) if isinstance(task, dict) else []
+            if len(claimed) < 3:
+                pending = True
+                break
+        if not pending:
+            return None
+        try:
+            from datetime import datetime
+            from zoneinfo import ZoneInfo
+            now = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
+        except Exception:
+            from datetime import datetime
+            now = datetime.now().astimezone()
+        starts = (12, 18, 21)
+        for hour in starts:
+            boundary = now.replace(hour=hour, minute=0, second=0, microsecond=0)
+            if boundary > now:
+                return (boundary - now).total_seconds()
+        return None
+
     def claim_next(self, worker_id: str) -> Account | None:
         with self._lock:
+            self._requeue_tax_accounts_locked()
             for account in self._accounts:
                 if account.status != AccountStatus.READY:
                     continue

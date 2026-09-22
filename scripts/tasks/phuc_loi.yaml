@@ -14,16 +14,21 @@ steps:
     claim_checkin: true
     checkin_claim_threshold: 0.68
 
-    # Điểm danh v3:
-    # dùng cell "?" có quầng sáng hiện tại, không dùng thẻ xanh "Được báo danh".
-    # Best cell phải nổi bật rõ hơn các cell "?" tương lai.
-    checkin_cell_threshold: 0.80
-    checkin_cell_margin: 0.05
+    # Điểm danh mới: Điểm danh bù -> tick cuối -> ngày 1 tháng mới.
+    # Không dùng quầng sáng và không dùng tọa độ ô cố định.
     checkin_click_retries: 3
+    checkin_reference_threshold: 0.70
 
-    # Tham số cũ giữ lại để tương thích code/runtime từ patch trước.
-    checkin_glow_threshold: 0.55
-    checkin_glow_margin: 0.06
+    checkin_makeup_templates:
+      - "dc3q/targets/Hoạt-Động/Phúc-Lợi/Điểm-Danh/screen_diem_danh_bu_text.png"
+      - "dc3q/targets/Hoạt-Động/Phúc-Lợi/Điểm-Danh/screen_diem_danh_bu.png"
+    checkin_tick_templates:
+      - "dc3q/targets/Hoạt-Động/Phúc-Lợi/Điểm-Danh/screen_diem_danh_tick.png"
+      - "dc3q/targets/Hoạt-Động/Phúc-Lợi/Điểm-Danh/screen_diem_danh_checkmark.png"
+      - "dc3q/targets/Hoạt-Động/Phúc-Lợi/Điểm-Danh/screen_diem_danh_checked.png"
+    checkin_day1_templates:
+      - "dc3q/targets/Hoạt-Động/Phúc-Lợi/Điểm-Danh/screen_diem_danh_day_1.png"
+      - "dc3q/targets/Hoạt-Động/Phúc-Lợi/Điểm-Danh/screen_diem_danh_1.png"
 
     # Chỉ xử lý Hoạt động -> Phúc lợi.
     # Hai tab cấp cao "Ngày lễ" và "Hoạt động" hiện cố ý bỏ qua.
