@@ -47,28 +47,55 @@ class DailyRuntimeStore:
     @staticmethod
     def _default_tasks() -> dict[str, Any]:
         return {
+            "workflow": {
+                "status": "NOT_STARTED",
+                "current_step": "LOGIN",
+                "session_state": "LOGGED_OUT",
+                "device_serial": None,
+                "last_screen": None,
+                "resume_count": 0,
+                "last_error": None,
+                "updated_at": None,
+            },
             "tam_quoc_lenh": {
                 "status": "NOT_STARTED",
                 "que_boi": "NOT_STARTED",
                 "diem_binh": "NOT_STARTED",
-                "rewards": [],
                 "error": None,
-            }
+            },
+            "phuc_loi": {
+                "status": "NOT_STARTED",
+                "le_bao_quoc_van": "NOT_STARTED",
+                "qua_online": "NOT_STARTED",
+                "qua_online_claims": 0,
+                "qua_online_reason": None,
+                "diem_danh": "NOT_STARTED",
+                "diem_danh_error": None,
+                "trung_thu_thue": "NOT_STARTED",
+                "trung_thu_thue_reason": None,
+                "error": None,
+            },
         }
 
     @staticmethod
     def _record(account: Any, tasks: dict[str, Any] | None = None) -> dict[str, Any]:
         status = getattr(account, "status", "READY")
         status_value = getattr(status, "value", status)
+        resolved_tasks = tasks or DailyRuntimeStore._default_tasks()
+        workflow = resolved_tasks.get("workflow") if isinstance(resolved_tasks, dict) else None
+        current_step = workflow.get("current_step") if isinstance(workflow, dict) else None
+        if current_step in {None, "DONE"}:
+            current_step = None
         return {
             "id": str(account.id),
             "status": str(status_value),
             "attempts": int(getattr(account, "attempts", 0) or 0),
             "assigned_device": getattr(account, "assigned_worker", None),
-            "current_task": None,
-            "last_run": None,
+            # Không để worker save() xóa mất bước resume đã ghi trong tasks.workflow.
+            "current_task": current_step,
+            "last_run": workflow.get("updated_at") if isinstance(workflow, dict) else None,
             "error_message": getattr(account, "last_error", None),
-            "tasks": tasks or DailyRuntimeStore._default_tasks(),
+            "tasks": resolved_tasks,
         }
 
     def _read(self) -> dict[str, Any] | list[Any] | None:
@@ -110,10 +137,36 @@ class DailyRuntimeStore:
             if isinstance(raw, dict) and raw.get("game_day") == current_key:
                 self._apply(accounts, raw.get("accounts", []))
                 changed = False
+                defaults = self._default_tasks()
                 for row in raw.get("accounts", []):
-                    if isinstance(row, dict) and "tasks" not in row:
-                        row["tasks"] = self._default_tasks()
-                        changed = True
+                    if not isinstance(row, dict):
+                        continue
+                    tasks = row.setdefault("tasks", {})
+                    for task_name, task_state in defaults.items():
+                        if task_name not in tasks:
+                            # Tự động nâng cấp runtime cũ khi bổ sung task mới,
+                            # không làm mất tiến độ của các task đã tồn tại.
+                            tasks[task_name] = dict(task_state)
+                            changed = True
+                            continue
+
+                        current_task = tasks.get(task_name)
+                        if not isinstance(current_task, dict):
+                            tasks[task_name] = dict(task_state)
+                            changed = True
+                            continue
+
+                        # Bổ sung field mới cho runtime đang tồn tại.
+                        for field_name, default_value in task_state.items():
+                            if field_name not in current_task:
+                                current_task[field_name] = default_value
+                                changed = True
+
+                        # `rewards` trước đây là dữ liệu fix cứng, không phải kết quả
+                        # đọc thật từ popup. Loại bỏ khi migrate runtime cũ.
+                        if "rewards" in current_task:
+                            current_task.pop("rewards", None)
+                            changed = True
                 if changed:
                     self._write_json(self.path, raw)
                 return False

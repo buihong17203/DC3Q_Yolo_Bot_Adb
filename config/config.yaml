@@ -4,7 +4,7 @@
 
 app:
   name: "DC3Q_YOLO_BOT_ADB"
-  version: "0.1.2"
+  version: "0.1.3"
 
   # Môi trường chạy: development / production
   environment: "development"
@@ -107,10 +107,10 @@ vision:
 
   # Ngưỡng mặc định khi so khớp template
   # Giá trị từ 0.0 đến 1.0
-  template_threshold: 0.80
+  template_threshold: 0.70
 
   # Ngưỡng thấp nhất cho phép khi cần nhận diện gần đúng
-  minimum_threshold: 0.65
+  minimum_threshold: 0.60
 
   # Có chuyển ảnh sang grayscale trước khi template matching hay không
   grayscale: false
@@ -120,12 +120,16 @@ vision:
 
   # Danh sách tỷ lệ dùng khi multi_scale = true
   scales:
+    - 0.60
+    - 0.70
     - 0.80
     - 0.90
     - 1.00
     - 1.10
     - 1.20
-
+    - 1.30
+    - 1.40
+    - 1.50
   # Thư mục chứa ảnh mẫu dùng để nhận diện
   templates_dir: "assets/templates"
 

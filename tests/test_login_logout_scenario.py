@@ -19,9 +19,10 @@ def test_login_logout_are_separate_and_manager_calls_both() -> None:
     assert "${account.username}" in str(login)
     assert "${account.password}" in str(login)
     assert "${account.password}" not in str(logout)
+    assert manager["steps"][0]["action"] == "prepare_account_session"
     assert [step["run_scenario"] for step in manager["steps"] if "run_scenario" in step] == [
-        "auth/login.yaml",
         "tasks/tam_quoc_lenh.yaml",
+        "tasks/phuc_loi.yaml",
         "auth/logout.yaml",
     ]
 

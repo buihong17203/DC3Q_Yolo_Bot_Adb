@@ -310,8 +310,7 @@ class AutomationEngine:
             detail = (
                 context.last_action.message
                 if context.last_action is not None
-                else "unknown child step"
-            )
+                else "unknown child step")
             LOGGER.error("Child scenario failed: %s | %s", scenario_path.name, detail)
             return False
 
@@ -367,7 +366,9 @@ class AutomationEngine:
         account: Any = None,
         variables: Mapping[str, Any] | None = None,
     ) -> AutomationRunResult:
-        self.reset_stop()
+        # Không tự clear stop_event ở đầu mỗi scenario.
+        # Nếu Ctrl+C/shutdown vừa được phát ra giữa hai account thì việc clear tại đây
+        # sẽ làm mất tín hiệu dừng và worker có thể chạy tiếp account/scenario mới.
         data = self.load_scenario(scenario) if isinstance(scenario, (str, Path)) else deepcopy(dict(scenario))
         name = str(data.get("name", Path(scenario).stem if isinstance(scenario, (str, Path)) else "scenario"))
 

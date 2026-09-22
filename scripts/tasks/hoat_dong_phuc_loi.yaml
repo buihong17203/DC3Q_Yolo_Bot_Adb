@@ -1,0 +1,5 @@
+name: dc3q_hoat_dong_phuc_loi
+
+steps:
+  - run_scenario: "tasks/phuc_loi.yaml"
+

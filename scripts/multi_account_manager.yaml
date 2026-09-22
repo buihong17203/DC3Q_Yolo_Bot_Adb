@@ -5,8 +5,53 @@ variables:
   threshold: 0.80
 
 steps:
-  - run_scenario: "auth/login.yaml"
+  # Bootstrap thông minh:
+  # - nếu đúng account đang còn session trên đúng device -> resume;
+  # - nếu session không chứng minh được -> tự logout session cũ và login account claim;
+  # - nếu đang dở ở popup/màn hình con -> restart riêng app để chuẩn hóa HOME;
+  # - không cần người dùng logout thủ công sau lỗi.
+  # Đây đồng thời là bước ĐĂNG NHẬP khi account chưa có session hợp lệ.
+  - action: prepare_account_session
+    account_id: "${account.id}"
+    username: "${account.username}"
+    password: "${account.password}"
+    runtime_file: "data/accounts/account_runtime.json"
+    package: "com.daichien.mobile"
+    activity: "com.qtz.game.main.Logo"
+    login_activity: "com.daichien.mobile/com.vtcmobile.gamesdk.AuthenActivity"
+    interval: 1.0
+    restart_delay: 1.0
+    home_timeout: 180
+    login_timeout: 120
+    logout_timeout: 60
+
+  # 1) Tam Quốc Lệnh
+  - action: set_workflow_step
+    account_id: "${account.id}"
+    runtime_file: "data/accounts/account_runtime.json"
+    step: "TAM_QUOC_LENH"
   - run_scenario: "tasks/tam_quoc_lenh.yaml"
+
+  # 2) Hoạt động -> Phúc lợi
+  # Điểm danh là task con của Phúc lợi, không phải bước workflow riêng.
+  - action: set_workflow_step
+    account_id: "${account.id}"
+    runtime_file: "data/accounts/account_runtime.json"
+    step: "PHUC_LOI"
+  - run_scenario: "tasks/phuc_loi.yaml"
+
+  # 3) Đăng xuất
+  - action: set_workflow_step
+    account_id: "${account.id}"
+    runtime_file: "data/accounts/account_runtime.json"
+    step: "LOGOUT"
   - run_scenario: "auth/logout.yaml"
+
+  # Chỉ đánh dấu DONE sau khi xác minh đã quay về AuthenActivity.
+  - action: complete_account_flow
+    account_id: "${account.id}"
+    runtime_file: "data/accounts/account_runtime.json"
+    login_activity: "com.daichien.mobile/com.vtcmobile.gamesdk.AuthenActivity"
+
   - action: log
     message: "Hoàn thành account-${account.id}; worker lấy account tiếp theo"

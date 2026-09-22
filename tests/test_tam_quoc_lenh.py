@@ -24,8 +24,8 @@ def test_runtime_has_tam_quoc_lenh_state_for_every_account(tmp_path: Path) -> No
     raw = json.loads((tmp_path / "runtime.json").read_text(encoding="utf-8"))
     states = [row["tasks"]["tam_quoc_lenh"] for row in raw["accounts"]]
     assert states == [
-        {"status": "NOT_STARTED", "que_boi": "NOT_STARTED", "diem_binh": "NOT_STARTED", "rewards": [], "error": None},
-        {"status": "NOT_STARTED", "que_boi": "NOT_STARTED", "diem_binh": "NOT_STARTED", "rewards": [], "error": None},
+        {"status": "NOT_STARTED", "que_boi": "NOT_STARTED", "diem_binh": "NOT_STARTED", "error": None},
+        {"status": "NOT_STARTED", "que_boi": "NOT_STARTED", "diem_binh": "NOT_STARTED", "error": None},
     ]
 
 
@@ -38,7 +38,6 @@ def test_runtime_updates_tam_quoc_lenh_progress_per_account(tmp_path: Path) -> N
         "status": "PARTIAL",
         "que_boi": "DONE",
         "diem_binh": "NOT_STARTED",
-        "rewards": ["5 Quẻ lành"],
         "error": None,
     })
 
@@ -55,7 +54,7 @@ def test_game_day_reset_clears_tam_quoc_lenh_state(tmp_path: Path) -> None:
     store.initialize(accounts)
     store.update_task("acc_001", "tam_quoc_lenh", {
         "status": "DONE", "que_boi": "DONE", "diem_binh": "DONE",
-        "rewards": ["5 Quẻ lành", "20 Nguyên linh ngọc"], "error": None,
+        "error": None,
     })
 
     raw = json.loads((tmp_path / "runtime.json").read_text(encoding="utf-8"))
@@ -66,7 +65,7 @@ def test_game_day_reset_clears_tam_quoc_lenh_state(tmp_path: Path) -> None:
     current = json.loads((tmp_path / "runtime.json").read_text(encoding="utf-8"))
     task = current["accounts"][0]["tasks"]["tam_quoc_lenh"]
     assert task["status"] == "NOT_STARTED"
-    assert task["rewards"] == []
+    assert "rewards" not in task
 
 
 def test_manager_scenario_orders_tam_quoc_lenh_between_login_logout() -> None:
@@ -75,4 +74,4 @@ def test_manager_scenario_orders_tam_quoc_lenh_between_login_logout() -> None:
     root = Path(__file__).resolve().parents[1]
     data = yaml.safe_load((root / "scripts/multi_account_manager.yaml").read_text(encoding="utf-8"))
     calls = [step.get("run_scenario") for step in data["steps"] if "run_scenario" in step]
-    assert calls == ["auth/login.yaml", "tasks/tam_quoc_lenh.yaml", "auth/logout.yaml"]
+    assert calls == ["tasks/tam_quoc_lenh.yaml", "tasks/phuc_loi.yaml", "auth/logout.yaml"]
