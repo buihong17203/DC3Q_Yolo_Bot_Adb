@@ -1,0 +1,13 @@
+logout:
+  enabled: true
+  threshold: 0.60
+  max_attempts: 5
+  # Nội chính là mốc; phản chiếu tâm mốc qua tâm màn hình để suy ra avatar.
+  home_anchor_template: data/img/templates/stars/home/screen/screen_noi-chinh_01.png
+  home_anchor_roi: [840, 480, 1000, 575]
+  avatar_mirror_offset: [-8, 21]
+  templates:
+    open_tuychon: data/img/templates/stars/dang-xuat/screen/screen_dx_ttct_button_open_tuychon.png
+    open_cdnd: data/img/templates/stars/dang-xuat/screen/screen_dx_ttct_tc_button_open_cdnd.png
+    open_dtk: data/img/templates/stars/dang-xuat/screen/screen_dx_ttct_tc_cdnd_button_open_dtk.png
+    confirm_dtk: data/img/templates/stars/dang-xuat/screen/screen_dx_popup_dtk_button_xacnhan.png

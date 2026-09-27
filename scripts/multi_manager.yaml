@@ -1,0 +1,7 @@
+name: multi_manager
+mode: sequential_workflows
+max_workers: 1
+
+# Chỉ điều phối. Không chứa logic đăng nhập.
+workflows:
+  - scripts/dc3q/stars/dang-nhap.yaml

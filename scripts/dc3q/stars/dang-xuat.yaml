@@ -1,0 +1,5 @@
+name: stars_dang_xuat
+type: account_logout
+
+# Workflow con chỉ mô tả bước đăng xuất; cấu hình nằm đúng module stars.
+config: config/dc3q/stars/dang-xuat.yaml

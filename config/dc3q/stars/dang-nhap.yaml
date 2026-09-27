@@ -1,0 +1,33 @@
+account_file: data/accounts/accounts.csv
+login:
+  templates:
+    login_screen:
+      - data/img/templates/stars/dang-nhap/screen/screen_tab_dang-nhap.png
+    logged_in:
+      # HOME chỉ được xác nhận khi thấy nút Nội chính.
+      - data/img/templates/stars/home/screen/screen_noi-chinh_01.png
+  controls:
+    username: data/img/templates/stars/dang-nhap/screen/screen_input_tai-khoan.png
+    password:
+      - data/img/templates/stars/dang-nhap/screen/screen_input_mat-khau_01.png
+      - data/img/templates/stars/dang-nhap/screen/screen_input_mat-khau_02.png
+    submit: data/img/templates/stars/dang-nhap/screen/screen_button_dang-nhap.png
+  threshold: 0.80
+  control_threshold: 0.72
+  poll_seconds: 1.0
+  timeout_seconds: 180
+  logged_in_threshold: 0.55
+  logged_in_confirmations: 3
+  coordinates: {}
+  unexpected:
+    credential_rejection_text: Tên đăng nhập hoặc mật khẩu không đúng
+    operator_required_texts:
+      - CAPTCHA
+      - OTP
+      - xác minh bảo mật
+      - chọn tài khoản Google
+    optional_profile_update_text: Cập nhật thông tin cá nhân
+    enemy_raid:
+      state: data/img/templates/random-events/pop-up_random/enemy-raid/screen/screen_dqtk_banner_dichquantapkich.png
+      close: data/img/templates/random-events/pop-up_random/enemy-raid/screen/screen_dqtk_button_dong.png
+      threshold: 0.75

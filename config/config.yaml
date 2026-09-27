@@ -1,0 +1,13 @@
+adb:
+  path: adb
+  command_timeout: 15
+runtime:
+  max_workers: 1
+  stop_on_ctrl_c: true
+vision:
+  template_threshold: 0.85
+yolo:
+  enabled: false
+  model: data/img/yolo/model.pt
+accounts:
+  path: data/accounts/accounts.csv

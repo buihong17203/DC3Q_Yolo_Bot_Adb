@@ -1,0 +1,27 @@
+name: stars_dang_nhap
+type: account_login
+
+# Workflow điều phối: đăng nhập -> HOME -> đăng xuất -> đăng nhập tài khoản tiếp theo.
+# Account credentials luôn đọc từ data/accounts/accounts.csv.
+config: config/dc3q/stars/dang-nhap.yaml
+logout_config: config/dc3q/stars/dang-xuat.yaml
+account_file: data/accounts/accounts.csv
+runtime_file: data/accounts/account_runtime.csv
+runtime_archive_dir: docs_days_runtime
+reset_hour: 23
+
+# Tự động đăng xuất sau khi HOME được xác nhận ổn định.
+manual_logout: false
+auto_logout: true
+
+# Screen-first policy: mỗi thao tác tap/type phải có screenshot + state confirmation ngay trước đó.
+physical_ui_only: true
+home_detection: data/img/templates/stars/home/full screen/full-screen_base_*.png
+forbid_game_data_access: true
+forbid_esc_or_back_automation: true
+
+states:
+  - wait_login_screen
+  - logging_in
+  - logging_out
+  - exhausted
