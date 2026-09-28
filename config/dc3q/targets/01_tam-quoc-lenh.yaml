@@ -4,6 +4,9 @@ tam_quoc_lenh:
   action_threshold: 0.85
   max_steps: 30
   wait_seconds: 0.8
+  advance_popup:
+    marker: data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_title_tiengiailenh.png
+    close: data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_button_dong_tiengiailenh.png
   inactivity:
     marker: data/img/templates/random-events/pop-up_random/inactivity-return/screen/screen_inactivity_title.png
     return: data/img/templates/random-events/pop-up_random/inactivity-return/screen/screen_inactivity_return.png

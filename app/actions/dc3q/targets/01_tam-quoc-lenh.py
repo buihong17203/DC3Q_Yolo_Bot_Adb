@@ -33,6 +33,8 @@ class TamQuocLenhConfig:
     action_roi: tuple[int, int, int, int]
     home_markers: list[Path]
     action_threshold: float = 0.85
+    advance_popup_marker: Path | None = None
+    advance_popup_close: Path | None = None
     inactivity_marker: Path | None = None
     inactivity_return: Path | None = None
     threshold: float = 0.60
@@ -105,6 +107,17 @@ class TamQuocLenhRunner:
 
         for _ in range(self.config.max_steps):
             screen = self.screen_provider()
+
+            if self.config.advance_popup_marker and self.config.advance_popup_close:
+                advance_popup = self._match(screen, self.config.advance_popup_marker)
+                if advance_popup.found:
+                    close = self._match(screen, self.config.advance_popup_close)
+                    if not close.found:
+                        raise RuntimeError("Tam Quốc Lệnh: thấy popup Tiến giai lệnh bài nhưng thiếu nút đóng")
+                    self._tap(close)
+                    logger.info("TQL | đóng popup Tiến giai lệnh bài")
+                    unknown = 0
+                    continue
 
             if self.config.inactivity_marker and self.config.inactivity_return:
                 inactive = self._match(screen, self.config.inactivity_marker)

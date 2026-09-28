@@ -257,6 +257,8 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
             action_roi=tuple(target_cfg["action_roi"]),
             home_markers=paths(target_cfg["home"]["markers"]),
             action_threshold=float(target_cfg.get("action_threshold", 0.85)),
+            advance_popup_marker=_resolve_project_path(root, target_cfg["advance_popup"]["marker"]),
+            advance_popup_close=_resolve_project_path(root, target_cfg["advance_popup"]["close"]),
             inactivity_marker=_resolve_project_path(root, target_cfg["inactivity"]["marker"]),
             inactivity_return=_resolve_project_path(root, target_cfg["inactivity"]["return"]),
             threshold=float(target_cfg.get("threshold", 0.60)),

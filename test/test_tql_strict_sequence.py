@@ -24,6 +24,36 @@ class Vision:
         return type("D", (), {"match": MatchResult(found, float(found), x, 0, 2, 2)})()
 
 
+def make_config(tmp_path, **overrides):
+    p = lambda name: tmp_path / f"{name}.png"
+    values = dict(
+        entry_templates=[p("entry")], menu_templates=[], panel_markers=[p("close")],
+        close_template=p("close"), reward_marker=p("reward"), reward_dismiss=p("dismiss"),
+        que_boi_tabs=[p("que_tab")], que_boi_open=[p("que_open")],
+        que_boi_free=p("que_free"), que_boi_paid=p("que_paid"),
+        diem_binh_tabs=[p("diem_tab")], diem_binh_open=[p("diem_open")],
+        diem_binh_free=p("diem_free"), diem_binh_paid=p("diem_paid"),
+        action_roi=(0, 0, 999, 999), home_markers=[p("home")], max_steps=20,
+        advance_popup_marker=p("advance_popup"), advance_popup_close=p("advance_close"),
+    )
+    values.update(overrides)
+    return TamQuocLenhConfig(**values)
+
+
+def test_closes_advance_popup_before_starting_tql(tmp_path):
+    cfg = make_config(tmp_path)
+    screens = iter([
+        {"advance_popup", "advance_close"}, {"entry"},
+        {"que_tab", "close"}, {"que_open", "close"}, {"que_paid", "close"},
+        {"diem_tab", "close"}, {"diem_open", "close"}, {"diem_paid", "close"},
+        {"close"}, {"home"},
+    ])
+    adb = Input()
+    assert TamQuocLenhRunner(lambda: next(screens), adb, Vision(), cfg, sleep=lambda _: None).run()
+    assert adb.taps[0] == (1, 1)
+    assert adb.taps[1] == (11, 1)
+
+
 def test_must_open_diem_binh_tab_before_accepting_100_vang(tmp_path):
     p = lambda name: tmp_path / f"{name}.png"
     cfg = TamQuocLenhConfig(
