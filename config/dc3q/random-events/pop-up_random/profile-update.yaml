@@ -1,0 +1,18 @@
+
+rules:
+  - Chỉ xử lý khi nhận diện đúng title Cập nhật thông tin cá nhân.
+  - Chỉ bấm nút đóng đã xác minh; không nhập dữ liệu cá nhân.
+  - Sau khi đóng, chụp màn hình mới và tiếp tục luồng đăng nhập.
+
+scenario:
+  - Tìm title Cập nhật thông tin cá nhân.
+  - Tìm nút đóng trong cùng màn hình.
+  - Bấm tâm nút đóng một lần.
+  - Chờ màn hình đăng nhập tiếp tục hoặc HOME được xác nhận.
+
+SET_PROFILE_UPDATE:
+  state: data/img/templates/random-events/pop-up_random/profile-update/screen/screen_cnttcn_title.png
+  close: data/img/templates/random-events/pop-up_random/profile-update/screen/screen_cnttcn_button_dong.png
+  threshold: 0.75
+  timeout_seconds: 10
+  max_attempts: 1

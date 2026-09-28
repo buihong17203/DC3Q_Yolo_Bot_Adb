@@ -5,6 +5,7 @@ type: account_login
 # Account credentials luôn đọc từ data/accounts/accounts.csv.
 config: config/dc3q/stars/dang-nhap.yaml
 logout_config: config/dc3q/stars/dang-xuat.yaml
+home_target: scripts/dc3q/targets/01_tam-quoc-lenh.yaml
 account_file: data/accounts/accounts.csv
 runtime_file: data/accounts/account_runtime.csv
 runtime_archive_dir: docs_days_runtime
@@ -23,5 +24,6 @@ forbid_esc_or_back_automation: true
 states:
   - wait_login_screen
   - logging_in
+  - process_home_events
   - logging_out
   - exhausted

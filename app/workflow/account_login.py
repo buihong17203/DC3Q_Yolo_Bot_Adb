@@ -5,9 +5,9 @@ from pathlib import Path
 from time import monotonic, sleep
 from app.accounts.manager import AccountManager, Account
 from app.accounts.runtime import AccountRuntime
-from app.actions.tai_khoan import (
+from app.actions.dc3q.stars import (
     AccountLoginAction, LoginCoordinates, AccountLogoutAction, LogoutTemplates,
-    classify_login_ui,
+    HomeAction, classify_login_ui,
 )
 from app.adb import AdbClient, AdbDevice
 from app.adb.screenshot import AdbScreenshot
@@ -59,6 +59,7 @@ class AccountLoginConfig:
     logout_threshold: float = 0.75
     logout_max_attempts: int = 5
     home_events: list[tuple[Path, Path, float]] | None = None
+    home_target: object | None = None
 
 
 class AccountLoginController:
@@ -76,11 +77,13 @@ class AccountLoginController:
         self.input = AdbInput(adb, device)
         self.login_action = AccountLoginAction(self.input, LoginCoordinates(config.username, config.password, config.submit))
         self.logout_action = AccountLogoutAction(self.input, config.logout_templates)
+        self.home_action = HomeAction(self.input, self.logout_action.vision, config)
         self.phase = AccountLoginPhase.WAIT_LOGIN_SCREEN
         self.current: Account | None = None
         self._logged_in_hits = 0
         self._profile_update_closed = 0
         self._home_hits = 0
+        self._home_target_done = False
         port = self.device.serial.rsplit("-", 1)[-1]
         self._rolling_screenshot = Path.cwd() / "temp" / f"screenshot_multi_{port}.png"
 
@@ -99,20 +102,7 @@ class AccountLoginController:
 
     def _handle_known_home_event(self, image) -> bool:
         """Close one positively recognized safe random popup."""
-        for state_template, close_template, threshold in self.config.home_events or []:
-            state = self.logout_action.vision.find_template(
-                image, "random_event_state", state_template, threshold,
-            ).match
-            if not state.found:
-                continue
-            close = self.logout_action.vision.find_template(
-                image, "random_event_close", close_template, threshold,
-            ).match
-            if not close.found:
-                raise RuntimeError(f"Sự kiện ngẫu nhiên đã nhận diện nhưng thiếu nút đóng: {state_template}")
-            self.input.tap(close.x + close.width // 2, close.y + close.height // 2)
-            return True
-        return False
+        return self.home_action.handle_known_event(image)
 
     def _detect(self):
         image = self._screen()
@@ -156,6 +146,11 @@ class AccountLoginController:
             return self.phase
 
         if self.phase == AccountLoginPhase.LOGGING_IN:
+            # Ưu tiên cặp title + nút đóng đã xác minh. UI XML thường thấy
+            # title nhưng không expose nút X, không được kết luận bị chặn sớm.
+            if self._handle_known_home_event(image):
+                self._logged_in_hits = 0
+                return self.phase
             try:
                 unexpected, point = classify_login_ui(self.input.ui_xml())
             except RuntimeError:
@@ -193,14 +188,19 @@ class AccountLoginController:
             return self.phase
 
         if self.phase == AccountLoginPhase.PROCESS_HOME_EVENTS:
-            if self._handle_known_home_event(image):
-                self._home_hits = 0
-                return self.phase
-            if d.state != LoginScreenState.LOGGED_IN:
-                self._home_hits = 0
-                return self.phase
-            self._home_hits += 1
-            if self._home_hits >= self.config.logged_in_confirmations:
+            try:
+                home_done = self.home_action.process(
+                    image, logged_in=d.state == LoginScreenState.LOGGED_IN,
+                )
+                self._home_target_done = self.home_action.target_done
+                self._home_hits = self.home_action.confirmations
+            except Exception as exc:
+                assert self.current
+                self.runtime.mark_error(
+                    self.current.id, self.device.serial, f"home target error: {exc}"
+                )
+                raise
+            if home_done:
                 self.phase = (
                     AccountLoginPhase.LOGGING_OUT
                     if self.config.auto_logout
@@ -228,6 +228,8 @@ class AccountLoginController:
                 self.phase = AccountLoginPhase.WAIT_LOGIN_SCREEN
                 self._profile_update_closed = 0
                 self._home_hits = 0
+                self._home_target_done = False
+                self.home_action.reset()
             except Exception as exc:
                 LOGGER.error("Lỗi khi đăng xuất tài khoản %s: %s", self.current.id, exc)
                 self.runtime.mark_error(self.current.id, self.device.serial, f"logout error: {exc}")

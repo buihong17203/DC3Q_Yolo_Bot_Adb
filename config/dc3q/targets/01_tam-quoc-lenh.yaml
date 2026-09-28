@@ -1,0 +1,51 @@
+tam_quoc_lenh:
+  enabled: true
+  threshold: 0.60
+  action_threshold: 0.85
+  max_steps: 30
+  wait_seconds: 0.8
+  inactivity:
+    marker: data/img/templates/random-events/pop-up_random/inactivity-return/screen/screen_inactivity_title.png
+    return: data/img/templates/random-events/pop-up_random/inactivity-return/screen/screen_inactivity_return.png
+  home:
+    # Chỉ click nút mở menu; Chiến tranh là mốc khu vực, không click mù.
+    menu:
+      - data/img/templates/stars/home/screen/screen_home_morong_chamthan.png
+    area:
+      - data/img/templates/stars/home/screen/screen_chien-tranh_01.png
+      - data/img/templates/stars/home/screen/screen_chien-tranh_02.png
+    entry:
+      - data/img/templates/stars/home/screen/screen_tam-quoc-lenh_01.png
+      - data/img/templates/stars/home/screen/screen_tam-quoc-lenh_02.png
+    markers:
+      - data/img/templates/stars/home/screen/screen_chien-tranh_01.png
+      - data/img/templates/stars/home/screen/screen_chien-tranh_02.png
+  panel:
+    markers:
+      - data/img/templates/targets/01_tam-quoc-lenh/screen_button_dong_01tamquoclenh.png
+      - data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_tab_tamquoclenh_open_02.png
+      - data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_tab_queboi_open_01.png
+      - data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_tab_diembinh_open_01.png
+    close: data/img/templates/targets/01_tam-quoc-lenh/screen_button_dong_01tamquoclenh.png
+  reward:
+    marker: data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_chucmungnhandc.png
+    dismiss: data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_anvaochtrongdethoat.png
+  action_roi: [280, 385, 470, 475]
+  que_boi:
+    tabs:
+      - data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_tab_queboi_close_01.png
+      - data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_tab_queboi_close_02.png
+    open:
+      - data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_tab_queboi_open_01.png
+      - data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_tab_queboi_open_02.png
+    free: data/img/templates/targets/01_tam-quoc-lenh/screen/que_free_price.png
+    paid: data/img/templates/targets/01_tam-quoc-lenh/screen/que_paid_price.png
+  diem_binh:
+    tabs:
+      - data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_tab_diembinh_close_01.png
+      - data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_tab_diembinh_close_02.png
+    open:
+      - data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_tab_diembinh_open_01.png
+      - data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_tab_diembinh_open_02.png
+    free: data/img/templates/targets/01_tam-quoc-lenh/screen/diem_free_price.png
+    paid: data/img/templates/targets/01_tam-quoc-lenh/screen/diem_paid_price.png

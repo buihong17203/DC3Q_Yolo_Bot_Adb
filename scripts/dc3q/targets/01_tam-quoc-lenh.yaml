@@ -1,0 +1,15 @@
+name: target_tam_quoc_lenh
+type: home_target
+config: config/dc3q/targets/01_tam-quoc-lenh.yaml
+
+# HOME -> mở khu Chiến tranh nếu cần -> Tam Quốc Lệnh
+# -> Quẻ bói miễn phí -> Điểm binh miễn phí -> đóng về HOME.
+# Tuyệt đối không bấm nhánh 99/100 vàng, x10, Đổi, Lập mới hoặc paid pass.
+steps:
+  - open_home_menu_if_needed
+  - open_tam_quoc_lenh
+  - claim_que_boi_free_if_available
+  - dismiss_reward
+  - claim_diem_binh_free_if_available
+  - dismiss_reward
+  - close_to_home

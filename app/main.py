@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import date
 import logging
 import signal
 import sys
@@ -13,12 +14,22 @@ from app.adb.commands import get_android_properties
 LOGGER = logging.getLogger("dc3q")
 
 
-def configure_logging() -> None:
+def configure_logging(root: Path | None = None, *, day: date | None = None) -> Path:
+    root = (root or Path(__file__).resolve().parents[1]).resolve()
+    log_dir = root / "logs" / "logs_days_runtime"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / f"dc3q_{(day or date.today()):%Y-%m-%d}.log"
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%H:%M:%S",
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler(log_path, encoding="utf-8"),
+        ],
+        force=True,
     )
+    return log_path
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -177,6 +188,19 @@ def run_multi_manager(adb: AdbClient, devices, workflow_path: Path, workflow: di
     raise ValueError("multi_manager hiện chỉ hỗ trợ 1 workflow account_login trong một chuỗi")
 
 
+def load_login_random_events(root: Path, unexpected: dict) -> list[tuple[Path, Path, float]]:
+    events = []
+    for name in ("profile_update", "enemy_raid"):
+        event = unexpected.get(name, {}) or {}
+        if event.get("state") and event.get("close"):
+            events.append((
+                _resolve_project_path(root, event["state"]),
+                _resolve_project_path(root, event["close"]),
+                float(event.get("threshold", 0.75)),
+            ))
+    return events
+
+
 def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, workflow: dict, max_workers: int) -> int:
     import yaml
     from concurrent.futures import ThreadPoolExecutor
@@ -196,14 +220,49 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
     logout_config_path = _resolve_project_path(root, logout_config_value)
     logout_cfg = (yaml.safe_load(logout_config_path.read_text(encoding="utf-8")) or {}).get("logout", {})
     unexpected = login.get("unexpected", {}) or {}
-    home_events = []
-    enemy_raid = unexpected.get("enemy_raid", {}) or {}
-    if enemy_raid.get("state") and enemy_raid.get("close"):
-        home_events.append((
-            _resolve_project_path(root, enemy_raid["state"]),
-            _resolve_project_path(root, enemy_raid["close"]),
-            float(enemy_raid.get("threshold", 0.75)),
-        ))
+    home_events = load_login_random_events(root, unexpected)
+
+    home_target_config = None
+    home_target_value = workflow.get("home_target")
+    if home_target_value:
+        target_workflow = yaml.safe_load(
+            _resolve_project_path(root, home_target_value).read_text(encoding="utf-8")
+        ) or {}
+        target_cfg = (yaml.safe_load(
+            _resolve_project_path(root, target_workflow["config"]).read_text(encoding="utf-8")
+        ) or {})["tam_quoc_lenh"]
+        from importlib import import_module
+        TamQuocLenhConfig = import_module(
+            "app.actions.dc3q.targets.01_tam-quoc-lenh"
+        ).TamQuocLenhConfig
+
+        def paths(values):
+            return [_resolve_project_path(root, value) for value in values]
+
+        home_target_config = TamQuocLenhConfig(
+            entry_templates=paths(target_cfg["home"]["entry"]),
+            menu_templates=paths(target_cfg["home"]["menu"]),
+            panel_markers=paths(target_cfg["panel"]["markers"]),
+            close_template=_resolve_project_path(root, target_cfg["panel"]["close"]),
+            reward_marker=_resolve_project_path(root, target_cfg["reward"]["marker"]),
+            reward_dismiss=_resolve_project_path(root, target_cfg["reward"]["dismiss"]),
+            que_boi_tabs=paths(target_cfg["que_boi"]["tabs"]),
+            que_boi_open=paths(target_cfg["que_boi"]["open"]),
+            que_boi_free=_resolve_project_path(root, target_cfg["que_boi"]["free"]),
+            que_boi_paid=_resolve_project_path(root, target_cfg["que_boi"]["paid"]),
+            diem_binh_tabs=paths(target_cfg["diem_binh"]["tabs"]),
+            diem_binh_open=paths(target_cfg["diem_binh"]["open"]),
+            diem_binh_free=_resolve_project_path(root, target_cfg["diem_binh"]["free"]),
+            diem_binh_paid=_resolve_project_path(root, target_cfg["diem_binh"]["paid"]),
+            action_roi=tuple(target_cfg["action_roi"]),
+            home_markers=paths(target_cfg["home"]["markers"]),
+            action_threshold=float(target_cfg.get("action_threshold", 0.85)),
+            inactivity_marker=_resolve_project_path(root, target_cfg["inactivity"]["marker"]),
+            inactivity_return=_resolve_project_path(root, target_cfg["inactivity"]["return"]),
+            threshold=float(target_cfg.get("threshold", 0.60)),
+            max_steps=int(target_cfg.get("max_steps", 30)),
+            wait_seconds=float(target_cfg.get("wait_seconds", 0.8)),
+        )
 
     accounts = AccountManager(_resolve_project_path(root, workflow.get("account_file", cfg["account_file"])))
     runtime = AccountRuntime(root, reset_hour=int(workflow.get("reset_hour", 23)))
@@ -218,7 +277,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
         value = (login.get("coordinates", {}) or {}).get(name)
         return tuple(value) if value else None
 
-    from app.actions.tai_khoan import LogoutTemplates
+    from app.actions.dc3q.stars import LogoutTemplates
     logout_templates = LogoutTemplates(
         open_tuychon=_resolve_project_path(root, logout_cfg["templates"]["open_tuychon"]),
         open_cdnd=_resolve_project_path(root, logout_cfg["templates"]["open_cdnd"]),
@@ -230,7 +289,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
     )
 
     def make(device):
-        return AccountLoginController(
+        controller = AccountLoginController(
             adb, device, accounts, AccountLoginConfig(
                 login_templates=[_resolve_project_path(root, x) for x in templates.get("login_screen", [])],
                 logged_in_templates=[_resolve_project_path(root, x) for x in templates.get("logged_in", [])],
@@ -252,6 +311,18 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
             ),
             runtime,
         )
+        if home_target_config is not None:
+            from importlib import import_module
+            TamQuocLenhRunner = import_module(
+                "app.actions.dc3q.targets.01_tam-quoc-lenh"
+            ).TamQuocLenhRunner
+            controller.config.home_target = TamQuocLenhRunner(
+                controller._screen,
+                controller.input,
+                controller.logout_action.vision,
+                home_target_config,
+            )
+        return controller
 
     worker_count = max(1, min(int(max_workers), len(devices)))
     LOGGER.info("Account-login: %d device(s), tối đa %d worker(s).", len(devices), worker_count)

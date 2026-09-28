@@ -27,6 +27,11 @@ login:
       - xác minh bảo mật
       - chọn tài khoản Google
     optional_profile_update_text: Cập nhật thông tin cá nhân
+    profile_update:
+      state: data/img/templates/random-events/pop-up_random/profile-update/screen/screen_cnttcn_title.png
+      close: data/img/templates/random-events/pop-up_random/profile-update/screen/screen_cnttcn_button_dong.png
+      threshold: 0.75
+    optional_enemy_raid_text: Địch quân tập kích
     enemy_raid:
       state: data/img/templates/random-events/pop-up_random/enemy-raid/screen/screen_dqtk_banner_dichquantapkich.png
       close: data/img/templates/random-events/pop-up_random/enemy-raid/screen/screen_dqtk_button_dong.png

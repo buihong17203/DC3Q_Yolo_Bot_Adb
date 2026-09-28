@@ -1,0 +1,7 @@
+
+name: profile-update
+config: config/dc3q/random-events/pop-up_random/profile-update.yaml
+steps:
+  - detect: SET_PROFILE_UPDATE.state
+  - tap: SET_PROFILE_UPDATE.close
+  - verify: login_continues_or_home
