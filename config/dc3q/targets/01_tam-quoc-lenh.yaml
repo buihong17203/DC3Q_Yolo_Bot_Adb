@@ -38,8 +38,8 @@ tam_quoc_lenh:
     open:
       - data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_tab_queboi_open_01.png
       - data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_tab_queboi_open_02.png
-    free: data/img/templates/targets/01_tam-quoc-lenh/screen/que_free_price.png
-    paid: data/img/templates/targets/01_tam-quoc-lenh/screen/que_paid_price.png
+    free: data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_que_free_price.png
+    paid: data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_que_paid_price.png
   diem_binh:
     tabs:
       - data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_tab_diembinh_close_01.png
@@ -47,5 +47,5 @@ tam_quoc_lenh:
     open:
       - data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_tab_diembinh_open_01.png
       - data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_tab_diembinh_open_02.png
-    free: data/img/templates/targets/01_tam-quoc-lenh/screen/diem_free_price.png
-    paid: data/img/templates/targets/01_tam-quoc-lenh/screen/diem_paid_price.png
+    free: data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_diem_free_price.png
+    paid: data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_diem_paid_price.png
