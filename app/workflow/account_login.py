@@ -181,6 +181,16 @@ class AccountLoginController:
                 assert self.current
                 message = "Máy chủ từ chối tài khoản hoặc mật khẩu"
                 self.runtime.mark_error(self.current.id, self.device.serial, message)
+                self.login_action.clear_login_form()
+                self.accounts.skip_current(self.current.id)
+                self.current = None
+                self.phase = AccountLoginPhase.WAIT_LOGIN_SCREEN
+                self._logged_in_hits = 0
+                return self.phase
+            if unexpected == "maintenance":
+                assert self.current
+                message = "Máy chủ đang bảo trì; dừng an toàn, không gửi lại đăng nhập"
+                self.runtime.mark_error(self.current.id, self.device.serial, message)
                 raise RuntimeError(message)
             if unexpected in {"operator_required", "profile_update_blocked"}:
                 assert self.current
@@ -205,6 +215,7 @@ class AccountLoginController:
                     self.accounts.commit_logged_in(self.current.id)
                     self.runtime.mark_logged_in(self.current.id, self.device.serial)
                     self.phase = AccountLoginPhase.PROCESS_HOME_EVENTS
+                    return self.poll_once()
             else:
                 self._logged_in_hits = 0
             return self.phase

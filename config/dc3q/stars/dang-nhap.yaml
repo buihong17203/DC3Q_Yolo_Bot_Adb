@@ -15,9 +15,9 @@ login:
   threshold: 0.80
   control_threshold: 0.72
   poll_seconds: 1.0
-  timeout_seconds: 180
+  timeout_seconds: 600
   logged_in_threshold: 0.55
-  logged_in_confirmations: 3
+  logged_in_confirmations: 1
   coordinates: {}
   unexpected:
     credential_rejection_text: Tên đăng nhập hoặc mật khẩu không đúng

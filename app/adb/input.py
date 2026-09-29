@@ -41,7 +41,8 @@ class AdbInput:
     def clear_focused_text(self) -> None:
         # SDK login fields can retain the previous account after manual logout.
         self.shell("input", "keyevent", "KEYCODE_MOVE_END")
-        self.shell("input", "keyevent", *(["KEYCODE_DEL"] * 128))
+        for _ in range(8):
+            self.shell("input", "keyevent", *(["KEYCODE_DEL"] * 16))
 
     def back(self) -> str: return self.keyevent("KEYCODE_BACK")
     def home(self) -> str: return self.keyevent("KEYCODE_HOME")

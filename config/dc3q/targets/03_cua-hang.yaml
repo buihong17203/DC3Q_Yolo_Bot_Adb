@@ -28,3 +28,21 @@ cua_hang:
   reward:
     marker: data/img/templates/targets/03_cua-hang/cua-hang-goi-y/screen/screen_ch_chgy_chucmungnhandc.png
     dismiss: data/img/templates/targets/03_cua-hang/cua-hang-goi-y/screen/screen_ch_chgy_anvaochotrongdethoat.png
+  limited:
+    tabs:
+      - data/img/templates/targets/03_cua-hang/cua-hang-thoi-han/screen/screen_ch_tab_cuahangthoihan_close_01.png
+      - data/img/templates/targets/03_cua-hang/cua-hang-thoi-han/screen/screen_ch_tab_cuahangthoihan_close_02.png
+    open:
+      - data/img/templates/targets/03_cua-hang/cua-hang-thoi-han/screen/screen_ch_tab_cuahangthoihan_open_01.png
+      - data/img/templates/targets/03_cua-hang/cua-hang-thoi-han/screen/screen_ch_tab_cuahangthoihan_open_02.png
+    periods:
+      - closed: [data/img/templates/targets/03_cua-hang/cua-hang-thoi-han/screen/screen_ch_chth_tab_ngay_close.png]
+        open: [data/img/templates/targets/03_cua-hang/cua-hang-thoi-han/screen/screen_ch_chth_tab_ngay_open.png]
+      - closed: [data/img/templates/targets/03_cua-hang/cua-hang-thoi-han/screen/screen_ch_chth_tab_tuan_close.png]
+        open: [data/img/templates/targets/03_cua-hang/cua-hang-thoi-han/screen/screen_ch_chth_tab_tuan_open.png]
+      - closed: [data/img/templates/targets/03_cua-hang/cua-hang-thoi-han/screen/screen_ch_chth_tab_thang_close.png]
+        open: [data/img/templates/targets/03_cua-hang/cua-hang-thoi-han/screen/screen_ch_chth_tab_thang_open.png]
+    unclaimed: data/img/templates/targets/03_cua-hang/cua-hang-thoi-han/screen/screen_ch_chth_goiqua_chuamua.png
+    claimed: data/img/templates/targets/03_cua-hang/cua-hang-thoi-han/screen/screen_ch_chth_goiqua_damua.png
+    reward_marker: data/img/templates/targets/03_cua-hang/cua-hang-thoi-han/screen/screen_ch_chth_chucmungnhandc.png
+    reward_dismiss: data/img/templates/targets/03_cua-hang/cua-hang-thoi-han/screen/screen_ch_chth_anvaochotrongdethoat.png

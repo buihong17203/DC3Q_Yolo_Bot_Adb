@@ -58,5 +58,13 @@ class AccountManager:
         self._cursor += 1
         return account
 
+    def skip_current(self, account_id: str) -> Account:
+        """Consume one rejected account without treating it as logged in."""
+        account = self.peek_next()
+        if account is None or account.id != account_id:
+            raise ValueError("Chỉ được bỏ qua account đang đứng đầu hàng đợi")
+        self._cursor += 1
+        return account
+
     def reset(self) -> None:
         self._cursor = 0

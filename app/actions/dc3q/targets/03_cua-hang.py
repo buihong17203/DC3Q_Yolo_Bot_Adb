@@ -20,6 +20,14 @@ class CuaHangConfig:
     daily_claimed: Path
     reward_marker: Path
     reward_dismiss: Path
+    limited_tabs: list[Path]
+    limited_open: list[Path]
+    limited_tabs_closed: list[list[Path]]
+    limited_tabs_open: list[list[Path]]
+    limited_unclaimed: Path
+    limited_claimed: Path
+    limited_reward_marker: Path
+    limited_reward_dismiss: Path
     threshold: float = 0.65
     state_threshold: float = 0.76
     max_steps: int = 30
@@ -64,14 +72,64 @@ class CuaHangRunner:
             self.sleep(self.config.wait_seconds)
         return last, None
 
-    def _reward(self, screen) -> bool:
-        if not self._match(screen, self.config.reward_marker).found:
+    def _dismiss_reward(self, screen, marker: Path, dismiss_template: Path) -> bool:
+        if not self._match(screen, marker).found:
             return False
-        dismiss = self._match(screen, self.config.reward_dismiss)
+        dismiss = self._match(screen, dismiss_template)
         if not dismiss.found:
             raise RuntimeError("Cửa hàng: thấy thưởng nhưng thiếu vùng đóng an toàn")
         self._tap(dismiss)
         return True
+
+    def _reward(self, screen) -> bool:
+        return self._dismiss_reward(screen, self.config.reward_marker, self.config.reward_dismiss)
+
+    def _open_limited_store(self, screen):
+        if self._first(screen, self.config.limited_open) is not None:
+            return screen
+        tab = self._first(screen, self.config.limited_tabs)
+        if tab is None:
+            raise RuntimeError("Cửa hàng: không nhận diện được tab Cửa hàng thời hạn")
+        self._tap(tab)
+        screen, opened = self._wait_for(self.config.limited_open)
+        if opened is None:
+            raise RuntimeError("Cửa hàng: bấm Cửa hàng thời hạn nhưng tab chưa mở")
+        return screen
+
+    def _run_limited_tabs(self, screen) -> None:
+        logger = logging.getLogger("dc3q")
+        names = ("Ngày", "Tuần", "Tháng")
+        for name, closed_templates, open_templates in zip(
+            names, self.config.limited_tabs_closed, self.config.limited_tabs_open
+        ):
+            if self._first(screen, open_templates) is None:
+                tab = self._first(screen, closed_templates)
+                if tab is None:
+                    raise RuntimeError(f"Cửa hàng thời hạn: không thấy tab {name}")
+                self._tap(tab)
+                screen, opened = self._wait_for(open_templates)
+                if opened is None:
+                    raise RuntimeError(f"Cửa hàng thời hạn: tab {name} chưa mở")
+            for _ in range(12):
+                unclaimed = self._match(screen, self.config.limited_unclaimed, self.config.state_threshold)
+                claimed = self._match(screen, self.config.limited_claimed, self.config.state_threshold)
+                if claimed.found and claimed.confidence >= unclaimed.confidence:
+                    logger.info("CH | Cửa hàng thời hạn %s đã nhận", name)
+                    break
+                if unclaimed.found and unclaimed.confidence > claimed.confidence:
+                    self._tap(unclaimed)
+                    logger.info("CH | nhận gói miễn phí Cửa hàng thời hạn %s", name)
+                    screen = self.screen_provider()
+                    continue
+                if self._dismiss_reward(
+                    screen, self.config.limited_reward_marker, self.config.limited_reward_dismiss
+                ):
+                    screen = self.screen_provider()
+                    continue
+                raise RuntimeError(f"Cửa hàng thời hạn: state tab {name} không xác định")
+            else:
+                raise RuntimeError(f"Cửa hàng thời hạn: vượt bước tab {name}")
+            screen = self.screen_provider()
 
     def _open_gift_tab(self, screen):
         if self._first(screen, self.config.gift_tab_open) is not None:
@@ -135,6 +193,9 @@ class CuaHangRunner:
                 screen = self.screen_provider()
                 continue
             if claimed.found:
+                screen = self._open_limited_store(screen)
+                self._run_limited_tabs(screen)
+                screen = self.screen_provider()
                 close = self._match(screen, self.config.close_template)
                 if not close.found:
                     raise RuntimeError("Cửa hàng: hoàn tất nhưng thiếu nút đóng")

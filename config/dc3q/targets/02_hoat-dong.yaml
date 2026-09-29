@@ -43,11 +43,14 @@ hoat_dong:
     grid: [238, 199, 910, 499]
   tax:
     tabs:
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_trungthuthue_close_01.png
       - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_trungthuthue_close_02.png
     open:
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_trungthuthue_open_01.png
       - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_trungthuthue_open_02.png
-    unavailable: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_button_chuamo.png
-    claim_point: [718, 408]
+    unavailable: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_trungthuthue_chuamo.png
+    claimable: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_trungthuthue_chuatrungthu.png
+    claimed: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_trungthuthue_datrungthu.png
   reward:
     marker: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_chucmungnhandc.png
     dismiss: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_anvaochotrongdethoat.png

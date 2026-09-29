@@ -355,7 +355,8 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         tax_tabs=paths(target_cfg["tax"]["tabs"]),
                         tax_open=paths(target_cfg["tax"]["open"]),
                         tax_unavailable=_resolve_project_path(root, target_cfg["tax"]["unavailable"]),
-                        tax_claim_point=tuple(target_cfg["tax"]["claim_point"]),
+                        tax_claimable=_resolve_project_path(root, target_cfg["tax"]["claimable"]),
+                        tax_claimed=_resolve_project_path(root, target_cfg["tax"]["claimed"]),
                         reward_marker=_resolve_project_path(root, target_cfg["reward"]["marker"]),
                         reward_dismiss=_resolve_project_path(root, target_cfg["reward"]["dismiss"]),
                         threshold=float(target_cfg.get("threshold", 0.65)),
@@ -372,6 +373,13 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         paths(c["home"]["markers"]), paths(c["gift"]["tabs"]), paths(c["gift"]["open"]),
                         _resolve_project_path(root, c["gift"]["unclaimed"]), _resolve_project_path(root, c["gift"]["claimed"]),
                         _resolve_project_path(root, c["reward"]["marker"]), _resolve_project_path(root, c["reward"]["dismiss"]),
+                        paths(c["limited"]["tabs"]), paths(c["limited"]["open"]),
+                        [paths(period["closed"]) for period in c["limited"]["periods"]],
+                        [paths(period["open"]) for period in c["limited"]["periods"]],
+                        _resolve_project_path(root, c["limited"]["unclaimed"]),
+                        _resolve_project_path(root, c["limited"]["claimed"]),
+                        _resolve_project_path(root, c["limited"]["reward_marker"]),
+                        _resolve_project_path(root, c["limited"]["reward_dismiss"]),
                         float(c.get("threshold", .65)), float(c.get("state_threshold", .76)), int(c.get("max_steps", 30)), float(c.get("wait_seconds", .8))))
             elif module_name == "06_xa-giao":
                 c = target_config["xa_giao"]

@@ -28,7 +28,8 @@ class HoatDongConfig:
     tax_tabs: list[Path]
     tax_open: list[Path]
     tax_unavailable: Path
-    tax_claim_point: tuple[int, int]
+    tax_claimable: Path
+    tax_claimed: Path
     reward_marker: Path
     reward_dismiss: Path
     threshold: float = 0.65
@@ -54,10 +55,12 @@ class HoatDongRunner:
 
     @staticmethod
     def next_attendance_index(states: list[str]) -> int | None:
-        """Click the first cell after the last tick/makeup; empty board starts at 0."""
-        marked = [i for i, state in enumerate(states) if state in {"tick", "makeup"}]
-        candidate = marked[-1] + 1 if marked else 0
-        return candidate if candidate < min(30, len(states)) else None
+        """Click the first unhandled day; ignore false late marks from reward art."""
+        limit = min(30, len(states))
+        for index in range(limit):
+            if states[index] not in {"tick", "makeup"}:
+                return index
+        return None
 
     def _match(self, screen, template: Path, threshold: float | None = None):
         return self.vision.find_template(
@@ -137,6 +140,7 @@ class HoatDongRunner:
                 break
             if scroll_if_missing and attempt in {1, 3, 5}:
                 # Swipe is only for revealing list content; recognition remains visual.
+                logging.getLogger("dc3q").info("HD | vuốt tìm tab %s | lần=%d", name, attempt)
                 self.input.swipe(170, 450, 170, 220, 400)
                 self.sleep(self.config.wait_seconds)
             screen = self.screen_provider()
@@ -241,6 +245,31 @@ class HoatDongRunner:
     def _tax_window_open(self) -> bool:
         hour = self.now().hour
         return any(start <= hour < end for start, end in self.TAX_WINDOWS)
+
+    def _claim_tax(self, screen) -> None:
+        logger = logging.getLogger("dc3q")
+        unavailable = self._match(screen, self.config.tax_unavailable, self.config.state_threshold)
+        if unavailable.found:
+            logger.info("HD | Trưng thu thuế đang Chưa mở")
+            return
+        claimed = self._match(screen, self.config.tax_claimed, self.config.state_threshold)
+        if claimed.found:
+            logger.info("HD | Trưng thu thuế đã trưng thu")
+            return
+        claimable = self._match(screen, self.config.tax_claimable, self.config.state_threshold)
+        if not claimable.found:
+            raise RuntimeError("Hoạt động: tab Trưng thu thuế mở nhưng thiếu nút Trưng thu an toàn")
+        self._tap(claimable)
+        logger.info("HD | bấm nút Trưng thu đã nhận diện")
+        for _ in range(10):
+            verify = self.screen_provider()
+            if self._reward(verify):
+                continue
+            if self._match(verify, self.config.tax_claimed, self.config.state_threshold).found:
+                logger.info("HD | xác nhận Đã trưng thu")
+                return
+            self.sleep(self.config.wait_seconds)
+        raise RuntimeError("Hoạt động: bấm Trưng thu nhưng chưa thấy Đã trưng thu")
 
     def recover_home(self) -> bool:
         """Physically close only recognized Activity layers until HOME."""
@@ -348,24 +377,8 @@ class HoatDongRunner:
                 screen, self.config.tax_tabs, self.config.tax_open,
                 "Trưng thu thuế", scroll_if_missing=True,
             )
-            unavailable = self._match(screen, self.config.tax_unavailable, self.config.state_threshold)
-            if unavailable.found:
-                logger.info("HD | Trưng thu thuế đang Chưa mở")
-            else:
-                self.input.tap(*self.config.tax_claim_point)
-                logger.info("HD | bấm nhận Trưng thu thuế trong khung giờ")
-                settled = False
-                for _ in range(10):
-                    reward_screen = self.screen_provider()
-                    if self._reward(reward_screen):
-                        settled = True
-                        break
-                    if self._match(reward_screen, self.config.tax_unavailable, self.config.state_threshold).found:
-                        settled = True
-                        break
-                    self.sleep(self.config.wait_seconds)
-                if not settled:
-                    raise RuntimeError("Hoạt động: bấm Trưng thu thuế nhưng chưa có hậu điều kiện")
+            logger.info("HD | đã mở tab Trưng thu thuế")
+            self._claim_tax(screen)
         else:
             logger.info("HD | bỏ qua Trưng thu thuế ngoài khung giờ")
 

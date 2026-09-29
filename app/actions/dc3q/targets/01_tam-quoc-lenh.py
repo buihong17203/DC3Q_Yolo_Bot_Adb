@@ -259,7 +259,7 @@ class TamQuocLenhRunner:
                     continue
                 if state == "paid":
                     que_done = True
-                    logger.info("TQL | Quẻ bói đã là 99 vàng")
+                    logger.info("TQL | Quẻ bói không còn FREE; chuyển sang Điểm binh")
                     continue
 
             if not diem_done:
@@ -303,7 +303,7 @@ class TamQuocLenhRunner:
                     continue
                 if state == "paid":
                     diem_done = True
-                    logger.info("TQL | Điểm binh đã là 100 vàng")
+                    logger.info("TQL | Điểm binh không còn FREE")
                     continue
 
 

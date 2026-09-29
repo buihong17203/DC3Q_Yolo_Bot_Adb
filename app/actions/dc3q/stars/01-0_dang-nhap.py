@@ -23,6 +23,8 @@ def classify_login_ui(xml: str) -> tuple[str, tuple[int, int] | None]:
     ).casefold()
     if "tên đăng nhập hoặc mật khẩu không đúng" in text:
         return "credential_rejected", None
+    if any(marker in text for marker in ("bảo trì", "bao tri", "maintenance")):
+        return "maintenance", None
     if any(marker in text for marker in ("captcha", "otp", "xác minh bảo mật", "chọn tài khoản google")):
         return "operator_required", None
     if "cập nhật thông tin" not in text:
@@ -78,11 +80,29 @@ class AccountLoginAction:
         self.input.tap((x1 + x2) // 2, (y1 + y2) // 2)
         return True
 
+    def clear_login_form(self) -> None:
+        """Clear both rejected fields physically; never expose their values."""
+        for resource_id in (
+            "com.daichien.mobile:id/edt_username",
+            "com.daichien.mobile:id/edt_password",
+        ):
+            if not self._tap_accessibility(resource_id):
+                raise RuntimeError(f"Không tìm thấy input cần xóa: {resource_id}")
+            self.input.clear_focused_text()
+
     def _require_login_screen(self, screen_provider, detector, login_templates, threshold_screen: float) -> None:
         screen = screen_provider()
         d = detector.detect(screen, login_templates=login_templates, logged_in_templates=[], threshold=threshold_screen)
         if d.state != LoginScreenState.LOGIN_SCREEN:
             raise RuntimeError(f"Không thao tác: màn hình hiện tại không phải LOGIN_SCREEN ({d.state.value})")
+
+    def _submit_once(self, screen_provider, submit_template, threshold: float) -> None:
+        """Submit once; the controller owns the long, state-aware wait."""
+        if self._tap_accessibility("com.daichien.mobile:id/btn_login"):
+            return
+        screen = screen_provider()
+        if not self._find_and_tap(screen, submit_template, threshold):
+            raise RuntimeError("Không tìm thấy nút đăng nhập trên màn hình login")
 
     def login(self, account: Account, screen_provider, *, username_template, password_templates,
               submit_template, threshold=0.75, expected_login_detector=None,
@@ -122,12 +142,9 @@ class AccountLoginAction:
         self.input.text(account.password)
         time.sleep(0.3)
 
-        # Submit: confirm screen again before physical click.
+        # Submit exactly once. Slow/loading/maintenance states are handled by the controller.
         self._require_login_screen(screen_provider, detector, login_templates, threshold_screen)
-        screen = screen_provider()
         if self.coordinates.submit:
             self.input.tap(*self.coordinates.submit)
-        elif self._tap_accessibility("com.daichien.mobile:id/btn_login"):
-            pass
-        elif not self._find_and_tap(screen, submit_template, threshold):
-            raise RuntimeError("Không tìm thấy nút đăng nhập trên màn hình login")
+        else:
+            self._submit_once(screen_provider, submit_template, threshold)
