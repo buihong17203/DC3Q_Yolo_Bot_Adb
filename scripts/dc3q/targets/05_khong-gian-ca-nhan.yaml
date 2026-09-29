@@ -1,0 +1,11 @@
+name: target_khong_gian_ca_nhan
+type: home_target
+config: config/dc3q/targets/05_khong-gian-ca-nhan.yaml
+
+# HOME Thông tin của tôi -> Không gian cá nhân.
+# Chỉ bấm like/share khi template trước và sau chứng minh trạng thái.
+steps:
+  - open_khong_gian_ca_nhan
+  - like_if_before_after_known
+  - share_if_before_after_known
+  - recover_home

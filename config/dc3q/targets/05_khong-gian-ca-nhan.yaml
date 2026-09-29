@@ -1,0 +1,38 @@
+khong_gian_ca_nhan:
+  # Chỉ mở được sau lớp Thông tin của tôi; chưa có entry an toàn trực tiếp từ HOME.
+  enabled: false
+  threshold: 0.65
+  state_threshold: 0.80
+  max_steps: 24
+  wait_seconds: 0.8
+  home:
+    entry:
+      - data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_ttct_button_open_khonggiancanhan.png
+    markers:
+      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_thongtincuatoi_01.png
+      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_thongtincuatoi_02.png
+      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_thongtincuatoi_03.png
+  info:
+    markers:
+      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_thongtincuatoi_01.png
+      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_thongtincuatoi_02.png
+      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_thongtincuatoi_03.png
+  personal:
+    markers:
+      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_khonggiancanhan_01.png
+      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_khonggiancanhan_02.png
+      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_khonggiancanhan_03.png
+  panel:
+    close: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_kgcn_button_dong.png
+  like:
+    before: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_kgcn_chualike.png
+    after: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_kgcn_dalike.png
+    all: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_kgcn_liketoanbo.png
+  share:
+    before: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_ttct_chiase.png
+    panel: data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_chiase.png
+    button: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_chiase_chiase.png
+    after:
+      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_thongtincuatoi_01.png
+      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_thongtincuatoi_02.png
+      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_thongtincuatoi_03.png

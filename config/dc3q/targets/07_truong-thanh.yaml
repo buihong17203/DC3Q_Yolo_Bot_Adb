@@ -1,0 +1,71 @@
+truong_thanh:
+  enabled: true
+  threshold: 0.70
+  max_steps: 60
+  wait_seconds: 0.8
+  skipped_subflows:
+    # Assets show risky/unclear resource states; never blind-click.
+    - A1_bao-vat
+    - A2_tuong-an
+    - A3_chua-cong
+  home:
+    menu:
+      - data/img/templates/stars/home/screen/screen_home_morong_chamthan.png
+    entry:
+      - data/img/templates/stars/home/screen/screen_truong-thanh_01.png
+    markers:
+      - data/img/templates/stars/home/screen/screen_chien-tranh_01.png
+      - data/img/templates/stars/home/screen/screen_chien-tranh_02.png
+  close:
+    - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/full-screen_vt_tcc_cmnd_trove.png
+    - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_anvaochotrongdethoat.png
+    - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_batngua_button_dong.png
+    - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_bnn_button_dong.png
+    - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_btc_button_dong.png
+    - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_trove.png
+    - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_dong.png
+    - data/img/templates/targets/07_truong-thanh/A7_chien-hon/screen/screen_ch_anvaochotrongdethoat.png
+    - data/img/templates/targets/07_truong-thanh/A7_chien-hon/screen/screen_ch_button_dong.png
+  flows:
+    - name: A4_ve-tuong
+      entry:
+        - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/screen_vt_vethanh.png
+      free:
+        - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/screen_vt_tcc_button_dienquai1lan_free.png
+      spent:
+        - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/full screen/full-screen_vt_tcc_chucmungnhanduoc.png
+        - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/full-screen_vt_tcc_chucmungnhanduoc.png
+      close:
+        - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/full-screen_vt_tcc_cmnd_trove.png
+    - name: A5_trai-ngua
+      entry:
+        - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_home_tuongmaquan_mienphi.png
+      free:
+        - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_vmbd_button_batdau.png
+      spent:
+        - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_popup_chucmungnhanduoc.png
+      close:
+        - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_anvaochotrongdethoat.png
+    - name: A6_than-binh
+      entry:
+        - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_home_khuvuc_tambinhmichbao.png
+      free:
+        - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_1lan_mienphi.png
+        - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_tieptuc_luotmien1.png
+        - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_tieptuc_luotmien2.png
+      spent:
+        - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_popup_chucmungnhanduoc.png
+      close:
+        - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_trove.png
+        - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_dong.png
+    - name: A7_chien-hon
+      entry:
+        - data/img/templates/targets/07_truong-thanh/A7_chien-hon/full screen/screen_ch_tab_nhanchienhon_close.png
+        - data/img/templates/targets/07_truong-thanh/A7_chien-hon/screen/screen_ch_tab_nhanchienhon_close_chamthan.png
+      free:
+        - data/img/templates/targets/07_truong-thanh/A7_chien-hon/screen/screen_ch_nhanchienhon_button_rut1lan_mienphi.png
+      spent:
+        - data/img/templates/targets/07_truong-thanh/A7_chien-hon/screen/screen_ch_popup_chucmungnhanduoc.png
+      close:
+        - data/img/templates/targets/07_truong-thanh/A7_chien-hon/screen/screen_ch_anvaochotrongdethoat.png
+        - data/img/templates/targets/07_truong-thanh/A7_chien-hon/screen/screen_ch_button_dong.png

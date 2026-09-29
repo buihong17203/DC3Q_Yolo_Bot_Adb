@@ -12,7 +12,12 @@ class HomeAction:
 
     def reset(self) -> None:
         self.confirmations = 0
-        self.target_done = False
+        self.target_index = 0
+        self.recovery_attempts = 0
+
+    @property
+    def target_done(self) -> bool:
+        return self.target_index >= len(self.config.home_targets or [])
 
     def handle_known_event(self, image) -> bool:
         for state_template, close_template, threshold in self.config.home_events or []:
@@ -40,8 +45,19 @@ class HomeAction:
         if not logged_in:
             self.confirmations = 0
             return False
-        if self.config.home_target is not None and not self.target_done:
-            self.target_done = bool(self.config.home_target.run())
+        targets = self.config.home_targets or []
+        if self.target_index < len(targets):
+            try:
+                if targets[self.target_index].run():
+                    self.target_index += 1
+                    self.recovery_attempts = 0
+            except RuntimeError:
+                target = targets[self.target_index]
+                recover = getattr(target, "recover_home", None)
+                if recover is None or self.recovery_attempts >= 2 or not recover():
+                    raise
+                self.recovery_attempts += 1
+                # Do not advance: restart the same target from its first state.
             self.confirmations = 0
             return False
         self.confirmations += 1

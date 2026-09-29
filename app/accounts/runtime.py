@@ -18,11 +18,13 @@ class AccountRuntime:
 
     TIMEZONE = ZoneInfo("Asia/Ho_Chi_Minh")
 
-    def __init__(self, root: str | Path, *, reset_hour: int = 23):
+    def __init__(self, root: str | Path, *, reset_hour: int = 23,
+                 archive_dir: str | Path = "docs/docs_days_runtime"):
         self.root = Path(root)
         self.accounts_file = self.root / "data/accounts/accounts.csv"
         self.runtime_file = self.root / "data/accounts/account_runtime.csv"
-        self.archive_dir = self.root / "docs_days_runtime"
+        archive_path = Path(archive_dir)
+        self.archive_dir = archive_path if archive_path.is_absolute() else self.root / archive_path
         self.reset_hour = reset_hour
         self._lock = RLock()
         self._ensure_current()

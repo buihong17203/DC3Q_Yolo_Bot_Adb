@@ -222,52 +222,29 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
     unexpected = login.get("unexpected", {}) or {}
     home_events = load_login_random_events(root, unexpected)
 
-    home_target_config = None
-    home_target_value = workflow.get("home_target")
-    if home_target_value:
+    home_target_values = list(workflow.get("home_targets", []))
+    if not home_target_values and workflow.get("home_target"):
+        home_target_values.append(workflow["home_target"])
+
+    def paths(values):
+        return [_resolve_project_path(root, value) for value in values]
+
+    home_target_specs = []
+    for target_value in home_target_values:
         target_workflow = yaml.safe_load(
-            _resolve_project_path(root, home_target_value).read_text(encoding="utf-8")
+            _resolve_project_path(root, target_value).read_text(encoding="utf-8")
         ) or {}
-        target_cfg = (yaml.safe_load(
+        target_config = yaml.safe_load(
             _resolve_project_path(root, target_workflow["config"]).read_text(encoding="utf-8")
-        ) or {})["tam_quoc_lenh"]
-        from importlib import import_module
-        TamQuocLenhConfig = import_module(
-            "app.actions.dc3q.targets.01_tam-quoc-lenh"
-        ).TamQuocLenhConfig
-
-        def paths(values):
-            return [_resolve_project_path(root, value) for value in values]
-
-        home_target_config = TamQuocLenhConfig(
-            entry_templates=paths(target_cfg["home"]["entry"]),
-            menu_templates=paths(target_cfg["home"]["menu"]),
-            panel_markers=paths(target_cfg["panel"]["markers"]),
-            close_template=_resolve_project_path(root, target_cfg["panel"]["close"]),
-            reward_marker=_resolve_project_path(root, target_cfg["reward"]["marker"]),
-            reward_dismiss=_resolve_project_path(root, target_cfg["reward"]["dismiss"]),
-            que_boi_tabs=paths(target_cfg["que_boi"]["tabs"]),
-            que_boi_open=paths(target_cfg["que_boi"]["open"]),
-            que_boi_free=_resolve_project_path(root, target_cfg["que_boi"]["free"]),
-            que_boi_paid=_resolve_project_path(root, target_cfg["que_boi"]["paid"]),
-            diem_binh_tabs=paths(target_cfg["diem_binh"]["tabs"]),
-            diem_binh_open=paths(target_cfg["diem_binh"]["open"]),
-            diem_binh_free=_resolve_project_path(root, target_cfg["diem_binh"]["free"]),
-            diem_binh_paid=_resolve_project_path(root, target_cfg["diem_binh"]["paid"]),
-            action_roi=tuple(target_cfg["action_roi"]),
-            home_markers=paths(target_cfg["home"]["markers"]),
-            action_threshold=float(target_cfg.get("action_threshold", 0.85)),
-            advance_popup_marker=_resolve_project_path(root, target_cfg["advance_popup"]["marker"]),
-            advance_popup_close=_resolve_project_path(root, target_cfg["advance_popup"]["close"]),
-            inactivity_marker=_resolve_project_path(root, target_cfg["inactivity"]["marker"]),
-            inactivity_return=_resolve_project_path(root, target_cfg["inactivity"]["return"]),
-            threshold=float(target_cfg.get("threshold", 0.60)),
-            max_steps=int(target_cfg.get("max_steps", 30)),
-            wait_seconds=float(target_cfg.get("wait_seconds", 0.8)),
-        )
+        ) or {}
+        home_target_specs.append((Path(target_value).stem, target_config))
 
     accounts = AccountManager(_resolve_project_path(root, workflow.get("account_file", cfg["account_file"])))
-    runtime = AccountRuntime(root, reset_hour=int(workflow.get("reset_hour", 23)))
+    runtime = AccountRuntime(
+        root,
+        reset_hour=int(workflow.get("reset_hour", 23)),
+        archive_dir=workflow.get("runtime_archive_dir", "docs/docs_days_runtime"),
+    )
     runtime.maybe_rollover()
     loaded = accounts.load(runtime_status=runtime.statuses())
     LOGGER.info("Accounts: %d account(s) từ %s", len(loaded), _resolve_project_path(root, cfg["account_file"]))
@@ -313,17 +290,122 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
             ),
             runtime,
         )
-        if home_target_config is not None:
-            from importlib import import_module
-            TamQuocLenhRunner = import_module(
-                "app.actions.dc3q.targets.01_tam-quoc-lenh"
-            ).TamQuocLenhRunner
-            controller.config.home_target = TamQuocLenhRunner(
-                controller._screen,
-                controller.input,
-                controller.logout_action.vision,
-                home_target_config,
-            )
+        from importlib import import_module
+        targets = []
+        for module_name, target_config in home_target_specs:
+            module = import_module(f"app.actions.dc3q.targets.{module_name}")
+            root_key = next(iter(target_config))
+            if not bool(target_config[root_key].get("enabled", True)):
+                LOGGER.info("Bỏ qua target đã tắt: %s", module_name)
+                continue
+            if module_name == "01_tam-quoc-lenh":
+                target_cfg = target_config["tam_quoc_lenh"]
+                target = module.TamQuocLenhRunner(
+                    controller._screen, controller.input, controller.logout_action.vision,
+                    module.TamQuocLenhConfig(
+                        entry_templates=paths(target_cfg["home"]["entry"]),
+                        menu_templates=paths(target_cfg["home"]["menu"]),
+                        panel_markers=paths(target_cfg["panel"]["markers"]),
+                        close_template=_resolve_project_path(root, target_cfg["panel"]["close"]),
+                        reward_marker=_resolve_project_path(root, target_cfg["reward"]["marker"]),
+                        reward_dismiss=_resolve_project_path(root, target_cfg["reward"]["dismiss"]),
+                        que_boi_tabs=paths(target_cfg["que_boi"]["tabs"]),
+                        que_boi_open=paths(target_cfg["que_boi"]["open"]),
+                        que_boi_free=_resolve_project_path(root, target_cfg["que_boi"]["free"]),
+                        que_boi_paid=_resolve_project_path(root, target_cfg["que_boi"]["paid"]),
+                        diem_binh_tabs=paths(target_cfg["diem_binh"]["tabs"]),
+                        diem_binh_open=paths(target_cfg["diem_binh"]["open"]),
+                        diem_binh_free=_resolve_project_path(root, target_cfg["diem_binh"]["free"]),
+                        diem_binh_paid=_resolve_project_path(root, target_cfg["diem_binh"]["paid"]),
+                        action_roi=tuple(target_cfg["action_roi"]),
+                        home_markers=paths(target_cfg["home"]["markers"]),
+                        action_threshold=float(target_cfg.get("action_threshold", 0.85)),
+                        advance_popup_marker=_resolve_project_path(root, target_cfg["advance_popup"]["marker"]),
+                        advance_popup_close=_resolve_project_path(root, target_cfg["advance_popup"]["close"]),
+                        inactivity_marker=_resolve_project_path(root, target_cfg["inactivity"]["marker"]),
+                        inactivity_return=_resolve_project_path(root, target_cfg["inactivity"]["return"]),
+                        threshold=float(target_cfg.get("threshold", 0.60)),
+                        max_steps=int(target_cfg.get("max_steps", 30)),
+                        wait_seconds=float(target_cfg.get("wait_seconds", 0.8)),
+                    ),
+                )
+            elif module_name == "02_hoat-dong":
+                target_cfg = target_config["hoat_dong"]
+                target = module.HoatDongRunner(
+                    controller._screen, controller.input, controller.logout_action.vision,
+                    module.HoatDongConfig(
+                        entry_templates=paths(target_cfg["home"]["entry"]),
+                        menu_templates=paths(target_cfg["home"]["menu"]),
+                        panel_markers=paths(target_cfg["panel"]["markers"]),
+                        close_template=_resolve_project_path(root, target_cfg["panel"]["close"]),
+                        home_markers=paths(target_cfg["home"]["markers"]),
+                        welfare_tabs=paths(target_cfg["welfare"]["tabs"]),
+                        welfare_open=paths(target_cfg["welfare"]["open"]),
+                        national_tabs=paths(target_cfg["national_fortune"]["tabs"]),
+                        national_open=paths(target_cfg["national_fortune"]["open"]),
+                        national_free=_resolve_project_path(root, target_cfg["national_fortune"]["free"]),
+                        national_claimed=_resolve_project_path(root, target_cfg["national_fortune"]["claimed"]),
+                        attendance_tabs=paths(target_cfg["attendance"]["tabs"]),
+                        attendance_open=paths(target_cfg["attendance"]["open"]),
+                        attendance_makeup=(
+                            _resolve_project_path(root, target_cfg["attendance"]["makeup"])
+                            if target_cfg["attendance"].get("makeup") else None
+                        ),
+                        attendance_grid=tuple(target_cfg["attendance"]["grid"]),
+                        tax_tabs=paths(target_cfg["tax"]["tabs"]),
+                        tax_open=paths(target_cfg["tax"]["open"]),
+                        tax_unavailable=_resolve_project_path(root, target_cfg["tax"]["unavailable"]),
+                        tax_claim_point=tuple(target_cfg["tax"]["claim_point"]),
+                        reward_marker=_resolve_project_path(root, target_cfg["reward"]["marker"]),
+                        reward_dismiss=_resolve_project_path(root, target_cfg["reward"]["dismiss"]),
+                        threshold=float(target_cfg.get("threshold", 0.65)),
+                        state_threshold=float(target_cfg.get("state_threshold", 0.76)),
+                        max_steps=int(target_cfg.get("max_steps", 50)),
+                        wait_seconds=float(target_cfg.get("wait_seconds", 0.8)),
+                    ),
+                )
+            elif module_name == "03_cua-hang":
+                c = target_config["cua_hang"]
+                target = module.CuaHangRunner(controller._screen, controller.input, controller.logout_action.vision,
+                    module.CuaHangConfig(paths(c["home"]["entry"]), paths(c["home"]["menu"]),
+                        paths(c["panel"]["markers"]), _resolve_project_path(root, c["panel"]["close"]),
+                        paths(c["home"]["markers"]), paths(c["gift"]["tabs"]), paths(c["gift"]["open"]),
+                        _resolve_project_path(root, c["gift"]["unclaimed"]), _resolve_project_path(root, c["gift"]["claimed"]),
+                        _resolve_project_path(root, c["reward"]["marker"]), _resolve_project_path(root, c["reward"]["dismiss"]),
+                        float(c.get("threshold", .65)), float(c.get("state_threshold", .76)), int(c.get("max_steps", 30)), float(c.get("wait_seconds", .8))))
+            elif module_name == "06_xa-giao":
+                c = target_config["xa_giao"]
+                target = module.XaGiaoRunner(controller._screen, controller.input, controller.logout_action.vision,
+                    module.XaGiaoConfig(paths(c["home"]["entry"]), paths(c["home"]["menu"]), paths(c["panel"]["markers"]),
+                        _resolve_project_path(root, c["panel"]["close"]), paths(c["home"]["markers"]),
+                        _resolve_project_path(root, c["heart"]["before"]), _resolve_project_path(root, c["heart"]["after"]),
+                        _resolve_project_path(root, c["quick_give"]["before"]), _resolve_project_path(root, c["quick_give"]["after"]),
+                        float(c.get("threshold", .65)), float(c.get("state_threshold", .8)), int(c.get("max_steps", 24)), float(c.get("wait_seconds", .8))))
+            elif module_name == "07_truong-thanh":
+                c = target_config["truong_thanh"]
+                flows = [module.SubFlow(x["name"], paths(x["entry"]), paths(x["free"]), paths(x["spent"]), paths(x["close"])) for x in c["flows"]]
+                target = module.TruongThanhRunner(controller._screen, controller.input, controller.logout_action.vision,
+                    module.TruongThanhConfig(paths(c["home"]["entry"]), paths(c["home"]["menu"]), paths(c["home"]["markers"]),
+                        paths(c["close"]), list(c.get("skipped_subflows", [])), flows,
+                        float(c.get("threshold", .7)), int(c.get("max_steps", 60)), float(c.get("wait_seconds", .8))))
+            elif module_name == "08_vo-tuong":
+                c = target_config["vo_tuong"]
+                target = module.VoTuongRunner(controller._screen, controller.input, controller.logout_action.vision,
+                    module.VoTuongConfig(paths(c["home"]["entry"]), paths(c["home"]["menu"]), paths(c["home"]["markers"]),
+                        paths(c["panel"]["markers"]), _resolve_project_path(root, c["panel"]["close"]),
+                        _resolve_project_path(root, c["reward"]["marker"]), _resolve_project_path(root, c["reward"]["dismiss"]),
+                        paths(c["safe_actions"]), paths(c["forbidden_actions"]), float(c.get("threshold", .6)), int(c.get("max_steps", 20)), float(c.get("wait_seconds", .8))))
+            elif module_name == "09_quan-su":
+                c = target_config["quan_su"]
+                target = module.QuanSuRunner(controller._screen, controller.input, controller.logout_action.vision,
+                    module.QuanSuConfig(paths(c["home"]["entry"]), paths(c["home"]["menu"]), paths(c["home"]["markers"]),
+                        paths(c["panel"]["markers"]), _resolve_project_path(root, c["panel"]["close"]),
+                        _resolve_project_path(root, c["reward"]["button"]), paths(c["reward"]["claimed"]),
+                        paths(c["forbidden"]["unfinished_battle"]), float(c.get("threshold", .6)), int(c.get("max_steps", 16)), float(c.get("wait_seconds", .8))))
+            else:
+                raise ValueError(f"Home target chưa hỗ trợ: {module_name}")
+            targets.append(target)
+        controller.config.home_targets = targets
         return controller
 
     worker_count = max(1, min(int(max_workers), len(devices)))

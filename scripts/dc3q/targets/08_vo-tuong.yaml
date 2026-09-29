@@ -1,0 +1,11 @@
+name: target_vo_tuong
+type: home_target
+config: config/dc3q/targets/08_vo-tuong.yaml
+
+# Free-only: Nhân đệ tử tướng x1 miễn phí if visible.
+# Skip Ton Ngoc/cuộn thư/Chiêm tinh/ambiguous controls.
+steps:
+  - open_vo_tuong
+  - claim_nhan_de_tu_tuong_free_if_available
+  - dismiss_reward
+  - close_to_home

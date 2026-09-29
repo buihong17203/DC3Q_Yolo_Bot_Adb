@@ -94,6 +94,47 @@ class TamQuocLenhRunner:
             return "paid", free, paid
         return "unknown", free, paid
 
+    def recover_home(self) -> bool:
+        """Close only recognized TQL layers; never use Android Back/Esc."""
+        logger = logging.getLogger("dc3q")
+        for _ in range(12):
+            screen = self.screen_provider()
+            if self.config.advance_popup_marker and self.config.advance_popup_close:
+                if self._match(screen, self.config.advance_popup_marker).found:
+                    close = self._match(screen, self.config.advance_popup_close)
+                    if not close.found:
+                        return False
+                    self._tap(close)
+                    logger.info("TQL | recovery đóng popup Tiến giai")
+                    continue
+            if self.config.inactivity_marker and self.config.inactivity_return:
+                if self._match(screen, self.config.inactivity_marker).found:
+                    control = self._match(screen, self.config.inactivity_return)
+                    if not control.found:
+                        return False
+                    self._tap(control)
+                    logger.info("TQL | recovery bấm Về lãnh địa")
+                    continue
+            if self._match(screen, self.config.reward_marker).found:
+                dismiss = self._match(screen, self.config.reward_dismiss)
+                if not dismiss.found:
+                    return False
+                self._tap(dismiss)
+                logger.info("TQL | recovery đóng thưởng")
+                continue
+            if self._first(screen, self.config.panel_markers) is not None:
+                close = self._match(screen, self.config.close_template)
+                if not close.found:
+                    return False
+                self._tap(close)
+                logger.info("TQL | recovery đóng bảng")
+                continue
+            if self._first(screen, self.config.home_markers) is not None:
+                logger.info("TQL | recovery đã về HOME")
+                return True
+            self.sleep(self.config.wait_seconds)
+        return False
+
     def run(self) -> bool:
         logger = logging.getLogger("dc3q")
         opened = False
@@ -146,7 +187,14 @@ class TamQuocLenhRunner:
                 if not dismiss.found:
                     raise RuntimeError("Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn")
                 self._tap(dismiss)
-                logger.info("TQL | đóng thưởng | chờ=%s", waiting_for or "-")
+                completed_action = waiting_for
+                if completed_action == "que":
+                    que_done = True
+                elif completed_action == "diem":
+                    diem_done = True
+                self._last_completed_action = completed_action
+                waiting_for = None
+                logger.info("TQL | đóng thưởng | hoàn tất=%s", completed_action or "-")
                 unknown = 0
                 continue
 
@@ -176,9 +224,14 @@ class TamQuocLenhRunner:
                     if tab is not None:
                         panel_seen = True
                         self._tap(tab)
-                        verify = self.screen_provider()
-                        if self._first(verify, self.config.que_boi_open) is None:
-                            raise RuntimeError("Tam Quốc Lệnh: bấm Quẻ bói nhưng tab chưa mở")
+                        verify = None
+                        for _ in range(8):
+                            verify = self.screen_provider()
+                            if self._first(verify, self.config.que_boi_open) is not None:
+                                break
+                            self.sleep(self.config.wait_seconds)
+                        else:
+                            raise RuntimeError("Tam Quốc Lệnh: bấm Quẻ bói nhưng tab chưa mở sau khi chờ")
                         que_tab_opened = True
                         logger.info("TQL | mở tab Quẻ bói")
                         continue
@@ -215,9 +268,14 @@ class TamQuocLenhRunner:
                     if tab is not None:
                         panel_seen = True
                         self._tap(tab)
-                        verify = self.screen_provider()
-                        if self._first(verify, self.config.diem_binh_open) is None:
-                            raise RuntimeError("Tam Quốc Lệnh: bấm Điểm binh nhưng tab chưa mở")
+                        verify = None
+                        for _ in range(8):
+                            verify = self.screen_provider()
+                            if self._first(verify, self.config.diem_binh_open) is not None:
+                                break
+                            self.sleep(self.config.wait_seconds)
+                        else:
+                            raise RuntimeError("Tam Quốc Lệnh: bấm Điểm binh nhưng tab chưa mở sau khi chờ")
                         diem_tab_opened = True
                         logger.info("TQL | mở tab Điểm binh")
                         continue

@@ -1,0 +1,26 @@
+vo_tuong:
+  enabled: true
+  threshold: 0.60
+  max_steps: 20
+  wait_seconds: 0.8
+  home:
+    menu:
+      - data/img/templates/stars/home/screen/screen_home_morong_chamthan.png
+    entry:
+      - data/img/templates/stars/home/screen/screen_vo-tuong_01.png
+    markers:
+      - data/img/templates/stars/home/screen/screen_noi-chinh_01.png
+  panel:
+    markers:
+      - data/img/templates/targets/08_vo-tuong/full screen/full-screen_vt_thienvankituong_01.png
+      - data/img/templates/targets/08_vo-tuong/full screen/full-screen_vt_nhandectutuong_conluot_01.png
+      - data/img/templates/targets/08_vo-tuong/full screen/full-screen_vt_khotuong_01.png
+      - data/img/templates/targets/08_vo-tuong/full screen/full-screen_vt_chiemtinhuocnguyen_01.png
+    close: data/img/templates/targets/08_vo-tuong/screen/screen_vt_button_dong.png
+  reward:
+    marker: data/img/templates/targets/08_vo-tuong/full screen/full-screen_vt_nhandectutuong_ketqua_01.png
+    dismiss: data/img/templates/targets/08_vo-tuong/screen/screen_vt_button_trove.png
+  safe_actions:
+    - data/img/templates/targets/08_vo-tuong/screen/screen_vt_nhandectutuong_button_rut1lan_mienphi.png
+  forbidden_actions:
+    - data/img/templates/targets/08_vo-tuong/screen/screen_vt_nhandectutuong_button_rut1lan_tonngoc.png

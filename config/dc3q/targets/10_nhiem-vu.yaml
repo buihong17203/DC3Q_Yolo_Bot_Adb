@@ -1,0 +1,35 @@
+nhiem_vu:
+  # Chưa có crop nút X riêng; không vào màn nếu không thể đóng bằng ảnh xác minh.
+  enabled: false
+  threshold: 0.60
+  max_steps: 24
+  wait_seconds: 0.8
+  home:
+    menu:
+      - data/img/templates/stars/home/screen/screen_home_morong_chamthan.png
+    entry:
+      - data/img/templates/stars/home/screen/screen_nhiem-vu_01.png
+    markers:
+      - data/img/templates/stars/home/screen/screen_noi-chinh_01.png
+  panel:
+    markers:
+      - data/img/templates/targets/10_nhiem-vu/full screen/full-screen_nv_hangngay_01.png
+    close: null
+  reward:
+    claim_button: data/img/templates/targets/10_nhiem-vu/screen/screen_nv_button_nhan.png
+    available:
+      - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_90_cothenhan.png
+    claimed:
+      - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_30_danhan.png
+      - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_50_danhan.png
+      - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_70_danhan.png
+      - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_90_danhan.png
+    unavailable:
+      - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_30_chuamo.png
+      - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_50_chuamo.png
+      - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_70_chuamo.png
+      - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_90_chuamo.png
+      - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_120_chuamo.png
+  forbidden:
+    skip_day:
+      - data/img/templates/targets/10_nhiem-vu/full screen/full-screen_nvhn_boqua_khonglamnvngaynua.png

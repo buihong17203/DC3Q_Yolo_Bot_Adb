@@ -1,0 +1,9 @@
+name: target_nhiem_vu
+type: home_target
+config: config/dc3q/targets/10_nhiem-vu.yaml
+
+# Reward-only: claim available daily chest. Never skip-day/Bo qua.
+steps:
+  - open_nhiem_vu
+  - claim_available_daily_chest_if_available
+  - close_to_home

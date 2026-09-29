@@ -1,0 +1,11 @@
+name: target_hoat_dong
+type: home_target
+config: config/dc3q/targets/02_hoat-dong.yaml
+
+steps:
+  - open_hoat_dong
+  - open_phuc_loi
+  - le_bao_quoc_van_free_only
+  - diem_danh
+  - trung_thu_thue_in_allowed_hours
+  - close_to_home

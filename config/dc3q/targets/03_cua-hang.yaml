@@ -1,0 +1,30 @@
+cua_hang:
+  enabled: true
+  threshold: 0.60
+  state_threshold: 0.76
+  max_steps: 30
+  wait_seconds: 0.8
+  home:
+    menu:
+      - data/img/templates/stars/home/screen/screen_home_morong_chamthan.png
+    entry:
+      - data/img/templates/stars/home/screen/screen_cua-hang_01.png
+    markers:
+      - data/img/templates/stars/home/screen/screen_noi-chinh_01.png
+  panel:
+    markers:
+      - data/img/templates/targets/03_cua-hang/cua-hang-goi-y/screen/screen_ch_cuahanggoiy_open_01.png
+      - data/img/templates/targets/03_cua-hang/cua-hang-goi-y/screen/screen_ch_cuahanggoiy_open_02.png
+    close: data/img/templates/targets/03_cua-hang/screen_button_dong_03cuahang.png
+  gift:
+    tabs:
+      - data/img/templates/targets/03_cua-hang/cua-hang-goi-y/screen/screen_ch_cuahanggoiy_close_01.png
+      - data/img/templates/targets/03_cua-hang/cua-hang-goi-y/screen/screen_ch_cuahanggoiy_close_02.png
+    open:
+      - data/img/templates/targets/03_cua-hang/cua-hang-goi-y/screen/screen_ch_cuahanggoiy_open_01.png
+      - data/img/templates/targets/03_cua-hang/cua-hang-goi-y/screen/screen_ch_cuahanggoiy_open_02.png
+    unclaimed: data/img/templates/targets/03_cua-hang/cua-hang-goi-y/screen/screen_ch_chgy_button_quahangngay_chuamua.png
+    claimed: data/img/templates/targets/03_cua-hang/cua-hang-goi-y/screen/screen_ch_chgy_button_quahangngay_damua.png
+  reward:
+    marker: data/img/templates/targets/03_cua-hang/cua-hang-goi-y/screen/screen_ch_chgy_chucmungnhandc.png
+    dismiss: data/img/templates/targets/03_cua-hang/cua-hang-goi-y/screen/screen_ch_chgy_anvaochotrongdethoat.png

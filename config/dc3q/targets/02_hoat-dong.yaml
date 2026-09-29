@@ -1,0 +1,53 @@
+hoat_dong:
+  enabled: true
+  threshold: 0.65
+  state_threshold: 0.76
+  max_steps: 50
+  wait_seconds: 0.8
+  home:
+    menu:
+      - data/img/templates/stars/home/screen/screen_home_morong_chamthan.png
+    entry:
+      - data/img/templates/stars/home/screen/screen_hoat-dong_01.png
+      - data/img/templates/stars/home/screen/screen_hoat-dong_02.png
+    markers:
+      - data/img/templates/stars/home/screen/screen_noi-chinh_01.png
+  panel:
+    markers:
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_tab_phucloi_open_01.png
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_tab_phucloi_open_02.png
+    close: data/img/templates/targets/02_hoat-dong/screen_button_dong_02hoatdong.png
+  welfare:
+    tabs:
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_tab_phucloi_close_01.png
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_tab_phucloi_close_02.png
+    open:
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_tab_phucloi_open_01.png
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_tab_phucloi_open_02.png
+  national_fortune:
+    tabs:
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_lebaoquocvan_close_01.png
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_lebaoquocvan_close_02.png
+    open:
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_lebaoquocvan_open_01.png
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_lebaoquocvan_open_02.png
+    free: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_lebaoquocvan_chuanhan.png
+    claimed: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_lebaoquocvan_danhan.png
+  attendance:
+    tabs:
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_diemdanh_close_02.png
+    open:
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_diemdanh_open_02.png
+
+    # ADB viewport 960x540; coordinates exclude LDPlayer's 35px title bar.
+    grid: [238, 199, 910, 499]
+  tax:
+    tabs:
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_trungthuthue_close_02.png
+    open:
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_trungthuthue_open_02.png
+    unavailable: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_button_chuamo.png
+    claim_point: [718, 408]
+  reward:
+    marker: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_chucmungnhandc.png
+    dismiss: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_anvaochotrongdethoat.png

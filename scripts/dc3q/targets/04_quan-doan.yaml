@@ -1,0 +1,13 @@
+name: target_quan_doan
+type: home_target
+config: config/dc3q/targets/04_quan-doan.yaml
+
+# HOME -> Quân đoàn -> Cầu vận quân đoàn -> dùng lượt 10 Cầu vận có sẵn -> HOME.
+# Không bấm controls paid/premium; chỉ bấm nút 10 Cầu vận/0 Cầu vận đã có asset.
+steps:
+  - open_home_menu_if_needed
+  - open_quan_doan
+  - open_cau_van_quan_doan
+  - run_cau_van_until_0
+  - close_cau_van
+  - close_to_home

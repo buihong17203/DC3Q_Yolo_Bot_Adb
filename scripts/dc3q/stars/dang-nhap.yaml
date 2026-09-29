@@ -5,10 +5,12 @@ type: account_login
 # Account credentials luôn đọc từ data/accounts/accounts.csv.
 config: config/dc3q/stars/dang-nhap.yaml
 logout_config: config/dc3q/stars/dang-xuat.yaml
-home_target: scripts/dc3q/targets/01_tam-quoc-lenh.yaml
+home_targets:
+  - scripts/dc3q/targets/01_tam-quoc-lenh.yaml
+  - scripts/dc3q/targets/02_hoat-dong.yaml
 account_file: data/accounts/accounts.csv
 runtime_file: data/accounts/account_runtime.csv
-runtime_archive_dir: docs_days_runtime
+runtime_archive_dir: docs/docs_days_runtime
 reset_hour: 23
 
 # Tự động đăng xuất sau khi HOME được xác nhận ổn định.

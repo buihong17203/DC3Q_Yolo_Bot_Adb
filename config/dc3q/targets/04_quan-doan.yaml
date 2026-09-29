@@ -1,0 +1,27 @@
+quan_doan:
+  # 10 Cầu vận tiêu 10 vé; không phải miễn phí.
+  enabled: false
+  threshold: 0.65
+  state_threshold: 0.76
+  max_steps: 30
+  wait_seconds: 0.8
+  home:
+    menu:
+      - data/img/templates/stars/home/screen/screen_home_morong_chamthan.png
+    entry:
+      - data/img/templates/stars/home/screen/screen_quan-doan_01.png
+      - data/img/templates/stars/home/screen/screen_quan-doan_02.png
+    markers:
+      - data/img/templates/stars/home/screen/screen_noi-chinh_01.png
+  panel:
+    markers:
+      - data/img/templates/targets/04_quan-doan/screen_button_dong_04quandoan.png
+    close: data/img/templates/targets/04_quan-doan/screen_button_dong_04quandoan.png
+  prayer:
+    tabs:
+      - data/img/templates/targets/04_quan-doan/screen/screen_qd_tab_cauvanquandoan_01.png
+    open:
+      - data/img/templates/targets/04_quan-doan/screen/screen_qd_tab_cauvanquandoan_02.png
+    available: data/img/templates/targets/04_quan-doan/screen/screen_qd_cvqd_button_10cauvan.png
+    empty: data/img/templates/targets/04_quan-doan/screen/screen_qd_cvqd_button_0cauvan.png
+    close: data/img/templates/targets/04_quan-doan/screen/screen_qd_cvqd_button_dong.png

@@ -1,0 +1,9 @@
+name: target_quan_su
+type: home_target
+config: config/dc3q/targets/09_quan-su.yaml
+
+# Reward-only: Tranh Bá finished reward. Never unfinished battle.
+steps:
+  - open_quan_su
+  - claim_tranh_ba_finished_reward_if_available
+  - close_to_home

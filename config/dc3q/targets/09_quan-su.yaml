@@ -1,0 +1,26 @@
+quan_su:
+  # Icon HOME hiện có không khớp frame live đủ an toàn.
+  enabled: false
+  threshold: 0.60
+  max_steps: 16
+  wait_seconds: 0.8
+  home:
+    menu:
+      - data/img/templates/stars/home/screen/screen_home_morong_chamthan.png
+    entry:
+      - data/img/templates/stars/home/screen/screen_quan-su_01.png
+    markers:
+      - data/img/templates/stars/home/screen/screen_noi-chinh_01.png
+  panel:
+    markers:
+      - data/img/templates/targets/09_quan-su/tranh-ba/full screen/full-screen_qs_tb_main_01.png
+      - data/img/templates/targets/09_quan-su/tranh-ba/full screen/full-screen_qs_tb_chitietthuong_01.png
+      - data/img/templates/targets/09_quan-su/tranh-ba/full screen/full-screen_qs_tb_chitietthuong_danhan_01.png
+    close: data/img/templates/targets/09_quan-su/tranh-ba/screen/screen_qs_tb_button_dong.png
+  reward:
+    button: data/img/templates/targets/09_quan-su/tranh-ba/screen/screen_qs_tb_button_nhanthuong.png
+    claimed:
+      - data/img/templates/targets/09_quan-su/tranh-ba/full screen/full-screen_qs_tb_chitietthuong_danhan_01.png
+  forbidden:
+    unfinished_battle:
+      - data/img/templates/targets/09_quan-su/tranh-ba/screen/screen_qs_tb_button_chuaketthuc.png

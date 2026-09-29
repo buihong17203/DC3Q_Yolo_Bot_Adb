@@ -1,0 +1,13 @@
+name: target_cua_hang
+type: home_target
+config: config/dc3q/targets/03_cua-hang.yaml
+
+# HOME -> Cửa hàng -> Cửa hàng gợi ý -> Quà hằng ngày free-only -> HOME.
+# Không bấm Tiệm thần bí, Cửa hàng thời hạn, popup mua, giá vật phẩm, gói quà paid.
+steps:
+  - open_home_menu_if_needed
+  - open_cua_hang
+  - open_cua_hang_goi_y
+  - claim_qua_hang_ngay_if_unclaimed
+  - dismiss_reward
+  - close_to_home

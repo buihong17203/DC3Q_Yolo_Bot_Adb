@@ -59,7 +59,7 @@ class AccountLoginConfig:
     logout_threshold: float = 0.75
     logout_max_attempts: int = 5
     home_events: list[tuple[Path, Path, float]] | None = None
-    home_target: object | None = None
+    home_targets: list[object] | None = None
 
 
 class AccountLoginController:
@@ -86,6 +86,25 @@ class AccountLoginController:
         self._home_target_done = False
         port = self.device.serial.rsplit("-", 1)[-1]
         self._rolling_screenshot = Path.cwd() / "temp" / f"screenshot_multi_{port}.png"
+
+    def ensure_game_active(self) -> None:
+        """Launch the game only when another package owns the foreground."""
+        foreground = self.input.shell("dumpsys", "window", "windows")
+        if "com.daichien.mobile" not in foreground:
+            self.input.shell("monkey", "-p", "com.daichien.mobile", "1")
+            sleep(3)
+
+    def reconcile_existing_home(self) -> None:
+        """Return a retained session to LOGIN before allocating acc_001."""
+        self.logout_action.logout(
+            self._screen,
+            templates=self.config.logout_templates,
+            threshold=self.config.logout_threshold,
+            max_attempts=self.config.logout_max_attempts,
+            login_detector=self.detector,
+            login_templates=self.config.login_templates,
+            login_threshold=self.config.threshold,
+        )
 
     def _screen(self):
         from app.vision.image import load_image
@@ -120,6 +139,9 @@ class AccountLoginController:
         image, d = self._detect()
 
         if self.phase == AccountLoginPhase.WAIT_LOGIN_SCREEN:
+            if d.state == LoginScreenState.LOGGED_IN:
+                self.reconcile_existing_home()
+                return self.phase
             if d.state == LoginScreenState.LOGIN_SCREEN:
                 account = self.accounts.peek_next()
                 if account is None:
@@ -247,6 +269,7 @@ class AccountLoginController:
         return self.phase
 
     def run(self, stop_event=None) -> None:
+        self.ensure_game_active()
         deadline = monotonic() + self.config.login_timeout_seconds
         while not (stop_event and stop_event.is_set()):
             before = self.phase
