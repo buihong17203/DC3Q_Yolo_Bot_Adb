@@ -84,6 +84,9 @@ class AccountLoginController:
         self._profile_update_closed = 0
         self._home_hits = 0
         self._home_target_done = False
+        self._submit_attempts = 0
+        self._last_submit_at = 0.0
+        self._submit_transitioning = False
         port = self.device.serial.rsplit("-", 1)[-1]
         self._rolling_screenshot = Path.cwd() / "temp" / f"screenshot_multi_{port}.png"
 
@@ -134,6 +137,29 @@ class AccountLoginController:
                     self.device.serial, d.state.value, d.confidence, d.evidence or "-")
         return image, d
 
+    def _retry_submit_if_stuck(self, state, now: float) -> bool:
+        """Retry only an unchanged login form; bounded, never during another state."""
+        state_value = state.value if hasattr(state, "value") else str(state)
+        if state_value != LoginScreenState.LOGIN_SCREEN.value or self._submit_transitioning:
+            return False
+        if self._submit_attempts >= 5 or now - self._last_submit_at < 3.0:
+            return False
+        tapped = self.login_action.submit_current_form(
+            self._screen, self.config.submit_template, self.config.control_threshold,
+        )
+        if not tapped:
+            self._submit_transitioning = True
+            __import__("logging").getLogger("dc3q").info(
+                "LOGIN | nút Đăng nhập đã biến mất; dừng bấm, chờ chuyển trạng thái",
+            )
+            return False
+        self._submit_attempts += 1
+        self._last_submit_at = now
+        __import__("logging").getLogger("dc3q").info(
+            "LOGIN | bấm lại Đăng nhập | lần=%d/5", self._submit_attempts,
+        )
+        return True
+
     def poll_once(self) -> AccountLoginPhase:
         self.runtime.maybe_rollover()
         image, d = self._detect()
@@ -162,6 +188,9 @@ class AccountLoginController:
                         threshold_screen=self.config.threshold,
                     )
                     self.phase = AccountLoginPhase.LOGGING_IN
+                    self._submit_attempts = 1
+                    self._last_submit_at = monotonic()
+                    self._submit_transitioning = False
                 except Exception as exc:
                     self.runtime.mark_error(account.id, self.device.serial, str(exc))
                     raise
@@ -205,6 +234,10 @@ class AccountLoginController:
                 self._logged_in_hits = 0
                 return self.phase
             if self._handle_known_home_event(image):
+                self._logged_in_hits = 0
+                return self.phase
+            if d.state == LoginScreenState.LOGIN_SCREEN:
+                self._retry_submit_if_stuck(d.state, monotonic())
                 self._logged_in_hits = 0
                 return self.phase
             if d.state == LoginScreenState.LOGGED_IN:

@@ -96,13 +96,22 @@ class AccountLoginAction:
         if d.state != LoginScreenState.LOGIN_SCREEN:
             raise RuntimeError(f"Không thao tác: màn hình hiện tại không phải LOGIN_SCREEN ({d.state.value})")
 
-    def _submit_once(self, screen_provider, submit_template, threshold: float) -> None:
-        """Submit once; the controller owns the long, state-aware wait."""
+    def _submit_once(self, screen_provider, submit_template, threshold: float,
+                     *, missing_is_transition: bool = False) -> bool:
+        """Tap a visible submit; during retry, absence means transition in progress."""
         if self._tap_accessibility("com.daichien.mobile:id/btn_login"):
-            return
+            return True
         screen = screen_provider()
-        if not self._find_and_tap(screen, submit_template, threshold):
-            raise RuntimeError("Không tìm thấy nút đăng nhập trên màn hình login")
+        if self._find_and_tap(screen, submit_template, threshold):
+            return True
+        if missing_is_transition:
+            return False
+        raise RuntimeError("Không tìm thấy nút đăng nhập trên màn hình login")
+
+    def submit_current_form(self, screen_provider, submit_template, threshold: float) -> bool:
+        return self._submit_once(
+            screen_provider, submit_template, threshold, missing_is_transition=True,
+        )
 
     def login(self, account: Account, screen_provider, *, username_template, password_templates,
               submit_template, threshold=0.75, expected_login_detector=None,
