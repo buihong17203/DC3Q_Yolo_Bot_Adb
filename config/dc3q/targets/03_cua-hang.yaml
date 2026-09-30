@@ -5,6 +5,7 @@ cua_hang:
   paid_threshold: 0.90
   max_steps: 30
   wait_seconds: 0.8
+  limited_wait_seconds: 2.5
   home:
     menu:
       - data/img/templates/stars/home/screen/screen_home_morong_chamthan.png

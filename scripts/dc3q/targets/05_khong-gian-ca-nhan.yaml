@@ -5,7 +5,9 @@ config: config/dc3q/targets/05_khong-gian-ca-nhan.yaml
 # HOME Thông tin của tôi -> Không gian cá nhân.
 # Chỉ bấm like/share khi template trước và sau chứng minh trạng thái.
 steps:
+  - click_avatar
+  - share_from_thong_tin_cua_toi
+  - confirm_share_popup
   - open_khong_gian_ca_nhan
-  - like_if_before_after_known
-  - share_if_before_after_known
+  - like_toan_bo
   - recover_home

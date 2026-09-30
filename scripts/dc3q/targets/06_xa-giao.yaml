@@ -3,9 +3,9 @@ type: home_target
 config: config/dc3q/targets/06_xa-giao.yaml
 
 # Bạn bè: chỉ tặng tim/tặng nhanh khi before/after templates chứng minh trạng thái.
-# Không có entry HOME 06 riêng trong assets; fail closed nếu caller không mở được panel.
+# Mở Bạn bè từ icon Xã giao tại HOME; xác minh panel trước mọi thao tác.
 steps:
-  - open_ban_be_if_entry_available
-  - give_heart_if_before_after_known
-  - quick_give_if_before_after_known
+  - open_xa_giao_menu
+  - open_ban_be
+  - tang_nhanh_if_before_after_known
   - recover_home

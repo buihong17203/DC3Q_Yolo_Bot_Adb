@@ -58,6 +58,7 @@ class CuaHangConfig:
     paid_threshold: float = 0.90
     max_steps: int = 30
     wait_seconds: float = 0.8
+    limited_wait_seconds: float = 2.5
 
 
 class CuaHangRunner:
@@ -243,24 +244,27 @@ class CuaHangRunner:
             closed = self._best(screen, closed_templates)
             if closed and closed.confidence > opened.confidence:
                 self._tap(closed)
-                for _ in range(8):
+                # Day/Week/Month catalogs load slowly after the selected tab changes.
+                self.sleep(self.config.limited_wait_seconds)
+                for _ in range(12):
                     screen = self.screen_provider()
                     opened = self._best(screen, open_templates)
                     closed = self._best(screen, closed_templates)
                     if opened.confidence > closed.confidence:
                         break
-                    self.sleep(self.config.wait_seconds)
+                    self.sleep(self.config.limited_wait_seconds)
                 else:
                     raise RuntimeError(f"Cửa hàng thời hạn: tab {name} chưa mở")
             elif not opened or opened.confidence < self.config.threshold:
                 raise RuntimeError(f"Cửa hàng thời hạn: không thấy tab {name}")
 
             # The tab can be selected while its catalog still says "Đang tải số liệu...".
-            for _ in range(12):
+            self.sleep(self.config.limited_wait_seconds)
+            for _ in range(16):
                 offer_state, offer = self._limited_offer_state(screen)
                 if offer_state != "unknown":
                     break
-                self.sleep(self.config.wait_seconds)
+                self.sleep(self.config.limited_wait_seconds)
                 screen = self.screen_provider()
             else:
                 raise RuntimeError(f"Cửa hàng thời hạn: tab {name} tải quá lâu, chưa thấy Miễn phí hoặc Đã mua")

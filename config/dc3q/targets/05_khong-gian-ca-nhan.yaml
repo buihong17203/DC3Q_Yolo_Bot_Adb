@@ -1,6 +1,5 @@
 khong_gian_ca_nhan:
-  # Chỉ mở được sau lớp Thông tin của tôi; chưa có entry an toàn trực tiếp từ HOME.
-  enabled: false
+  enabled: true
   threshold: 0.65
   state_threshold: 0.80
   max_steps: 24
@@ -9,19 +8,14 @@ khong_gian_ca_nhan:
     entry:
       - data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_ttct_button_open_khonggiancanhan.png
     markers:
-      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_thongtincuatoi_01.png
-      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_thongtincuatoi_02.png
-      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_thongtincuatoi_03.png
+      - data/img/templates/stars/home/screen/screen_noi-chinh_01.png
   info:
     markers:
-      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_thongtincuatoi_01.png
-      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_thongtincuatoi_02.png
-      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_thongtincuatoi_03.png
+      - data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_thongtincuatoi.png
   personal:
     markers:
-      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_khonggiancanhan_01.png
-      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_khonggiancanhan_02.png
-      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_khonggiancanhan_03.png
+      - data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_kgcn_liketoanbo.png
+      - data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_kgcn_dalike.png
   panel:
     close: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_kgcn_button_dong.png
   like:
@@ -33,6 +27,4 @@ khong_gian_ca_nhan:
     panel: data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_chiase.png
     button: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_chiase_chiase.png
     after:
-      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_thongtincuatoi_01.png
-      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_thongtincuatoi_02.png
-      - data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_thongtincuatoi_03.png
+      - data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_thongtincuatoi.png

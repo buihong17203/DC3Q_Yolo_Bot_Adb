@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from pathlib import Path
 from time import sleep as default_sleep
 from typing import Callable
@@ -10,6 +11,7 @@ from typing import Callable
 class XaGiaoConfig:
     entry_templates: list[Path]
     menu_templates: list[Path]
+    friend_templates: list[Path]
     panel_markers: list[Path]
     close_template: Path
     home_markers: list[Path]
@@ -24,6 +26,8 @@ class XaGiaoConfig:
 
 
 class XaGiaoRunner:
+    runtime_task = "XA_GIAO"
+
     def __init__(self, screen_provider, adb_input, vision, config: XaGiaoConfig,
                  sleep: Callable[[float], None] = default_sleep):
         self.screen_provider = screen_provider
@@ -92,22 +96,50 @@ class XaGiaoRunner:
         if entry is None:
             raise RuntimeError("Xã giao: không tìm thấy nút mở Bạn bè")
         self._tap(entry)
+        screen, friend = self._wait_for(self.config.friend_templates)
+        if friend is None:
+            raise RuntimeError("Xã giao: mở menu nhưng không thấy nút Bạn bè")
+        self._tap(friend)
         return self._prove(self.config.panel_markers, "Xã giao: bấm mở nhưng chưa thấy danh sách Bạn bè")
 
-    def _safe_toggle(self, screen, before_template: Path, after_template: Path, label: str):
-        before = self._match(screen, before_template, self.config.state_threshold)
-        after = self._match(screen, after_template, self.config.state_threshold)
-        if after.found and after.confidence >= before.confidence:
-            return screen
-        if not before.found or before.confidence <= after.confidence:
-            raise RuntimeError(f"Xã giao: không xác định được trạng thái {label}")
-        self._tap(before)
-        return self._prove([after_template], f"Xã giao: thiếu hậu điều kiện {label}")
+    def _give_hearts(self, screen) -> str:
+        """Use hearts for friend presence; use quick button only as the action state."""
+        logger = logging.getLogger("dc3q")
+        heart_before = self._match(screen, self.config.heart_before, self.config.state_threshold)
+        heart_after = self._match(screen, self.config.heart_after, self.config.state_threshold)
+        quick_before = self._match(screen, self.config.quick_before, self.config.state_threshold)
+        quick_after = self._match(screen, self.config.quick_after, self.config.state_threshold)
+
+        if not heart_before.found and not heart_after.found:
+            logger.info("XG | không có bạn bè: không thấy tim chưa tặng hoặc đã tặng")
+            return "no_friends"
+        if heart_after.found and heart_after.confidence >= heart_before.confidence:
+            logger.info("XG | bạn bè đã được tặng tim")
+            return "already_given"
+        if not heart_before.found:
+            raise RuntimeError("Xã giao: trạng thái tim bạn bè xung đột")
+        if not quick_before.found or quick_before.confidence <= quick_after.confidence:
+            raise RuntimeError("Xã giao: có tim chưa tặng nhưng thiếu nút Tặng nhanh khả dụng")
+
+        self._tap(quick_before)
+        for _ in range(8):
+            verify = self.screen_provider()
+            verified_quick = self._match(
+                verify, self.config.quick_after, self.config.state_threshold,
+            )
+            verified_heart = self._match(
+                verify, self.config.heart_after, self.config.state_threshold,
+            )
+            if verified_quick.found and verified_heart.found:
+                logger.info("XG | Tặng nhanh thành công; tim chuyển sang đã tặng")
+                return "given"
+            self.sleep(self.config.wait_seconds)
+        raise RuntimeError("Xã giao: bấm Tặng nhanh nhưng nút/tim chưa chuyển sang đã tặng")
 
     def run(self) -> bool:
         screen = self._open_panel()
-        screen = self._safe_toggle(screen, self.config.heart_before, self.config.heart_after, "tặng tim")
-        screen = self._safe_toggle(screen, self.config.quick_before, self.config.quick_after, "tặng nhanh")
+        self._give_hearts(screen)
+        screen = self.screen_provider()
         close = self._match(screen, self.config.close_template)
         if close.found:
             self._tap(close)

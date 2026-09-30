@@ -11,11 +11,13 @@ xa_giao:
       - data/img/templates/stars/home/screen/screen_xa-giao.png
     markers:
       - data/img/templates/stars/home/screen/screen_noi-chinh_01.png
+  friends:
+    entry:
+      - data/img/templates/stars/home/screen/screen_ban-be_01.png
   panel:
     markers:
-      - data/img/templates/targets/06_xa-giao/full screen/full-screen_banbe_listbanbe_01.png
-      - data/img/templates/targets/06_xa-giao/full screen/full-screen_banbe_listbanbe_02.png
-      - data/img/templates/targets/06_xa-giao/full screen/full-screen_banbe_listbanbe_03.png
+      - data/img/templates/targets/06_xa-giao/screen/screen_xg_bb_button_tangnhanh_chuabam.png
+      - data/img/templates/targets/06_xa-giao/screen/screen_xg_bb_button_tangnhanh_dabam.png
     close: data/img/templates/targets/06_xa-giao/screen/screen_xg_bb_button_dong_banbe.png
   heart:
     before: data/img/templates/targets/06_xa-giao/screen/screen_xg_bb_tim_chuatang.png

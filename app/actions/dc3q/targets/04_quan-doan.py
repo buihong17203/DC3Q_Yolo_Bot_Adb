@@ -27,6 +27,7 @@ class QuanDoanConfig:
 
 class QuanDoanRunner:
     """HOME -> Quân đoàn -> Cầu vận quân đoàn free attempts -> HOME."""
+    runtime_task = "QUAN_DOAN"
 
     def __init__(self, screen_provider, adb_input, vision, config: QuanDoanConfig,
                  sleep: Callable[[float], None] = default_sleep):

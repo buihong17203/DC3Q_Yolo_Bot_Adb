@@ -9,6 +9,9 @@ home_targets:
   - scripts/dc3q/targets/01_tam-quoc-lenh.yaml
   - scripts/dc3q/targets/02_hoat-dong.yaml
   - scripts/dc3q/targets/03_cua-hang.yaml
+  - scripts/dc3q/targets/04_quan-doan.yaml
+  - scripts/dc3q/targets/05_khong-gian-ca-nhan.yaml
+  - scripts/dc3q/targets/06_xa-giao.yaml
 account_file: data/accounts/accounts.csv
 runtime_file: data/accounts/account_runtime.csv
 runtime_archive_dir: docs/docs_days_runtime

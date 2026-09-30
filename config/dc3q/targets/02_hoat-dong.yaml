@@ -33,6 +33,16 @@ hoat_dong:
       - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_lebaoquocvan_open_02.png
     free: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_lebaoquocvan_chuanhan.png
     claimed: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_lebaoquocvan_danhan.png
+  online_gift:
+    tabs:
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_quaonline_close_01.png
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_quaonline_close_02.png
+    open:
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_quaonline_open_01.png
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_quaonline_open_02.png
+    claimable: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_quaonline_chuanhan.png
+    unavailable: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_quaonline_chuamo.png
+    claimed: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_quaonline_danhan.png
   attendance:
     tabs:
       - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_diemdanh_close_02.png
@@ -40,7 +50,8 @@ hoat_dong:
       - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_diemdanh_open_02.png
 
     # ADB viewport 960x540; coordinates exclude LDPlayer's 35px title bar.
-    grid: [238, 199, 910, 499]
+    # 30 ngày = 8 + 8 + 8 + 6; bỏ cột thưởng mốc 30/50/80/120 bên trái.
+    grid: [313, 199, 913, 500]
     milestone:
       claimable: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_diemdanh_tichluy_10-20-30_01.png
       locked: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_diemdanh_tichluy_10-20-30_02.png

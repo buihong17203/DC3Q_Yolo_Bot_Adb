@@ -6,6 +6,8 @@ steps:
   - open_hoat_dong
   - open_phuc_loi
   - le_bao_quoc_van_free_only
+  - qua_online_nhan_tat_ca_moc_da_du_dieu_kien
   - diem_danh
+  - diem_danh_nhan_tich_luy_10_20_30_ngay
   - trung_thu_thue_in_allowed_hours
   - close_to_home

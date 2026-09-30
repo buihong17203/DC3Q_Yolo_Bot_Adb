@@ -21,6 +21,11 @@ class HoatDongConfig:
     national_open: list[Path]
     national_free: Path
     national_claimed: Path
+    online_tabs: list[Path]
+    online_open: list[Path]
+    online_claimable: Path
+    online_unavailable: Path
+    online_claimed: Path
     attendance_tabs: list[Path]
     attendance_open: list[Path]
     attendance_makeup: Path | None
@@ -50,13 +55,17 @@ class HoatDongRunner:
 
     def __init__(self, screen_provider, adb_input, vision, config: HoatDongConfig,
                  sleep: Callable[[float], None] = default_sleep,
-                 now: Callable[[], datetime] = datetime.now):
+                 now: Callable[[], datetime] = datetime.now,
+                 attendance_day: Callable[[], int | None] | None = None,
+                 save_attendance_day: Callable[[int], None] | None = None):
         self.screen_provider = screen_provider
         self.input = adb_input
         self.vision = vision
         self.config = config
         self.sleep = sleep
         self.now = now
+        self.attendance_day = attendance_day or (lambda: None)
+        self.save_attendance_day = save_attendance_day or (lambda day: None)
 
     @staticmethod
     def next_attendance_index(states: list[str]) -> int | None:
@@ -121,6 +130,136 @@ class HoatDongRunner:
                 return screen
             self.sleep(self.config.wait_seconds)
         raise RuntimeError("Hoạt động: nhận quà nhưng chưa thấy trạng thái đã nhận")
+
+    def _all_matches(self, screen, template: Path, threshold: float = 0.95):
+        """Return every distinct exact-looking control, not only the best one."""
+        import cv2
+        import numpy as np
+        from app.vision.template import MatchResult
+
+        data = screen.data if hasattr(screen, "data") else screen
+        if hasattr(data, "convert") and not hasattr(data, "shape"):
+            data = np.asarray(data.convert("RGB"))
+        else:
+            data = np.asarray(data)
+        tpl = cv2.imread(str(template), cv2.IMREAD_COLOR)
+        if tpl is None:
+            raise FileNotFoundError(f"Không đọc được template: {template}")
+        source = cv2.cvtColor(data, cv2.COLOR_RGB2GRAY) if data.ndim == 3 else data
+        target = cv2.cvtColor(tpl, cv2.COLOR_BGR2GRAY)
+        result = cv2.matchTemplate(source, target, cv2.TM_CCOEFF_NORMED)
+        mask = (result >= threshold).astype("uint8")
+        count, labels, _, _ = cv2.connectedComponentsWithStats(mask)
+        matches = []
+        height, width = target.shape[:2]
+        for label in range(1, count):
+            ys, xs = np.where(labels == label)
+            if not len(xs):
+                continue
+            best = int(np.argmax(result[ys, xs]))
+            score = float(result[ys[best], xs[best]])
+            matches.append(MatchResult(True, score, int(xs[best]), int(ys[best]), width, height))
+        return sorted(matches, key=lambda item: (item.y, item.x))
+
+    @staticmethod
+    def _online_view_changed(before, after) -> bool:
+        """Compare only the reward list, excluding sidebar and popup controls."""
+        import cv2
+        import numpy as np
+
+        def array(frame):
+            data = frame.data if hasattr(frame, "data") else frame
+            if hasattr(data, "convert") and not hasattr(data, "shape"):
+                data = np.asarray(data.convert("RGB"))
+            return np.asarray(data)
+
+        left = array(before)[180:515, 500:920]
+        right = array(after)[180:515, 500:920]
+        return left.shape == right.shape and float(cv2.absdiff(left, right).mean()) >= 1.5
+
+    def _slow_online_scroll(self, screen, downward: bool):
+        """Move the reward list slowly, then capture a fresh stable frame."""
+        if downward:
+            self.input.swipe(700, 440, 700, 260, 900)
+        else:
+            self.input.swipe(700, 260, 700, 440, 900)
+        self.sleep(max(self.config.wait_seconds, 1.0))
+        after = self.screen_provider()
+        return after, self._online_view_changed(screen, after)
+
+    def _online_counts(self, screen) -> tuple[int, int, int]:
+        # 0.95 excludes the visually similar Chưa đạt button (observed false score 0.887).
+        return (
+            len(self._all_matches(screen, self.config.online_claimable, 0.95)),
+            len(self._all_matches(screen, self.config.online_unavailable, 0.95)),
+            len(self._all_matches(screen, self.config.online_claimed, 0.95)),
+        )
+
+    def _claim_online(self, screen) -> None:
+        """Handle the fixed four milestones using at most two list views."""
+        logger = logging.getLogger("dc3q")
+        claims = 0
+        for view in range(2):
+            while True:
+                claimable = self._all_matches(screen, self.config.online_claimable, 0.95)
+                if not claimable:
+                    break
+                self._tap(claimable[0])
+                claims += 1
+                logger.info("HD | Quà online: bấm Nhận thứ %d/4", claims)
+                for _ in range(10):
+                    screen = self.screen_provider()
+                    if self._reward(screen):
+                        screen = self.screen_provider()
+                        break
+                    self.sleep(self.config.wait_seconds)
+                else:
+                    raise RuntimeError("Hoạt động: Quà online bấm Nhận nhưng chưa xuất hiện thưởng")
+                if claims > 4:
+                    raise RuntimeError("Hoạt động: Quà online vượt quá 4 mốc cố định")
+            claimable, unavailable, claimed = self._online_counts(screen)
+            logger.info(
+                "HD | Quà online trang=%d/2 | Nhận=%d | Chưa đạt=%d | Đã nhận=%d",
+                view + 1, claimable, unavailable, claimed,
+            )
+            if view == 0:
+                self.input.swipe(700, 440, 700, 300, 900)
+                self.sleep(max(self.config.wait_seconds, 1.0))
+                screen = self.screen_provider()
+        if self._all_matches(screen, self.config.online_claimable, 0.95):
+            raise RuntimeError("Hoạt động: Quà online vẫn còn nút Nhận sau 4 mốc")
+        logger.info("HD | Quà online hoàn tất 4 mốc | đã_bấm=%d", claims)
+
+    def _open_attendance_tab(self, screen):
+        """Attendance is visible below Quà online; tap it directly, never scroll sidebar."""
+        tab = self._best(screen, self.config.attendance_tabs)
+        if tab is None or tab.confidence < self.config.threshold:
+            raise RuntimeError("Hoạt động: không nhận diện được nút Điểm danh")
+        self._tap(tab)
+        for _ in range(8):
+            verify = self.screen_provider()
+            if self._first(verify, self.config.attendance_open) is not None:
+                return verify
+            self.sleep(self.config.wait_seconds)
+        raise RuntimeError("Hoạt động: bấm Điểm danh nhưng nội dung chưa mở")
+
+    def _open_online_tab(self, screen):
+        """Open Quà online using its control, then prove its content state."""
+        tab = self._best(screen, self.config.online_tabs)
+        if tab is None or tab.confidence < self.config.threshold:
+            raise RuntimeError("Hoạt động: không nhận diện được nút Quà online")
+        self._tap(tab)
+        for _ in range(8):
+            verify = self.screen_provider()
+            states = (
+                self.config.online_claimable,
+                self.config.online_unavailable,
+                self.config.online_claimed,
+            )
+            if any(self._match(verify, template, self.config.state_threshold).found for template in states):
+                return verify
+            self.sleep(self.config.wait_seconds)
+        raise RuntimeError("Hoạt động: bấm Quà online nhưng nội dung chưa mở")
 
     def _wait_for(self, templates: list[Path], attempts: int = 8):
         """Poll transitions; Activity panel can render after the entry tap."""
@@ -194,9 +333,9 @@ class HoatDongRunner:
         width, height = x2 - x1, y2 - y1
         cells = []
         for index in range(30):
-            row, col = divmod(index, 9)
-            left = x1 + round(col * width / 9)
-            right = x1 + round((col + 1) * width / 9)
+            row, col = divmod(index, 8)
+            left = x1 + round(col * width / 8)
+            right = x1 + round((col + 1) * width / 8)
             top = y1 + round(row * height / 4)
             bottom = y1 + round((row + 1) * height / 4)
             cells.append(
@@ -226,6 +365,19 @@ class HoatDongRunner:
         """Tick and makeup are both handled; click only after the last handled cell."""
         return self.next_attendance_index(states)
 
+    def _attendance_reset(self, screen) -> bool:
+        """A new cycle is proven when none of the 30 corrected day cells has a tick."""
+        return all(self._tick_pixels(cell) < 180 for cell in self._attendance_cells(screen))
+
+    def _saved_attendance_candidate(self, screen) -> int | None:
+        saved = self.attendance_day()
+        if saved is None:
+            # No trustworthy persisted baseline: do not guess from artwork.
+            return None
+        if saved < 30:
+            return saved  # zero-based index of saved day + 1
+        return 0 if self._attendance_reset(screen) else None
+
     def _attendance_changed(self, before, after, index: int) -> bool:
         """Prove the exact tapped cell changed, independent of tick artwork."""
         import cv2
@@ -242,9 +394,9 @@ class HoatDongRunner:
 
     def _tap_attendance(self, index: int) -> None:
         x1, y1, x2, y2 = self.config.attendance_grid
-        row, col = divmod(index, 9)
+        row, col = divmod(index, 8)
         self.input.tap(
-            x1 + round((col + 0.5) * (x2 - x1) / 9),
+            x1 + round((col + 0.5) * (x2 - x1) / 8),
             y1 + round((row + 0.5) * (y2 - y1) / 4),
         )
         self.sleep(self.config.wait_seconds)
@@ -400,14 +552,18 @@ class HoatDongRunner:
         else:
             raise RuntimeError("Hoạt động: trạng thái Lễ bao quốc vận xung đột")
 
-        screen = self._open_tab(
-            screen, self.config.attendance_tabs, self.config.attendance_open,
-            "Điểm danh", scroll_if_missing=True,
-        )
+        screen = self._open_online_tab(screen)
+        logger.info("HD | đã mở tab Quà online")
+        self._claim_online(screen)
+        screen = self.screen_provider()
+
+        screen = self._open_attendance_tab(screen)
+        logger.info("HD | đã mở Điểm danh trực tiếp sau Quà online")
         states = self._attendance_states(screen)
-        candidate = self._attendance_candidate(screen, states)
+        candidate = self._saved_attendance_candidate(screen)
         logger.info(
-            "HD | Điểm danh marked=%s | candidate=%s",
+            "HD | Điểm danh đã_lưu=%s | marked=%s | candidate=%s",
+            self.attendance_day(),
             [i + 1 for i, state in enumerate(states) if state in {"tick", "makeup"}],
             None if candidate is None else candidate + 1,
         )
@@ -425,12 +581,13 @@ class HoatDongRunner:
                     break
                 self.sleep(self.config.wait_seconds)
             if changed:
+                self.save_attendance_day(candidate + 1)
                 logger.info("HD | điểm danh ô %d thành công", candidate + 1)
             else:
-                logger.info("HD | ô %d không đổi sau khi chờ; hôm nay đã điểm danh", candidate + 1)
+                logger.info("HD | ô %d không đổi; giữ nguyên ngày điểm danh đã lưu", candidate + 1)
             screen = verify
         else:
-            logger.info("HD | bảng điểm danh đã đủ 30 ô")
+            logger.info("HD | không có ngày điểm danh an toàn từ dữ liệu đã lưu")
 
         screen = self._claim_attendance_milestones(screen)
 

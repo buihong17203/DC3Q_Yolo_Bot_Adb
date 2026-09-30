@@ -15,6 +15,7 @@ class KhongGianCaNhanConfig:
     home_markers: list[Path]
     like_before: Path
     like_after: Path
+    like_all: Path
     share_before: Path
     share_panel: Path
     share_button: Path
@@ -26,13 +27,17 @@ class KhongGianCaNhanConfig:
 
 
 class KhongGianCaNhanRunner:
+    runtime_task = "KHONG_GIAN_CA_NHAN"
+
     def __init__(self, screen_provider, adb_input, vision, config: KhongGianCaNhanConfig,
-                 sleep: Callable[[float], None] = default_sleep):
+                 sleep: Callable[[float], None] = default_sleep,
+                 home_entry: Callable[[object], tuple[int, int] | None] | None = None):
         self.screen_provider = screen_provider
         self.input = adb_input
         self.vision = vision
         self.config = config
         self.sleep = sleep
+        self.home_entry = home_entry
 
     def _match(self, screen, template: Path, threshold: float | None = None):
         return self.vision.find_template(
@@ -82,7 +87,7 @@ class KhongGianCaNhanRunner:
         return False
 
     def home_templates(self) -> list[Path]:
-        return list(dict.fromkeys([*self.config.home_markers, *self.config.info_markers, *self.config.share_after]))
+        return self.config.home_markers
 
     def _like_once(self, screen):
         before = self._match(screen, self.config.like_before, self.config.state_threshold)
@@ -106,16 +111,36 @@ class KhongGianCaNhanRunner:
         self._tap(button)
         return self._prove(self.config.share_after, "Không gian cá nhân: thiếu hậu điều kiện sau chia sẻ")
 
+    def _like_all(self, screen):
+        button = self._match(screen, self.config.like_all, self.config.state_threshold)
+        if not button.found:
+            raise RuntimeError("Không gian cá nhân: thiếu nút Like toàn bộ")
+        self._tap(button)
+        return self._prove(
+            [self.config.like_after],
+            "Không gian cá nhân: Like toàn bộ chưa tạo trạng thái đã like",
+        )
+
     def run(self) -> bool:
         screen = self.screen_provider()
         if self._first(screen, self.config.personal_markers) is None:
+            if self._first(screen, self.config.info_markers) is None:
+                point = self.home_entry(screen) if self.home_entry else None
+                if point is None:
+                    raise RuntimeError("Không gian cá nhân: HOME chưa chứng minh được nút mở hồ sơ")
+                self.input.tap(*point)
+                self.sleep(self.config.wait_seconds)
+                screen = self._prove(
+                    self.config.info_markers,
+                    "Không gian cá nhân: bấm avatar nhưng chưa thấy Thông tin của tôi",
+                )
+            screen = self._share_once(screen)
             entry = self._first(screen, self.config.entry_templates)
             if entry is None:
                 raise RuntimeError("Không gian cá nhân: không tìm thấy nút mở")
             self._tap(entry)
             screen = self._prove(self.config.personal_markers, "Không gian cá nhân: bấm mở nhưng chưa thấy panel")
-        screen = self._like_once(screen)
-        screen = self._share_once(screen)
+        screen = self._like_all(screen)
         close = self._match(screen, self.config.close_template)
         if close.found:
             self._tap(close)

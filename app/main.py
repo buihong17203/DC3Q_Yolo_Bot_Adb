@@ -342,7 +342,10 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                     ),
                 )
             elif module_name == "02_hoat-dong":
+                from app.accounts.writer import read_attendance_day, write_attendance_day
+
                 target_cfg = target_config["hoat_dong"]
+                accounts_path = _resolve_project_path(root, workflow.get("account_file", cfg["account_file"]))
                 target = module.HoatDongRunner(
                     controller._screen, controller.input, controller.logout_action.vision,
                     module.HoatDongConfig(
@@ -357,6 +360,11 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         national_open=paths(target_cfg["national_fortune"]["open"]),
                         national_free=_resolve_project_path(root, target_cfg["national_fortune"]["free"]),
                         national_claimed=_resolve_project_path(root, target_cfg["national_fortune"]["claimed"]),
+                        online_tabs=paths(target_cfg["online_gift"]["tabs"]),
+                        online_open=paths(target_cfg["online_gift"]["open"]),
+                        online_claimable=_resolve_project_path(root, target_cfg["online_gift"]["claimable"]),
+                        online_unavailable=_resolve_project_path(root, target_cfg["online_gift"]["unavailable"]),
+                        online_claimed=_resolve_project_path(root, target_cfg["online_gift"]["claimed"]),
                         attendance_tabs=paths(target_cfg["attendance"]["tabs"]),
                         attendance_open=paths(target_cfg["attendance"]["open"]),
                         attendance_makeup=(
@@ -379,6 +387,13 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         state_threshold=float(target_cfg.get("state_threshold", 0.76)),
                         max_steps=int(target_cfg.get("max_steps", 50)),
                         wait_seconds=float(target_cfg.get("wait_seconds", 0.8)),
+                    ),
+                    attendance_day=lambda ctl=controller, path=accounts_path: (
+                        read_attendance_day(path, ctl.current.id) if ctl.current else None
+                    ),
+                    save_attendance_day=lambda day, ctl=controller, path=accounts_path: (
+                        write_attendance_day(path, ctl.current.id, day)
+                        if ctl.current else (_ for _ in ()).throw(RuntimeError("Thiếu account hiện tại"))
                     ),
                 )
             elif module_name == "03_cua-hang":
@@ -415,11 +430,45 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         int(c["prestige"].get("sidebar_swipes", 3)),
                         float(c["prestige"].get("slider_start_ratio", .18)),
                         float(c["prestige"].get("slider_end_ratio", .80)),
-                        float(c.get("threshold", .65)), float(c.get("state_threshold", .76)), float(c.get("paid_threshold", .90)), int(c.get("max_steps", 30)), float(c.get("wait_seconds", .8))))
+                        float(c.get("threshold", .65)), float(c.get("state_threshold", .76)), float(c.get("paid_threshold", .90)), int(c.get("max_steps", 30)), float(c.get("wait_seconds", .8)),
+                        float(c.get("limited_wait_seconds", 2.5))))
+            elif module_name == "04_quan-doan":
+                c = target_config["quan_doan"]
+                target = module.QuanDoanRunner(
+                    controller._screen, controller.input, controller.logout_action.vision,
+                    module.QuanDoanConfig(
+                        paths(c["home"]["entry"]), paths(c["home"]["menu"]),
+                        paths(c["panel"]["markers"]), _resolve_project_path(root, c["panel"]["close"]),
+                        paths(c["home"]["markers"]), paths(c["prayer"]["tabs"]), paths(c["prayer"]["open"]),
+                        _resolve_project_path(root, c["prayer"]["available"]),
+                        _resolve_project_path(root, c["prayer"]["empty"]),
+                        _resolve_project_path(root, c["prayer"]["close"]),
+                        float(c.get("threshold", .65)), float(c.get("state_threshold", .76)),
+                        int(c.get("max_steps", 30)), float(c.get("wait_seconds", .8)),
+                    ),
+                )
+            elif module_name == "05_khong-gian-ca-nhan":
+                c = target_config["khong_gian_ca_nhan"]
+                target = module.KhongGianCaNhanRunner(
+                    controller._screen, controller.input, controller.logout_action.vision,
+                    module.KhongGianCaNhanConfig(
+                        paths(c["home"]["entry"]), paths(c["info"]["markers"]), paths(c["personal"]["markers"]),
+                        _resolve_project_path(root, c["panel"]["close"]), paths(c["home"]["markers"]),
+                        _resolve_project_path(root, c["like"]["before"]), _resolve_project_path(root, c["like"]["after"]),
+                        _resolve_project_path(root, c["like"]["all"]),
+                        _resolve_project_path(root, c["share"]["before"]), _resolve_project_path(root, c["share"]["panel"]),
+                        _resolve_project_path(root, c["share"]["button"]), paths(c["share"]["after"]),
+                        float(c.get("threshold", .65)), float(c.get("state_threshold", .8)),
+                        int(c.get("max_steps", 24)), float(c.get("wait_seconds", .8)),
+                    ),
+                    home_entry=lambda screen: controller.logout_action._avatar_from_noi_chinh(
+                        screen, logout_templates, controller.config.logout_threshold,
+                    ),
+                )
             elif module_name == "06_xa-giao":
                 c = target_config["xa_giao"]
                 target = module.XaGiaoRunner(controller._screen, controller.input, controller.logout_action.vision,
-                    module.XaGiaoConfig(paths(c["home"]["entry"]), paths(c["home"]["menu"]), paths(c["panel"]["markers"]),
+                    module.XaGiaoConfig(paths(c["home"]["entry"]), paths(c["home"]["menu"]), paths(c["friends"]["entry"]), paths(c["panel"]["markers"]),
                         _resolve_project_path(root, c["panel"]["close"]), paths(c["home"]["markers"]),
                         _resolve_project_path(root, c["heart"]["before"]), _resolve_project_path(root, c["heart"]["after"]),
                         _resolve_project_path(root, c["quick_give"]["before"]), _resolve_project_path(root, c["quick_give"]["after"]),
