@@ -1,0 +1,9 @@
+
+type: random_event
+config: config/dc3q/random-events/event_random/red-envelope.yaml
+scenario:
+  - Nhận diện thông báo Bao lì xì đỏ rồi bấm Nhấp đóng giao diện.
+  - Chờ ảnh mới, nhận diện đúng phong bao rồi bấm Nhấp mở một lần.
+  - Chờ màn Chúc mừng nhận được.
+  - Nhận diện dòng Ấn vào chỗ trống để thoát rồi bấm để đóng.
+  - Chỉ tiếp tục khi ảnh mới không còn lớp sự kiện.

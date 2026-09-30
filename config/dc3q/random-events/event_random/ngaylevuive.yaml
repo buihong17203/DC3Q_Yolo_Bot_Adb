@@ -1,0 +1,12 @@
+
+random_event:
+  name: ngay-le-vui-ve
+  steps:
+    - name: nhan-qua
+      state: data/img/templates/random-events/event_random/ngay-le-vui-ve/screen/screen_nlvv_title_ngaylevuive_hale_ngamtrang.jpg
+      close: data/img/templates/random-events/event_random/ngay-le-vui-ve/screen/screen_nlvv_button_nhan_user.jpg
+      threshold: 0.75
+    - name: dong-chuc-mung
+      state: data/img/templates/random-events/event_random/ngay-le-vui-ve/screen/screen_nlvv_popup_chucmungnhanduoc.png
+      close: data/img/templates/random-events/event_random/ngay-le-vui-ve/screen/screen_nlvv_anvaochotrongdethoat.png
+      threshold: 0.75

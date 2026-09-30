@@ -192,6 +192,20 @@ class AccountRuntime:
             "last_run": datetime.now(self.TIMEZONE).isoformat(timespec="seconds"),
         })
 
+    def mark_task_error(self, account_id: str, task: str, error: str) -> None:
+        """Record a recoverable module error without stopping the account flow."""
+        task_col = self._normalize_task(task)
+        if not task_col:
+            return
+        row = self.statuses().get(account_id, {})
+        prior = row.get("error_message", "").strip()
+        summary = f"{prior}; {error}" if prior and error not in prior else (prior or error)
+        self.update(account_id, **{
+            task_col: "ERROR",
+            "error_message": summary,
+            "last_run": datetime.now(self.TIMEZONE).isoformat(timespec="seconds"),
+        })
+
     def mark_logged_out(self, account_id: str) -> None:
         self.update(account_id, status="DONE", assigned_device="",
                      last_run=datetime.now(self.TIMEZONE).isoformat(timespec="seconds"))

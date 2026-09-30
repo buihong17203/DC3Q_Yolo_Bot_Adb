@@ -20,6 +20,9 @@ login:
   logged_in_confirmations: 1
   coordinates: {}
   unexpected:
+    event_configs:
+      - config/dc3q/random-events/event_random/ngaylevuive.yaml
+      - config/dc3q/random-events/event_random/red-envelope.yaml
     credential_rejection_text: Tên đăng nhập hoặc mật khẩu không đúng
     operator_required_texts:
       - CAPTCHA

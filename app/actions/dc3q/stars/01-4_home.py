@@ -14,6 +14,7 @@ class HomeAction:
         self.confirmations = 0
         self.target_index = 0
         self.recovery_attempts = 0
+        self.last_task_error = ""
 
     @property
     def target_done(self) -> bool:
@@ -55,7 +56,9 @@ class HomeAction:
         targets = self.config.home_targets or []
         if self.target_index < len(targets):
             try:
-                if targets[self.target_index].run():
+                target = targets[self.target_index]
+                if target.run():
+                    self.last_task_error = "; ".join(getattr(target, "soft_errors", []))
                     self.target_index += 1
                     self.recovery_attempts = 0
             except RuntimeError:

@@ -1,11 +1,14 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import logging
 from pathlib import Path
 import time
 
 from app.adb.input import AdbInput
 from app.vision import VisionDetector
 from app.state.login import LoginScreenState
+
+LOGGER = logging.getLogger("dc3q")
 
 
 def reflected_point(anchor: tuple[int, int], size: tuple[int, int],
@@ -91,6 +94,11 @@ class AccountLogoutAction:
         if scaled.ndim == 3:
             scaled = cv2.cvtColor(scaled, cv2.COLOR_BGR2GRAY)
         if search.shape[0] < scaled.shape[0] or search.shape[1] < scaled.shape[1]:
+            LOGGER.info(
+                "VISION | ảnh_hiện_tại=<ADB frame mới nhất> vs mẫu=%s | mục_đích=logout_home_anchor | "
+                "độ_khớp=0.000 | nhận_diện=KHÔNG | kết_luận=ROI NHỎ HƠN MẪU",
+                templates.home_anchor_template.resolve(),
+            )
             return None
         result = cv2.matchTemplate(search, scaled, cv2.TM_CCOEFF_NORMED)
         _, score, _, location = cv2.minMaxLoc(result)
@@ -98,6 +106,14 @@ class AccountLogoutAction:
         # configured threshold remains strict elsewhere; this anchor has a
         # narrow ROI and only authorizes opening the profile.
         anchor_threshold = max(0.0, threshold - 0.02)
+        LOGGER.info(
+            "VISION | ảnh_hiện_tại=<ADB frame mới nhất> vs mẫu=%s | mục_đích=logout_home_anchor | "
+            "độ_khớp=%.3f | ngưỡng=%.3f | nhận_diện=%s | kết_luận=%s | vị_trí=(%d,%d,%d,%d)",
+            templates.home_anchor_template.resolve(), score, anchor_threshold,
+            "CÓ" if score >= anchor_threshold else "KHÔNG",
+            "ĐẠT NGƯỠNG" if score >= anchor_threshold else "KHÔNG ĐẠT NGƯỠNG",
+            sx1 + location[0], sy1 + location[1], scaled.shape[1], scaled.shape[0],
+        )
         if score < anchor_threshold:
             return None
         anchor_center = (
@@ -136,6 +152,7 @@ class AccountLogoutAction:
             avatar = self._avatar_from_noi_chinh(screen, tpls, threshold)
             matches["home"] = avatar is not None
             state = select_logout_state(matches)
+            LOGGER.info("DECISION | logout | trạng_thái=%s | nhận_diện=%s", state, matches)
 
             if state == "login":
                 return True

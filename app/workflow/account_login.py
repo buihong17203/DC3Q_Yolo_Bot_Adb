@@ -262,7 +262,14 @@ class AccountLoginController:
                     image, logged_in=d.state == LoginScreenState.LOGGED_IN,
                 )
                 if self.home_action.current_task != task_before:
-                    self.runtime.mark_task_done(self.current.id, task_before)
+                    if self.home_action.last_task_error:
+                        self.runtime.mark_task_error(
+                            self.current.id, task_before,
+                            f"home target error: Cửa hàng [{self.home_action.last_task_error}]",
+                        )
+                        self.home_action.last_task_error = ""
+                    else:
+                        self.runtime.mark_task_done(self.current.id, task_before)
                 self._home_target_done = self.home_action.target_done
                 self._home_hits = self.home_action.confirmations
             except Exception as exc:

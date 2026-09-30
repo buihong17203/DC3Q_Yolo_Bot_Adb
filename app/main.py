@@ -189,14 +189,26 @@ def run_multi_manager(adb: AdbClient, devices, workflow_path: Path, workflow: di
 
 
 def load_login_random_events(root: Path, unexpected: dict) -> list[tuple[Path, Path, float]]:
+    import yaml
+
     events = []
-    for name in ("profile_update", "enemy_raid"):
-        event = unexpected.get(name, {}) or {}
+    for event in unexpected.values():
+        if not isinstance(event, dict):
+            continue
         if event.get("state") and event.get("close"):
             events.append((
                 _resolve_project_path(root, event["state"]),
                 _resolve_project_path(root, event["close"]),
                 float(event.get("threshold", 0.75)),
+            ))
+    for config_value in unexpected.get("event_configs", []):
+        config_path = _resolve_project_path(root, config_value)
+        event_config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        for step in (event_config.get("random_event", {}) or {}).get("steps", []):
+            events.append((
+                _resolve_project_path(root, step["state"]),
+                _resolve_project_path(root, step["close"]),
+                float(step.get("threshold", 0.75)),
             ))
     return events
 
@@ -352,6 +364,10 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                             if target_cfg["attendance"].get("makeup") else None
                         ),
                         attendance_grid=tuple(target_cfg["attendance"]["grid"]),
+                        attendance_milestone_claimable=_resolve_project_path(root, target_cfg["attendance"]["milestone"]["claimable"]),
+                        attendance_milestone_locked=_resolve_project_path(root, target_cfg["attendance"]["milestone"]["locked"]),
+                        attendance_milestone_claimed=_resolve_project_path(root, target_cfg["attendance"]["milestone"]["claimed"]),
+                        attendance_milestone_rois=[tuple(roi) for roi in target_cfg["attendance"]["milestone"]["rois"]],
                         tax_tabs=paths(target_cfg["tax"]["tabs"]),
                         tax_open=paths(target_cfg["tax"]["open"]),
                         tax_unavailable=_resolve_project_path(root, target_cfg["tax"]["unavailable"]),
@@ -384,6 +400,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         _resolve_project_path(root, c["mystic"]["item"]),
                         _resolve_project_path(root, c["mystic"]["price"]),
                         _resolve_project_path(root, c["mystic"]["buy"]),
+                        _resolve_project_path(root, c["mystic"]["confirm"]),
                         _resolve_project_path(root, c["mystic"]["bought"]),
                         _resolve_project_path(root, c["mystic"]["reward"]),
                         _resolve_project_path(root, c["mystic"]["dismiss"]),
@@ -398,7 +415,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         int(c["prestige"].get("sidebar_swipes", 3)),
                         float(c["prestige"].get("slider_start_ratio", .18)),
                         float(c["prestige"].get("slider_end_ratio", .80)),
-                        float(c.get("threshold", .65)), float(c.get("state_threshold", .76)), int(c.get("max_steps", 30)), float(c.get("wait_seconds", .8))))
+                        float(c.get("threshold", .65)), float(c.get("state_threshold", .76)), float(c.get("paid_threshold", .90)), int(c.get("max_steps", 30)), float(c.get("wait_seconds", .8))))
             elif module_name == "06_xa-giao":
                 c = target_config["xa_giao"]
                 target = module.XaGiaoRunner(controller._screen, controller.input, controller.logout_action.vision,

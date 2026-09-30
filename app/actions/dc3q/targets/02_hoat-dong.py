@@ -25,6 +25,10 @@ class HoatDongConfig:
     attendance_open: list[Path]
     attendance_makeup: Path | None
     attendance_grid: tuple[int, int, int, int]
+    attendance_milestone_claimable: Path
+    attendance_milestone_locked: Path
+    attendance_milestone_claimed: Path
+    attendance_milestone_rois: list[tuple[int, int, int, int]]
     tax_tabs: list[Path]
     tax_open: list[Path]
     tax_unavailable: Path
@@ -245,25 +249,78 @@ class HoatDongRunner:
         )
         self.sleep(self.config.wait_seconds)
 
+    def _milestone_state(self, screen, roi: tuple[int, int, int, int]):
+        """Classify one 10/20/30-day reward from competing crop templates."""
+        data = screen.data if hasattr(screen, "data") else screen
+        x1, y1, x2, y2 = roi
+        crop = data.crop(roi) if hasattr(data, "crop") else data[y1:y2, x1:x2]
+        states = [
+            ("claimable", self._match(crop, self.config.attendance_milestone_claimable, 0.0)),
+            ("locked", self._match(crop, self.config.attendance_milestone_locked, 0.0)),
+            ("claimed", self._match(crop, self.config.attendance_milestone_claimed, 0.0)),
+        ]
+        state, match = max(states, key=lambda pair: pair[1].confidence)
+        runner_up = max(item.confidence for name, item in states if name != state)
+        minimum = 0.95 if state == "claimable" else self.config.state_threshold
+        if match.confidence < minimum or match.confidence < runner_up + 0.05:
+            return "unknown", match, runner_up
+        return state, match, runner_up
+
+    def _claim_attendance_milestones(self, screen):
+        """Claim only proven 10/20/30-day rewards, then verify each one."""
+        logger = logging.getLogger("dc3q")
+        for day, roi in zip((10, 20, 30), self.config.attendance_milestone_rois):
+            state, match, runner_up = self._milestone_state(screen, roi)
+            logger.info(
+                "HD | Báo danh tích lũy %d ngày | trạng_thái=%s | điểm=%.3f | cạnh_tranh=%.3f",
+                day, state, match.confidence, runner_up,
+            )
+            if state != "claimable":
+                # Fail closed: locked, claimed, or ambiguous rewards are never tapped.
+                continue
+            x1, y1, _, _ = roi
+            self.input.tap(x1 + match.x + match.width // 2, y1 + match.y + match.height // 2)
+            self.sleep(self.config.wait_seconds)
+            for _ in range(10):
+                verify = self.screen_provider()
+                if self._reward(verify):
+                    verify = self.screen_provider()
+                verified, _, _ = self._milestone_state(verify, roi)
+                if verified == "claimed":
+                    logger.info("HD | nhận quà Báo danh tích lũy %d ngày thành công", day)
+                    screen = verify
+                    break
+                self.sleep(self.config.wait_seconds)
+            else:
+                raise RuntimeError(f"Hoạt động: nhận quà tích lũy {day} ngày nhưng chưa thấy Đã nhận")
+        return screen
+
     def _tax_window_open(self) -> bool:
         hour = self.now().hour
         return any(start <= hour < end for start, end in self.TAX_WINDOWS)
 
     def _claim_tax(self, screen) -> None:
         logger = logging.getLogger("dc3q")
+        # Let the newly opened tab settle before classifying its action button.
+        self.sleep(max(self.config.wait_seconds, 1.5))
+        screen = self.screen_provider()
         unavailable = self._match(screen, self.config.tax_unavailable, self.config.state_threshold)
-        if unavailable.found:
+        claimed = self._match(screen, self.config.tax_claimed, self.config.state_threshold)
+        claimable = self._match(screen, self.config.tax_claimable, self.config.state_threshold)
+        states = [("unavailable", unavailable), ("claimed", claimed), ("claimable", claimable)]
+        state, winner = max(states, key=lambda pair: pair[1].confidence)
+        runner_up = max(match.confidence for name, match in states if name != state)
+        if not winner.found or winner.confidence < runner_up + 0.05:
+            raise RuntimeError("Hoạt động: trạng thái Trưng thu thuế xung đột hoặc chưa ổn định")
+        if state == "unavailable":
             logger.info("HD | Trưng thu thuế đang Chưa mở")
             return
-        claimed = self._match(screen, self.config.tax_claimed, self.config.state_threshold)
-        if claimed.found:
+        if state == "claimed":
             logger.info("HD | Trưng thu thuế đã trưng thu")
             return
-        claimable = self._match(screen, self.config.tax_claimable, self.config.state_threshold)
-        if not claimable.found:
-            raise RuntimeError("Hoạt động: tab Trưng thu thuế mở nhưng thiếu nút Trưng thu an toàn")
         self._tap(claimable)
         logger.info("HD | bấm nút Trưng thu đã nhận diện")
+        self.sleep(max(self.config.wait_seconds, 1.5))
         for _ in range(10):
             verify = self.screen_provider()
             if self._reward(verify):
@@ -374,6 +431,8 @@ class HoatDongRunner:
             screen = verify
         else:
             logger.info("HD | bảng điểm danh đã đủ 30 ô")
+
+        screen = self._claim_attendance_milestones(screen)
 
         if self._tax_window_open():
             screen = self._open_tab(

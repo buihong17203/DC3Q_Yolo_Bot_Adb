@@ -2,6 +2,7 @@ cua_hang:
   enabled: true
   threshold: 0.60
   state_threshold: 0.76
+  paid_threshold: 0.90
   max_steps: 30
   wait_seconds: 0.8
   home:
@@ -51,7 +52,8 @@ cua_hang:
     open: [data/img/templates/targets/03_cua-hang/tiem-than-bi/screen/screen_ch_tab_tiemthanbi_open.png]
     item: data/img/templates/targets/03_cua-hang/tiem-than-bi/screen/screen_ch_ttb_3chieuhienlenh_chuamua.png
     price: data/img/templates/targets/03_cua-hang/tiem-than-bi/screen/screen_ch_ttb_button_giavatpham_180tuonghon.png
-    buy: data/img/templates/targets/03_cua-hang/tiem-than-bi/screen/screen_ch_ttb_popup_mua.png
+    buy: data/img/templates/targets/03_cua-hang/tiem-than-bi/screen/screen_ch_ttb_popup_mua_3chieuhienlenh.jpg
+    confirm: data/img/templates/targets/03_cua-hang/tiem-than-bi/screen/screen_ch_ttb_popup_button_180tuonghon.jpg
     bought: data/img/templates/targets/03_cua-hang/tiem-than-bi/screen/screen_ch_ttb_3chieuhienlenh_damua.png
     reward: data/img/templates/targets/03_cua-hang/tiem-than-bi/screen/screen_ch_ttb_chucmungnhanduoc.png
     dismiss: data/img/templates/targets/03_cua-hang/tiem-than-bi/screen/screen_ch_ttb_anvaochotrongdethoat.png
@@ -68,6 +70,6 @@ cua_hang:
     slider_max: data/img/templates/targets/03_cua-hang/shop-danh-vong/screen/screen_ch_sdv_progressbar_04.png
     total_price: data/img/templates/targets/03_cua-hang/shop-danh-vong/screen/screen_ch_sdv_button_giavatpham_2500danhvong.png
     bought: data/img/templates/targets/03_cua-hang/shop-danh-vong/screen/screen_ch_sdv_vatphamdamua.png
-    sidebar_swipes: 3
+    sidebar_swipes: 10
     slider_start_ratio: 0.18
     slider_end_ratio: 0.80

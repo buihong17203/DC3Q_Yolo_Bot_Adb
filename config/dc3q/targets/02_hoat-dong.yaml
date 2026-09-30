@@ -41,6 +41,14 @@ hoat_dong:
 
     # ADB viewport 960x540; coordinates exclude LDPlayer's 35px title bar.
     grid: [238, 199, 910, 499]
+    milestone:
+      claimable: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_diemdanh_tichluy_10-20-30_01.png
+      locked: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_diemdanh_tichluy_10-20-30_02.png
+      claimed: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_diemdanh_tichluy_10-20-30_03.png
+      rois:
+        - [510, 85, 630, 190]
+        - [650, 85, 775, 190]
+        - [785, 85, 905, 190]
   tax:
     tabs:
       - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_trungthuthue_close_01.png

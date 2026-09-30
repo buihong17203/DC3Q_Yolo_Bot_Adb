@@ -1,0 +1,16 @@
+
+random_event:
+  name: bao-li-xi-do
+  steps:
+    - name: dong-thong-bao
+      state: data/img/templates/random-events/event_random/red-envelope/screen/screen_re_nhapdonggiaodien.png
+      close: data/img/templates/random-events/event_random/red-envelope/screen/screen_re_nhapdonggiaodien.png
+      threshold: 0.80
+    - name: nhap-mo
+      state: data/img/templates/random-events/event_random/red-envelope/screen/screen_re_popup_baolixi.png
+      close: data/img/templates/random-events/event_random/red-envelope/screen/screen_re_button_nhapmo_02.png
+      threshold: 0.80
+    - name: dong-chuc-mung
+      state: data/img/templates/random-events/event_random/red-envelope/screen/screen_re_popup_chucmungnhanduoc.png
+      close: data/img/templates/random-events/event_random/red-envelope/screen/screen_re_anvaochotrongdethoat.png
+      threshold: 0.80

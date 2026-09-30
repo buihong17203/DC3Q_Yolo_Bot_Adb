@@ -1,0 +1,8 @@
+
+type: random_event
+config: config/dc3q/random-events/event_random/ngaylevuive.yaml
+scenario:
+  - Nhận diện nút Nhận của Ngày Lễ Vui Vẻ rồi bấm đúng nút.
+  - Chờ màn Chúc mừng nhận được trên ảnh mới.
+  - Nhận diện dòng Ấn vào chỗ trống để thoát rồi bấm để đóng.
+  - Chỉ tiếp tục khi ảnh mới không còn màn sự kiện.
