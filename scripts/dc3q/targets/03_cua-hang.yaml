@@ -2,12 +2,18 @@ name: target_cua_hang
 type: home_target
 config: config/dc3q/targets/03_cua-hang.yaml
 
-# HOME -> Cửa hàng -> Cửa hàng gợi ý -> Quà hằng ngày free-only -> HOME.
-# Không bấm Tiệm thần bí, Cửa hàng thời hạn, popup mua, giá vật phẩm, gói quà paid.
+# HOME -> Cửa hàng gợi ý -> Cửa hàng thời hạn -> Tiệm thần bí -> Shop Danh Vọng -> HOME.
+# Chỉ giao dịch đúng 3 Chiêu Hiền Lệnh giá 180 và 5 lượt x5 Quẻ lành tổng 2500.
 steps:
   - open_home_menu_if_needed
   - open_cua_hang
   - open_cua_hang_goi_y
   - claim_qua_hang_ngay_if_unclaimed
-  - dismiss_reward
+  - open_cua_hang_thoi_han
+  - claim_free_ngay_if_unclaimed
+  - claim_free_tuan_if_unclaimed
+  - claim_free_thang_if_unclaimed
+  - buy_3_chieu_hien_lenh_for_180_if_unbought
+  - scroll_and_open_shop_danh_vong
+  - buy_5_times_x5_que_lanh_for_2500_if_unbought
   - close_to_home

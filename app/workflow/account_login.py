@@ -221,16 +221,22 @@ class AccountLoginController:
             return self.phase
 
         if self.phase == AccountLoginPhase.PROCESS_HOME_EVENTS:
+            assert self.current
+            task_before = self.home_action.current_task
+            self.runtime.mark_current_task(self.current.id, task_before)
             try:
                 home_done = self.home_action.process(
                     image, logged_in=d.state == LoginScreenState.LOGGED_IN,
                 )
+                if self.home_action.current_task != task_before:
+                    self.runtime.mark_task_done(self.current.id, task_before)
                 self._home_target_done = self.home_action.target_done
                 self._home_hits = self.home_action.confirmations
             except Exception as exc:
                 assert self.current
                 self.runtime.mark_error(
-                    self.current.id, self.device.serial, f"home target error: {exc}"
+                    self.current.id, self.device.serial, f"home target error: {exc}",
+                    task=self.home_action.current_task,
                 )
                 raise
             if home_done:
@@ -243,6 +249,7 @@ class AccountLoginController:
 
         if self.phase == AccountLoginPhase.LOGGING_OUT:
             assert self.current
+            self.runtime.mark_current_task(self.current.id, "LOGOUT")
             LOGGER = __import__("logging").getLogger("dc3q")
             LOGGER.info("Bắt đầu tự động đăng xuất tài khoản: %s", self.current.id)
             try:

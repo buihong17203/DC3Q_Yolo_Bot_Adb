@@ -44,6 +44,7 @@ class TamQuocLenhConfig:
 
 class TamQuocLenhRunner:
     """Bounded Tam Quốc Lệnh flow; only whitelisted free controls are tapped."""
+    runtime_task = "TAM_QUOC_LENH"
 
     def __init__(self, screen_provider, adb_input, vision, config: TamQuocLenhConfig,
                  sleep: Callable[[float], None] = default_sleep):

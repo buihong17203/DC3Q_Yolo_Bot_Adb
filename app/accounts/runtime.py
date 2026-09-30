@@ -11,8 +11,26 @@ from threading import RLock
 class AccountRuntime:
     """Durable per-account runtime journal with a daily 23:00 rollover."""
 
+    TASK_FIELDS = [
+        "Tam_Quoc_Lenh",
+        "Hoat_Dong",
+        "Cua_Hang",
+        "Quan_Doan",
+        "Khong_Gian_Ca_Nhan",
+        "Xa_Giao",
+        "TT_A1_Bao_Vat",
+        "TT_A2_Tuong_An",
+        "TT_A3_Chua_Cong",
+        "TT_A4_Ve_Tuong",
+        "TT_A5_Trai_Ngua",
+        "TT_A6_Than_Binh",
+        "TT_A7_Chien_Hon",
+        "Vo_Tuong",
+        "Quan_Su",
+        "Nhiem_Vu",
+    ]
     FIELDS = [
-        "id", "status", "attempts", "assigned_device", "current_task",
+        "id", "status", "attempts", "assigned_device", *TASK_FIELDS,
         "last_run", "error_message", "tasks", "game_day", "reset_hour",
     ]
 
@@ -68,25 +86,39 @@ class AccountRuntime:
         except ValueError:
             return None
 
+    @classmethod
+    def _normalize_task(cls, task: str | None) -> str | None:
+        if not task:
+            return None
+        if task in cls.TASK_FIELDS:
+            return task
+        clean_task = task.replace("-", "_").lower()
+        for field in cls.TASK_FIELDS:
+            if field.replace("-", "_").lower() == clean_task:
+                return field
+        return None
+
     def _reset_from_accounts(self, game_day: date) -> None:
         rows: list[dict[str, str]] = []
         source: list[dict[str, str]] = []
         if self.accounts_file.exists():
             with self.accounts_file.open("r", encoding="utf-8-sig", newline="") as f:
-                source = list(csv.DictReader(f))
+                source = [r for r in csv.DictReader(f) if r.get("id")]
         for row in source:
-            rows.append({
+            item = {
                 "id": row.get("id", ""),
                 "status": "READY",
                 "attempts": "0",
                 "assigned_device": "",
-                "current_task": "LOGIN",
                 "last_run": "",
                 "error_message": "",
                 "tasks": "{}",
                 "game_day": game_day.isoformat(),
                 "reset_hour": str(self.reset_hour),
-            })
+            }
+            for field in self.TASK_FIELDS:
+                item[field] = "READY"
+            rows.append(item)
         self._write(rows)
 
     def _write(self, rows: list[dict[str, str]]) -> None:
@@ -94,7 +126,7 @@ class AccountRuntime:
         with self.runtime_file.open("w", encoding="utf-8-sig", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=self.FIELDS)
             writer.writeheader()
-            writer.writerows(rows)
+            writer.writerows({field: row.get(field, "READY" if field in self.TASK_FIELDS else "") for field in self.FIELDS} for row in rows)
 
 
     def statuses(self) -> dict[str, dict[str, str]]:
@@ -132,7 +164,6 @@ class AccountRuntime:
                     row["status"] = "LOGINNING"
                     row["attempts"] = str(int(row.get("attempts") or 0) + 1)
                     row["assigned_device"] = device
-                    row["current_task"] = "LOGIN"
                     row["last_run"] = datetime.now(self.TIMEZONE).isoformat(timespec="seconds")
                     row["error_message"] = ""
                     self._write(rows)
@@ -141,14 +172,36 @@ class AccountRuntime:
 
     def mark_logged_in(self, account_id: str, device: str) -> None:
         self.update(account_id, status="LOGGED_IN", assigned_device=device,
-                     current_task="WAIT_MANUAL_LOGOUT",
                      last_run=datetime.now(self.TIMEZONE).isoformat(timespec="seconds"))
+
+    def mark_current_task(self, account_id: str, task: str) -> None:
+        task_col = self._normalize_task(task)
+        if not task_col:
+            return
+        self.update(account_id, **{
+            task_col: "RUNNING",
+            "last_run": datetime.now(self.TIMEZONE).isoformat(timespec="seconds"),
+        })
+
+    def mark_task_done(self, account_id: str, task: str) -> None:
+        task_col = self._normalize_task(task)
+        if not task_col:
+            return
+        self.update(account_id, **{
+            task_col: "DONE",
+            "last_run": datetime.now(self.TIMEZONE).isoformat(timespec="seconds"),
+        })
 
     def mark_logged_out(self, account_id: str) -> None:
-        self.update(account_id, status="DONE", current_task="LOGIN", assigned_device="",
+        self.update(account_id, status="DONE", assigned_device="",
                      last_run=datetime.now(self.TIMEZONE).isoformat(timespec="seconds"))
 
-    def mark_error(self, account_id: str, device: str, error: str) -> None:
-        self.update(account_id, status="ERROR", assigned_device=device,
-                     current_task="LOGIN", error_message=error,
-                     last_run=datetime.now(self.TIMEZONE).isoformat(timespec="seconds"))
+    def mark_error(self, account_id: str, device: str, error: str, *, task: str | None = None) -> None:
+        changes = {
+            "status": "ERROR", "assigned_device": device, "error_message": error,
+            "last_run": datetime.now(self.TIMEZONE).isoformat(timespec="seconds"),
+        }
+        task_col = self._normalize_task(task)
+        if task_col:
+            changes[task_col] = "ERROR"
+        self.update(account_id, **changes)

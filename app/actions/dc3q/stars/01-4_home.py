@@ -19,6 +19,13 @@ class HomeAction:
     def target_done(self) -> bool:
         return self.target_index >= len(self.config.home_targets or [])
 
+    @property
+    def current_task(self) -> str:
+        targets = self.config.home_targets or []
+        if self.target_index >= len(targets):
+            return "LOGOUT"
+        return getattr(targets[self.target_index], "runtime_task", type(targets[self.target_index]).__name__.upper())
+
     def handle_known_event(self, image) -> bool:
         for state_template, close_template, threshold in self.config.home_events or []:
             state = self.vision.find_template(

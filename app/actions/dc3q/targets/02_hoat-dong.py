@@ -40,6 +40,7 @@ class HoatDongConfig:
 
 class HoatDongRunner:
     """HOME -> Hoạt động/Phúc lợi -> safe claims -> HOME."""
+    runtime_task = "HOAT_DONG"
 
     TAX_WINDOWS = ((12, 14), (18, 20), (21, 23))
 
@@ -129,17 +130,18 @@ class HoatDongRunner:
         return last_screen, None
 
     def _open_tab(self, screen, tabs: list[Path], opened: list[Path], name: str,
-                  scroll_if_missing: bool = False):
+                  scroll_if_missing: bool = False,
+                  required_closed: list[Path] | None = None):
         tab = None
         for attempt in range(8):
-            state, open_match, closed_match = self._tab_state(screen, tabs, opened)
-            if state == "open":
+            state, _, closed_match = self._tab_state(screen, tabs, opened)
+            if state == "open" and not required_closed:
                 return screen
             if state == "closed":
                 tab = closed_match
                 break
             if scroll_if_missing and attempt in {1, 3, 5}:
-                # Swipe is only for revealing list content; recognition remains visual.
+                # Swipe only reveals the list; the previously opened tab may be off-screen.
                 logging.getLogger("dc3q").info("HD | vuốt tìm tab %s | lần=%d", name, attempt)
                 self.input.swipe(170, 450, 170, 220, 400)
                 self.sleep(self.config.wait_seconds)
@@ -150,10 +152,11 @@ class HoatDongRunner:
         for _ in range(8):
             verify = self.screen_provider()
             state, _, _ = self._tab_state(verify, tabs, opened)
-            if state == "open":
+            prior_closed = self._first(verify, required_closed or [])
+            if state == "open" and (not required_closed or prior_closed is not None):
                 return verify
             self.sleep(self.config.wait_seconds)
-        raise RuntimeError(f"Hoạt động: bấm {name} nhưng ảnh tab mở chưa xuất hiện")
+        raise RuntimeError(f"Hoạt động: bấm {name} nhưng chưa thấy tab mở và tab trước đóng")
 
     @staticmethod
     def _tick_pixels(cell) -> int:
@@ -376,6 +379,7 @@ class HoatDongRunner:
             screen = self._open_tab(
                 screen, self.config.tax_tabs, self.config.tax_open,
                 "Trưng thu thuế", scroll_if_missing=True,
+                required_closed=self.config.attendance_tabs,
             )
             logger.info("HD | đã mở tab Trưng thu thuế")
             self._claim_tax(screen)

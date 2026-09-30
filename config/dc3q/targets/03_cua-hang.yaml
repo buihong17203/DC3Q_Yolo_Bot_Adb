@@ -46,3 +46,28 @@ cua_hang:
     claimed: data/img/templates/targets/03_cua-hang/cua-hang-thoi-han/screen/screen_ch_chth_goiqua_damua.png
     reward_marker: data/img/templates/targets/03_cua-hang/cua-hang-thoi-han/screen/screen_ch_chth_chucmungnhandc.png
     reward_dismiss: data/img/templates/targets/03_cua-hang/cua-hang-thoi-han/screen/screen_ch_chth_anvaochotrongdethoat.png
+  mystic:
+    tabs: [data/img/templates/targets/03_cua-hang/tiem-than-bi/screen/screen_ch_tab_tiemthanbi_close.png]
+    open: [data/img/templates/targets/03_cua-hang/tiem-than-bi/screen/screen_ch_tab_tiemthanbi_open.png]
+    item: data/img/templates/targets/03_cua-hang/tiem-than-bi/screen/screen_ch_ttb_3chieuhienlenh_chuamua.png
+    price: data/img/templates/targets/03_cua-hang/tiem-than-bi/screen/screen_ch_ttb_button_giavatpham_180tuonghon.png
+    buy: data/img/templates/targets/03_cua-hang/tiem-than-bi/screen/screen_ch_ttb_popup_mua.png
+    bought: data/img/templates/targets/03_cua-hang/tiem-than-bi/screen/screen_ch_ttb_3chieuhienlenh_damua.png
+    reward: data/img/templates/targets/03_cua-hang/tiem-than-bi/screen/screen_ch_ttb_chucmungnhanduoc.png
+    dismiss: data/img/templates/targets/03_cua-hang/tiem-than-bi/screen/screen_ch_ttb_anvaochotrongdethoat.png
+  prestige:
+    tabs: [data/img/templates/targets/03_cua-hang/shop-danh-vong/screen/screen_ch_tab_shopdanhvong_close.png]
+    open: [data/img/templates/targets/03_cua-hang/shop-danh-vong/screen/screen_ch_tab_shopdanhvong_open.png]
+    item: data/img/templates/targets/03_cua-hang/shop-danh-vong/screen/screen_ch_sdv_5quelanh.png
+    unit_price: data/img/templates/targets/03_cua-hang/shop-danh-vong/screen/screen_ch_sdv_gia_5quelanh_x1.png
+    popup: data/img/templates/targets/03_cua-hang/shop-danh-vong/screen/screen_ch_sdv_popup_mua.png
+    slider_states:
+      - data/img/templates/targets/03_cua-hang/shop-danh-vong/screen/screen_ch_sdv_progressbar_01.png
+      - data/img/templates/targets/03_cua-hang/shop-danh-vong/screen/screen_ch_sdv_progressbar_02.png
+      - data/img/templates/targets/03_cua-hang/shop-danh-vong/screen/screen_ch_sdv_progressbar_03.png
+    slider_max: data/img/templates/targets/03_cua-hang/shop-danh-vong/screen/screen_ch_sdv_progressbar_04.png
+    total_price: data/img/templates/targets/03_cua-hang/shop-danh-vong/screen/screen_ch_sdv_button_giavatpham_2500danhvong.png
+    bought: data/img/templates/targets/03_cua-hang/shop-danh-vong/screen/screen_ch_sdv_vatphamdamua.png
+    sidebar_swipes: 3
+    slider_start_ratio: 0.18
+    slider_end_ratio: 0.80
