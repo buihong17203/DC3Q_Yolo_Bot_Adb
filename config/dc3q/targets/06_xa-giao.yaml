@@ -1,19 +1,25 @@
 xa_giao:
   enabled: true
-  threshold: 0.60
+  threshold: 0.80
   state_threshold: 0.80
   max_steps: 24
   wait_seconds: 0.8
+  home_threshold: 0.65
+  # Icon Xã giao khi menu mở có frame thật khoảng 0.590.
+  social_control_threshold: 0.55
   home:
     menu:
-      - data/img/templates/stars/home/screen/screen_home_morong_chamthan.png
+      - data/img/templates/stars/home/screen/screen_home_menu_sukien_dangdong.png
+      - data/img/templates/stars/home/screen/screen_home_menu_sukien_dangmo.png
     entry:
-      - data/img/templates/stars/home/screen/screen_xa-giao.png
+      - data/img/templates/stars/home/screen/screen_xa-giao_01.png
+      - data/img/templates/stars/home/screen/screen_xa-giao_02.png
     markers:
       - data/img/templates/stars/home/screen/screen_noi-chinh_01.png
   friends:
     entry:
       - data/img/templates/stars/home/screen/screen_ban-be_01.png
+      - data/img/templates/stars/home/screen/screen_ban-be_02.png
   panel:
     markers:
       - data/img/templates/targets/06_xa-giao/screen/screen_xg_bb_button_tangnhanh_chuabam.png

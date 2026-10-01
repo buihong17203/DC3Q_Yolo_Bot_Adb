@@ -2,11 +2,12 @@ name: target_quan_doan
 type: home_target
 config: config/dc3q/targets/04_quan-doan.yaml
 
-# Tạm tắt: nút 10 Cầu vận tiêu hao 10 vật phẩm, chưa được phép chi.
+# Báo danh: Chưa báo danh -> Đã báo danh. Cầu vận: 10/5 = còn, 0 = xong.
 steps:
   - open_home_menu_if_needed
   - open_quan_doan
+  - diem_danh_if_yellow_until_gray
   - open_cau_van_quan_doan
-  - run_cau_van_until_0
+  - run_cau_van_while_10_or_5_until_0
   - close_cau_van
   - close_to_home

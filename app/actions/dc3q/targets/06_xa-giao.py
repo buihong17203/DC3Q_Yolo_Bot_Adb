@@ -23,6 +23,8 @@ class XaGiaoConfig:
     state_threshold: float = 0.80
     max_steps: int = 24
     wait_seconds: float = 0.8
+    home_threshold: float = 0.65
+    social_control_threshold: float = 0.55
 
 
 class XaGiaoRunner:
@@ -72,7 +74,9 @@ class XaGiaoRunner:
     def recover_home(self) -> bool:
         for _ in range(12):
             screen = self.screen_provider()
-            if self._first(screen, self.config.home_markers) is not None:
+            if self._first(
+                screen, self.config.home_markers, self.config.home_threshold,
+            ) is not None:
                 return True
             if self._first(screen, self.config.panel_markers) is not None:
                 close = self._match(screen, self.config.close_template)
@@ -87,12 +91,24 @@ class XaGiaoRunner:
         screen = self.screen_provider()
         if self._first(screen, self.config.panel_markers) is not None:
             return screen
+        # Nếu Bạn bè đã hiện thì menu Xã giao đang mở; dùng trực tiếp.
+        friend = self._first(screen, self.config.friend_templates)
+        if friend is not None:
+            self._tap(friend)
+            return self._prove(
+                self.config.panel_markers,
+                "Xã giao: bấm Bạn bè nhưng chưa thấy danh sách",
+            )
         entry = self._first(screen, self.config.entry_templates)
         if entry is None:
-            menu = self._first(screen, self.config.menu_templates)
-            if menu is not None:
-                self._tap(menu)
-                screen, entry = self._wait_for(self.config.entry_templates)
+            closed = self._match(screen, self.config.menu_templates[0])
+            opened = self._match(screen, self.config.menu_templates[1])
+            if opened.found and opened.confidence >= closed.confidence:
+                raise RuntimeError("Xã giao: menu đang mở nhưng thiếu icon Xã giao")
+            if not closed.found or closed.confidence <= opened.confidence:
+                raise RuntimeError("Xã giao: không xác định được trạng thái menu HOME")
+            self._tap(closed)
+            screen, entry = self._wait_for(self.config.entry_templates)
         if entry is None:
             raise RuntimeError("Xã giao: không tìm thấy nút mở Bạn bè")
         self._tap(entry)
@@ -143,6 +159,15 @@ class XaGiaoRunner:
         close = self._match(screen, self.config.close_template)
         if close.found:
             self._tap(close)
+        # Đóng tiếp menu Xã giao bằng chính icon đã dùng để mở.
+        screen = self.screen_provider()
+        social = self._first(
+            screen, self.config.entry_templates,
+            self.config.social_control_threshold,
+        )
+        if social is None:
+            raise RuntimeError("Xã giao: đóng Bạn bè xong nhưng thiếu icon Xã giao để đóng menu")
+        self._tap(social)
         if not self.recover_home():
             raise RuntimeError("Xã giao: không recover_home được")
         return True

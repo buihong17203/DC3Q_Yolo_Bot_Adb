@@ -299,6 +299,13 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                 logout_threshold=float(logout_cfg.get("threshold", 0.70)),
                 logout_max_attempts=int(logout_cfg.get("max_attempts", 5)),
                 home_events=home_events,
+                save_knb_balance=lambda account_id, value: __import__(
+                    "app.accounts.writer", fromlist=["write_account_balance"]
+                ).write_account_balance(
+                    _resolve_project_path(root, workflow.get("account_file", cfg["account_file"])),
+                    account_id, "KNB", value,
+                ),
+                knb_icon=_resolve_project_path(root, "config/dc3q/item/item_knb.png"),
             ),
             runtime,
         )
@@ -311,7 +318,10 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                 LOGGER.info("Bỏ qua target đã tắt: %s", module_name)
                 continue
             if module_name == "01_tam-quoc-lenh":
+                from app.accounts.writer import write_account_balance
+
                 target_cfg = target_config["tam_quoc_lenh"]
+                accounts_path = _resolve_project_path(root, workflow.get("account_file", cfg["account_file"]))
                 target = module.TamQuocLenhRunner(
                     controller._screen, controller.input, controller.logout_action.vision,
                     module.TamQuocLenhConfig(
@@ -339,6 +349,14 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         threshold=float(target_cfg.get("threshold", 0.60)),
                         max_steps=int(target_cfg.get("max_steps", 30)),
                         wait_seconds=float(target_cfg.get("wait_seconds", 0.8)),
+                    ),
+                    save_que_balance=lambda value, ctl=controller, path=accounts_path: (
+                        write_account_balance(path, ctl.current.id, "Que-Lanh", value)
+                        if ctl.current else (_ for _ in ()).throw(RuntimeError("Thiếu account hiện tại"))
+                    ),
+                    save_nguyen_balance=lambda value, ctl=controller, path=accounts_path: (
+                        write_account_balance(path, ctl.current.id, "Nguyen-Linh-Ngoc", value)
+                        if ctl.current else (_ for _ in ()).throw(RuntimeError("Thiếu account hiện tại"))
                     ),
                 )
             elif module_name == "02_hoat-dong":
@@ -437,14 +455,21 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                 target = module.QuanDoanRunner(
                     controller._screen, controller.input, controller.logout_action.vision,
                     module.QuanDoanConfig(
-                        paths(c["home"]["entry"]), paths(c["home"]["menu"]),
+                        paths(c["home"]["entry"]), _resolve_project_path(root, c["home"]["anchor"]),
+                        paths(c["home"]["menu"]), paths(c["home"]["entrance"]),
                         paths(c["panel"]["markers"]), _resolve_project_path(root, c["panel"]["close"]),
-                        paths(c["home"]["markers"]), paths(c["prayer"]["tabs"]), paths(c["prayer"]["open"]),
+                        paths(c["home"]["markers"]),
+                        _resolve_project_path(root, c["registration"]["available"]),
+                        _resolve_project_path(root, c["registration"]["done"]),
+                        _resolve_project_path(root, c["prayer"]["entry"]),
                         _resolve_project_path(root, c["prayer"]["available"]),
                         _resolve_project_path(root, c["prayer"]["empty"]),
                         _resolve_project_path(root, c["prayer"]["close"]),
                         float(c.get("threshold", .65)), float(c.get("state_threshold", .76)),
                         int(c.get("max_steps", 30)), float(c.get("wait_seconds", .8)),
+                        int(c.get("entrance_wait_attempts", 24)),
+                        int(c.get("registration_wait_attempts", 24)),
+                        float(c.get("home_control_threshold", .30)),
                     ),
                 )
             elif module_name == "05_khong-gian-ca-nhan":
@@ -460,6 +485,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         _resolve_project_path(root, c["share"]["button"]), paths(c["share"]["after"]),
                         float(c.get("threshold", .65)), float(c.get("state_threshold", .8)),
                         int(c.get("max_steps", 24)), float(c.get("wait_seconds", .8)),
+                        int(c.get("state_wait_attempts", 24)),
                     ),
                     home_entry=lambda screen: controller.logout_action._avatar_from_noi_chinh(
                         screen, logout_templates, controller.config.logout_threshold,
@@ -472,7 +498,10 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         _resolve_project_path(root, c["panel"]["close"]), paths(c["home"]["markers"]),
                         _resolve_project_path(root, c["heart"]["before"]), _resolve_project_path(root, c["heart"]["after"]),
                         _resolve_project_path(root, c["quick_give"]["before"]), _resolve_project_path(root, c["quick_give"]["after"]),
-                        float(c.get("threshold", .65)), float(c.get("state_threshold", .8)), int(c.get("max_steps", 24)), float(c.get("wait_seconds", .8))))
+                        float(c.get("threshold", .65)), float(c.get("state_threshold", .8)),
+                        int(c.get("max_steps", 24)), float(c.get("wait_seconds", .8)),
+                        float(c.get("home_threshold", .65)),
+                        float(c.get("social_control_threshold", .55))))
             elif module_name == "07_truong-thanh":
                 c = target_config["truong_thanh"]
                 flows = [module.SubFlow(x["name"], paths(x["entry"]), paths(x["free"]), paths(x["spent"]), paths(x["close"])) for x in c["flows"]]

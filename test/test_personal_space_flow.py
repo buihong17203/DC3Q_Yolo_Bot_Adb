@@ -58,3 +58,24 @@ def test_personal_flow_orders_share_then_open_then_like_all():
     assert calls[1][0] == "share"
     assert calls[2][0] == "prove"
     assert calls[3][0] == "like_all"
+
+
+def test_like_all_waits_for_loaded_state_before_tapping():
+    runner = object.__new__(module.KhongGianCaNhanRunner)
+    runner.config = SimpleNamespace(
+        like_all=Path("like-all.png"), like_after=Path("liked.png"),
+        state_threshold=.80, wait_seconds=0, state_wait_attempts=24,
+    )
+    runner.sleep = lambda _: None
+    states = iter([
+        SimpleNamespace(found=False, confidence=.25),
+        SimpleNamespace(found=True, confidence=.99, x=10, y=20, width=20, height=10),
+    ])
+    runner._match = lambda screen, template, threshold=None: next(states)
+    runner.screen_provider = lambda: "loaded"
+    taps = []
+    runner._tap = taps.append
+    runner._prove = lambda templates, message, attempts=8: "liked"
+
+    assert runner._like_all("loading") == "liked"
+    assert len(taps) == 1

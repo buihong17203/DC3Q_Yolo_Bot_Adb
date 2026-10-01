@@ -3,6 +3,33 @@ import csv
 from pathlib import Path
 
 ATTENDANCE_FIELD = "Diem-Danh"
+BALANCE_FIELDS = {"KNB", "Que-Lanh", "Nguyen-Linh-Ngoc"}
+
+
+def write_account_balance(path: str | Path, account_id: str, field: str, value: int) -> None:
+    if field not in BALANCE_FIELDS:
+        raise ValueError(f"Cột số dư không hợp lệ: {field}")
+    if value < 0:
+        raise ValueError("Số dư không được âm")
+    p = Path(path)
+    with p.open("r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        fields = list(reader.fieldnames or [])
+        rows = list(reader)
+    if field not in fields:
+        raise KeyError(field)
+    for row in rows:
+        if row.get("id") == account_id:
+            row[field] = str(value)
+            break
+    else:
+        raise KeyError(account_id)
+    temporary = p.with_suffix(p.suffix + ".tmp")
+    with temporary.open("w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+    temporary.replace(p)
 
 def write_accounts(path: str | Path, rows: list[dict[str,str]]) -> Path:
     p=Path(path); p.parent.mkdir(parents=True, exist_ok=True)

@@ -513,10 +513,13 @@ class HoatDongRunner:
         screen = self.screen_provider()
         entry = self._first(screen, self.config.entry_templates)
         if entry is None:
-            menu = self._first(screen, self.config.menu_templates)
-            if menu is None:
-                raise RuntimeError("Hoạt động: không tìm thấy icon tại HOME")
-            self._tap(menu)
+            closed = self._match(screen, self.config.menu_templates[0])
+            opened = self._match(screen, self.config.menu_templates[1])
+            if opened.found and opened.confidence >= closed.confidence:
+                raise RuntimeError("Hoạt động: menu đang mở nhưng thiếu icon Hoạt động")
+            if not closed.found or closed.confidence <= opened.confidence:
+                raise RuntimeError("Hoạt động: không xác định được trạng thái menu HOME")
+            self._tap(closed)
             screen, entry = self._wait_for(self.config.entry_templates)
         if entry is None:
             raise RuntimeError("Hoạt động: menu đã mở nhưng thiếu icon Hoạt động")

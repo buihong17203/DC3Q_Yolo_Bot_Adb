@@ -1,27 +1,36 @@
 quan_doan:
-  # 10 Cầu vận tiêu 10 vé; không phải miễn phí.
-  enabled: false
+  enabled: true
   threshold: 0.65
   state_threshold: 0.76
   max_steps: 30
   wait_seconds: 0.8
+  # Đường dẫn Quân đoàn tải chậm: chờ tối đa 24 ảnh mới (~19 giây).
+  entrance_wait_attempts: 24
+  # Màn chính Quân đoàn còn tải sau khi X xuất hiện; chờ Báo danh ổn định.
+  registration_wait_attempts: 24
+  # ROI mép phải rất chặt; frame thật mới của _02 đạt 0.291.
+  home_control_threshold: 0.28
   home:
-    menu:
-      - data/img/templates/stars/home/screen/screen_home_morong_chamthan.png
+    # Neo Trưởng thành bên trái để giới hạn vùng tìm control Quân đoàn.
+    anchor: data/img/templates/stars/home/screen/screen_truong-thanh_01.png
+    # entry[0] = đã mở, nút đóng gần giữa; entry[1] = nút mở ở mép phải.
+    menu: []
     entry:
       - data/img/templates/stars/home/screen/screen_quan-doan_01.png
       - data/img/templates/stars/home/screen/screen_quan-doan_02.png
+    entrance:
+      - data/img/templates/targets/04_quan-doan/screen/screen_home_button_open_quandoan.png
     markers:
       - data/img/templates/stars/home/screen/screen_noi-chinh_01.png
   panel:
     markers:
       - data/img/templates/targets/04_quan-doan/screen_button_dong_04quandoan.png
     close: data/img/templates/targets/04_quan-doan/screen_button_dong_04quandoan.png
+  registration:
+    available: data/img/templates/targets/04_quan-doan/screen/screen_qd_button_baodanh_chuabaodanh.png
+    done: data/img/templates/targets/04_quan-doan/screen/screen_qd_button_baodanh_dabaodanh.png
   prayer:
-    tabs:
-      - data/img/templates/targets/04_quan-doan/screen/screen_qd_tab_cauvanquandoan_01.png
-    open:
-      - data/img/templates/targets/04_quan-doan/screen/screen_qd_tab_cauvanquandoan_02.png
+    entry: data/img/templates/targets/04_quan-doan/screen/screen_qd_button_open_cauvanquandoan.png
     available: data/img/templates/targets/04_quan-doan/screen/screen_qd_cvqd_button_10cauvan.png
     empty: data/img/templates/targets/04_quan-doan/screen/screen_qd_cvqd_button_0cauvan.png
     close: data/img/templates/targets/04_quan-doan/screen/screen_qd_cvqd_button_dong.png

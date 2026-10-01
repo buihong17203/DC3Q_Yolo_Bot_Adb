@@ -13,7 +13,8 @@ tam_quoc_lenh:
   home:
     # Chỉ click nút mở menu; Chiến tranh là mốc khu vực, không click mù.
     menu:
-      - data/img/templates/stars/home/screen/screen_home_morong_chamthan.png
+      - data/img/templates/stars/home/screen/screen_home_menu_sukien_dangdong.png
+      - data/img/templates/stars/home/screen/screen_home_menu_sukien_dangmo.png
     area:
       - data/img/templates/stars/home/screen/screen_chien-tranh_01.png
       - data/img/templates/stars/home/screen/screen_chien-tranh_02.png

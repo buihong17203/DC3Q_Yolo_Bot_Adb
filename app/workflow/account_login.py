@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from time import monotonic, sleep
+from typing import Callable
 from app.accounts.manager import AccountManager, Account
 from app.accounts.runtime import AccountRuntime
 from app.actions.dc3q.stars import (
@@ -60,6 +61,8 @@ class AccountLoginConfig:
     logout_max_attempts: int = 5
     home_events: list[tuple[Path, Path, float]] | None = None
     home_targets: list[object] | None = None
+    save_knb_balance: Callable[[str, int], None] | None = None
+    knb_icon: Path | None = None
 
 
 class AccountLoginController:
@@ -265,7 +268,7 @@ class AccountLoginController:
                     if self.home_action.last_task_error:
                         self.runtime.mark_task_error(
                             self.current.id, task_before,
-                            f"home target error: Cửa hàng [{self.home_action.last_task_error}]",
+                            f"home target error: {self.home_action.last_task_error}",
                         )
                         self.home_action.last_task_error = ""
                     else:
@@ -293,6 +296,14 @@ class AccountLoginController:
             LOGGER = __import__("logging").getLogger("dc3q")
             LOGGER.info("Bắt đầu tự động đăng xuất tài khoản: %s", self.current.id)
             try:
+                if self.config.save_knb_balance and self.config.knb_icon:
+                    from app.vision.balance import read_balance_near_icon
+                    knb = read_balance_near_icon(
+                        self._screen(), self.config.knb_icon,
+                        (82, 8, 125, 32), search_roi=(750, 50, 850, 150), threshold=.45,
+                    )
+                    self.config.save_knb_balance(self.current.id, knb)
+                    LOGGER.info("HOME | lưu KNB=%d trước đăng xuất", knb)
                 self.logout_action.logout(
                     self._screen,
                     templates=self.config.logout_templates,

@@ -6,6 +6,8 @@ from pathlib import Path
 from time import sleep as default_sleep
 from typing import Callable
 
+from app.vision.balance import read_balance_near_icon
+
 
 class TargetAction:
     """Base target action. Concrete targets must prove each UI transition."""
@@ -47,12 +49,38 @@ class TamQuocLenhRunner:
     runtime_task = "TAM_QUOC_LENH"
 
     def __init__(self, screen_provider, adb_input, vision, config: TamQuocLenhConfig,
-                 sleep: Callable[[float], None] = default_sleep):
+                 sleep: Callable[[float], None] = default_sleep,
+                 save_que_balance: Callable[[int], None] | None = None,
+                 save_nguyen_balance: Callable[[int], None] | None = None):
         self.screen_provider = screen_provider
         self.input = adb_input
         self.vision = vision
         self.config = config
         self.sleep = sleep
+        self.save_que_balance = save_que_balance
+        self.save_nguyen_balance = save_nguyen_balance
+        self._que_balance_saved = False
+        self._nguyen_balance_saved = False
+
+    def _save_tab_balance(self, screen, kind: str) -> None:
+        if kind == "que" and not self._que_balance_saved:
+            value = read_balance_near_icon(
+                screen, Path("config/dc3q/item/item_quelanh.png"),
+                (28, 0, 95, 42), search_roi=(190, 45, 360, 160), threshold=.50,
+            )
+            if self.save_que_balance:
+                self.save_que_balance(value)
+            self._que_balance_saved = True
+            logging.getLogger("dc3q").info("TQL | lưu Que-Lanh=%d", value)
+        elif kind == "diem" and not self._nguyen_balance_saved:
+            value = read_balance_near_icon(
+                screen, Path("config/dc3q/item/item_nguyenlinhngoc.png"),
+                (28, 0, 110, 48), search_roi=(190, 45, 360, 160), threshold=.50,
+            )
+            if self.save_nguyen_balance:
+                self.save_nguyen_balance(value)
+            self._nguyen_balance_saved = True
+            logging.getLogger("dc3q").info("TQL | lưu Nguyen-Linh-Ngoc=%d", value)
 
     def _match(self, screen, template: Path, threshold: float | None = None):
         return self.vision.find_template(
@@ -75,6 +103,19 @@ class TamQuocLenhRunner:
         x1, y1, _, _ = self.config.action_roi
         self.input.tap(x1 + match.x + match.width // 2, y1 + match.y + match.height // 2)
         self.sleep(self.config.wait_seconds)
+
+    def _ensure_home_menu(self, screen) -> str:
+        """Chỉ bấm trạng thái đóng; trạng thái mở tuyệt đối không bấm."""
+        closed = self._match(screen, self.config.menu_templates[0])
+        opened = self._match(screen, self.config.menu_templates[1])
+        # Hai crop có thể cùng khớp. Ảnh đóng là actuator chuyên dụng:
+        # đạt ngưỡng thì bấm, không so điểm với marker mở.
+        if closed.found:
+            self._tap(closed)
+            return "opened"
+        if opened.found:
+            return "already_open"
+        return "unknown"
 
     def _action_state(self, screen, free_template: Path, paid_template: Path):
         """Classify the x1 price line inside its fixed action ROI."""
@@ -189,10 +230,13 @@ class TamQuocLenhRunner:
                     raise RuntimeError("Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn")
                 self._tap(dismiss)
                 completed_action = waiting_for
+                settled = self.screen_provider()
                 if completed_action == "que":
                     que_done = True
+                    self._save_tab_balance(settled, "que")
                 elif completed_action == "diem":
                     diem_done = True
+                    self._save_tab_balance(settled, "diem")
                 self._last_completed_action = completed_action
                 waiting_for = None
                 logger.info("TQL | đóng thưởng | hoàn tất=%s", completed_action or "-")
@@ -207,12 +251,13 @@ class TamQuocLenhRunner:
                     opened = True
                     unknown = 0
                     continue
-                menu = self._first(screen, self.config.menu_templates)
-                if menu is not None:
-                    self._tap(menu)
+                menu_state = self._ensure_home_menu(screen)
+                if menu_state == "opened":
                     logger.info("TQL | mở menu HOME")
                     unknown = 0
                     continue
+                if menu_state == "already_open":
+                    raise RuntimeError("Tam Quốc Lệnh: menu đang mở nhưng thiếu icon")
                 unknown += 1
                 if unknown >= 3:
                     raise RuntimeError("Tam Quốc Lệnh: không tìm thấy icon tại HOME")
@@ -249,6 +294,7 @@ class TamQuocLenhRunner:
                     if state == "paid":
                         que_done = True
                         waiting_for = None
+                        self._save_tab_balance(screen, "que")
                         logger.info("TQL | xác nhận Quẻ bói = 99 vàng")
                     else:
                         self.sleep(self.config.wait_seconds)
@@ -260,6 +306,7 @@ class TamQuocLenhRunner:
                     continue
                 if state == "paid":
                     que_done = True
+                    self._save_tab_balance(screen, "que")
                     logger.info("TQL | Quẻ bói không còn FREE; chuyển sang Điểm binh")
                     continue
 
@@ -293,6 +340,7 @@ class TamQuocLenhRunner:
                     if state == "paid":
                         diem_done = True
                         waiting_for = None
+                        self._save_tab_balance(screen, "diem")
                         logger.info("TQL | xác nhận Điểm binh = 100 vàng")
                     else:
                         self.sleep(self.config.wait_seconds)
@@ -304,6 +352,7 @@ class TamQuocLenhRunner:
                     continue
                 if state == "paid":
                     diem_done = True
+                    self._save_tab_balance(screen, "diem")
                     logger.info("TQL | Điểm binh không còn FREE")
                     continue
 

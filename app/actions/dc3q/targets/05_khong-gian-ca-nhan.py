@@ -24,6 +24,7 @@ class KhongGianCaNhanConfig:
     state_threshold: float = 0.80
     max_steps: int = 24
     wait_seconds: float = 0.8
+    state_wait_attempts: int = 24
 
 
 class KhongGianCaNhanRunner:
@@ -112,9 +113,15 @@ class KhongGianCaNhanRunner:
         return self._prove(self.config.share_after, "Không gian cá nhân: thiếu hậu điều kiện sau chia sẻ")
 
     def _like_all(self, screen):
-        button = self._match(screen, self.config.like_all, self.config.state_threshold)
-        if not button.found:
-            raise RuntimeError("Không gian cá nhân: thiếu nút Like toàn bộ")
+        for attempt in range(self.config.state_wait_attempts):
+            button = self._match(screen, self.config.like_all, self.config.state_threshold)
+            if button.found:
+                break
+            if attempt + 1 < self.config.state_wait_attempts:
+                self.sleep(self.config.wait_seconds)
+                screen = self.screen_provider()
+        else:
+            raise RuntimeError("Không gian cá nhân: hết thời gian chờ nút Like toàn bộ")
         self._tap(button)
         return self._prove(
             [self.config.like_after],

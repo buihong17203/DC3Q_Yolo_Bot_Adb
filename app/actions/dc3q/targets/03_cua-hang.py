@@ -357,6 +357,38 @@ class CuaHangRunner:
         self.input.tap(card.x + card.width // 2, card.y + int(card.height * 0.95))
         self.sleep(self.config.wait_seconds)
 
+    def _drag_prestige_slider_to_max(self, slider, knob_ratio: float) -> None:
+        """Start exactly on the round knob, then drag it to the track end."""
+        y = slider.y + slider.height // 2
+        x1 = slider.x + int(slider.width * knob_ratio)
+        x2 = slider.x + int(slider.width * self.config.slider_end_ratio)
+        self.input.swipe(x1, y, x2, y, 700)
+        self.sleep(self.config.wait_seconds)
+
+    def _maximize_prestige_quantity(self, slider, knob_ratio: float):
+        """Drag first; if not full, press + until the full-bar state appears."""
+        self._drag_prestige_slider_to_max(slider, knob_ratio)
+        screen, maximum = self._wait_for_paid([self.config.prestige_slider_max])
+        if maximum is not None:
+            return screen, maximum
+        plus_x = slider.x + int(slider.width * 0.92)
+        plus_y = slider.y + slider.height // 2
+        for _ in range(10):
+            self.input.tap(plus_x, plus_y)
+            self.sleep(self.config.wait_seconds)
+            screen = self.screen_provider()
+            if not self._match_popup(
+                    screen, self.config.prestige_popup,
+                    self.config.paid_threshold).found:
+                raise RuntimeError("Shop Danh Vọng: popup Mua biến mất khi tăng số lượng")
+            maximum = self._match(
+                screen, self.config.prestige_slider_max,
+                self.config.paid_threshold,
+            )
+            if maximum.found:
+                return screen, maximum
+        return screen, None
+
     def _run_mystic(self, screen) -> None:
         logger = logging.getLogger("dc3q")
         screen = self._open_sidebar_tab(
@@ -462,17 +494,20 @@ class CuaHangRunner:
         if popup is None:
             raise RuntimeError("Shop Danh Vọng: popup Mua chưa mở")
         screen = self.screen_provider()
-        slider = self._first(screen, self.config.prestige_slider_states)
+        slider = None
+        knob_ratio = None
+        # Knob centers from supplied states 1/5, 2/5, 3/5.
+        for template, ratio in zip(
+                self.config.prestige_slider_states, (0.175, 0.367, 0.541)):
+            candidate = self._match(screen, template)
+            if candidate.found and (
+                    slider is None or candidate.confidence > slider.confidence):
+                slider, knob_ratio = candidate, ratio
         if slider is None:
             raise RuntimeError("Shop Danh Vọng: không nhận diện được thanh số lượng")
-        y = slider.y + slider.height // 2
-        x1 = slider.x + int(slider.width * self.config.slider_start_ratio)
-        x2 = slider.x + int(slider.width * self.config.slider_end_ratio)
-        self.input.swipe(x1, y, x2, y, 500)
-        self.sleep(self.config.wait_seconds)
-        screen, maximum = self._wait_for_paid([self.config.prestige_slider_max])
+        screen, maximum = self._maximize_prestige_quantity(slider, knob_ratio)
         if maximum is None:
-            raise RuntimeError("Shop Danh Vọng: kéo nhưng chưa xác minh mức tối đa 5/5")
+            raise RuntimeError("Shop Danh Vọng: kéo và bấm + nhưng chưa thấy thanh số lượng đầy")
         screen = self.screen_provider()
         total = self._match_popup(screen, self.config.prestige_total_price, self.config.paid_threshold)
         if not total.found:
@@ -549,10 +584,13 @@ class CuaHangRunner:
         screen = self.screen_provider()
         entry = self._first(screen, self.config.entry_templates)
         if entry is None:
-            menu = self._first(screen, self.config.menu_templates)
-            if menu is None:
-                raise RuntimeError("Cửa hàng: không tìm thấy icon tại HOME")
-            self._tap(menu)
+            closed = self._match(screen, self.config.menu_templates[0])
+            opened = self._match(screen, self.config.menu_templates[1])
+            if opened.found and opened.confidence >= closed.confidence:
+                raise RuntimeError("Cửa hàng: menu đang mở nhưng thiếu icon Cửa hàng")
+            if not closed.found or closed.confidence <= opened.confidence:
+                raise RuntimeError("Cửa hàng: không xác định được trạng thái menu HOME")
+            self._tap(closed)
             screen, entry = self._wait_for(self.config.entry_templates)
         if entry is None:
             raise RuntimeError("Cửa hàng: menu đã mở nhưng thiếu icon Cửa hàng")

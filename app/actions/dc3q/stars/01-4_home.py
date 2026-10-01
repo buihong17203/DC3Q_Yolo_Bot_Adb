@@ -61,13 +61,15 @@ class HomeAction:
                     self.last_task_error = "; ".join(getattr(target, "soft_errors", []))
                     self.target_index += 1
                     self.recovery_attempts = 0
-            except RuntimeError:
+            except RuntimeError as exc:
                 target = targets[self.target_index]
                 recover = getattr(target, "recover_home", None)
-                if recover is None or self.recovery_attempts >= 2 or not recover():
+                if recover is None or not recover():
                     raise
-                self.recovery_attempts += 1
-                # Do not advance: restart the same target from its first state.
+                # Recoverable module failure: record it, then continue the chain.
+                self.last_task_error = str(exc)
+                self.target_index += 1
+                self.recovery_attempts = 0
             self.confirmations = 0
             return False
         self.confirmations += 1
