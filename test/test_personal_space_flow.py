@@ -42,7 +42,7 @@ def test_personal_flow_orders_share_then_open_then_like_all():
     runner.config = SimpleNamespace(
         info_markers=[Path("info.png")], personal_markers=[Path("personal.png")],
         entry_templates=[Path("entry.png")], close_template=Path("close.png"),
-        home_markers=[Path("home.png")], wait_seconds=0,
+        home_markers=[Path("home.png")], wait_seconds=0, state_wait_attempts=24,
     )
     calls = []
     first_calls = iter([None, None, Match()])
@@ -79,3 +79,27 @@ def test_like_all_waits_for_loaded_state_before_tapping():
 
     assert runner._like_all("loading") == "liked"
     assert len(taps) == 1
+
+
+def test_personal_panel_uses_long_state_wait_after_entry_tap():
+    runner = object.__new__(module.KhongGianCaNhanRunner)
+    runner.input = Input()
+    runner.sleep = lambda _: None
+    runner.screen_provider = lambda: object()
+    runner.home_entry = None
+    runner.config = SimpleNamespace(
+        info_markers=[Path("info.png")], personal_markers=[Path("personal.png")],
+        entry_templates=[Path("entry.png")], close_template=Path("close.png"),
+        home_markers=[Path("home.png")], wait_seconds=0, state_wait_attempts=24,
+    )
+    calls = []
+    first_calls = iter([None, Match(), Match()])
+    runner._first = lambda screen, templates, threshold=None: next(first_calls)
+    runner._share_once = lambda screen: screen
+    runner._prove = lambda templates, message, attempts=8: calls.append(attempts) or object()
+    runner._like_all = lambda screen: screen
+    runner._match = lambda screen, template, threshold=None: Match()
+    runner.recover_home = lambda: True
+
+    assert runner.run() is True
+    assert calls == [24]

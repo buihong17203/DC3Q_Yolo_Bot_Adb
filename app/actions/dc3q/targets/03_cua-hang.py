@@ -202,29 +202,36 @@ class CuaHangRunner:
     def _reward(self, screen) -> bool:
         return self._dismiss_reward(screen, self.config.reward_marker, self.config.reward_dismiss)
 
-    def _open_limited_store(self, screen):
+    def _limited_store_ready(self, screen) -> bool:
         opened = self._best(screen, self.config.limited_open)
         closed = self._best(screen, self.config.limited_tabs)
         gift_open = self._best(screen, self.config.gift_tab_open)
         if (opened and opened.confidence >= self.config.threshold
                 and opened.confidence >= closed.confidence + 0.05
                 and opened.confidence >= gift_open.confidence + 0.05):
+            return True
+        # Period controls exist only inside Cửa hàng thời hạn and are stronger
+        # destination evidence than the colliding top-level tab chrome.
+        for closed_states, open_states in zip(
+                self.config.limited_tabs_closed, self.config.limited_tabs_open):
+            period_closed = self._best(screen, closed_states)
+            period_open = self._best(screen, open_states)
+            if max(period_closed.confidence, period_open.confidence) >= self.config.threshold:
+                return True
+        return False
+
+    def _open_limited_store(self, screen):
+        if self._limited_store_ready(screen):
             return screen
+        closed = self._best(screen, self.config.limited_tabs)
         if closed is None or closed.confidence < self.config.threshold:
             raise RuntimeError("Cửa hàng: không nhận diện được tab Cửa hàng thời hạn")
         self._tap(closed)
-        for _ in range(8):
+        for _ in range(16):
             screen = self.screen_provider()
-            opened = self._best(screen, self.config.limited_open)
-            closed = self._best(screen, self.config.limited_tabs)
-            gift_open = self._best(screen, self.config.gift_tab_open)
-            gift_closed = self._first(screen, self.config.gift_tab_closed)
-            if (opened and opened.confidence >= self.config.threshold
-                    and opened.confidence >= closed.confidence + 0.05
-                    and opened.confidence >= gift_open.confidence + 0.05
-                    and gift_closed is not None):
+            if self._limited_store_ready(screen):
                 return screen
-            self.sleep(self.config.wait_seconds)
+            self.sleep(self.config.limited_wait_seconds)
         raise RuntimeError("Cửa hàng: bấm Cửa hàng thời hạn nhưng chưa thấy tab mở và Cửa hàng gợi ý đóng")
 
     def _limited_offer_state(self, screen):

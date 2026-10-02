@@ -34,3 +34,24 @@ def test_each_limited_tab_waits_for_slow_catalog_after_tap():
 
     assert selected == {"day", "week", "month"}
     assert waits.count(2.5) >= 3
+
+
+def test_limited_store_accepts_unique_period_control_as_destination():
+    runner = object.__new__(module.CuaHangRunner)
+    runner.config = SimpleNamespace(
+        limited_open=[Path("limited-open")], limited_tabs=[Path("limited-closed")],
+        gift_tab_open=[Path("gift-open")], gift_tab_closed=[Path("gift-closed")],
+        limited_tabs_closed=[[Path("day-closed")]],
+        limited_tabs_open=[[Path("day-open")]], threshold=.60, wait_seconds=0,
+    )
+    scores = {
+        "limited-open": .58, "limited-closed": .55, "gift-open": .20,
+        "gift-closed": .45, "day-closed": .97, "day-open": .25,
+    }
+    runner._best = lambda screen, templates: SimpleNamespace(
+        found=scores[templates[0].name] >= .60,
+        confidence=scores[templates[0].name],
+    )
+    runner._first = lambda screen, templates: None
+
+    assert runner._limited_store_ready(object()) is True

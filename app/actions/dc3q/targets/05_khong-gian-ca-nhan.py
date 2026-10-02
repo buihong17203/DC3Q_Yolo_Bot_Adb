@@ -146,7 +146,11 @@ class KhongGianCaNhanRunner:
             if entry is None:
                 raise RuntimeError("Không gian cá nhân: không tìm thấy nút mở")
             self._tap(entry)
-            screen = self._prove(self.config.personal_markers, "Không gian cá nhân: bấm mở nhưng chưa thấy panel")
+            screen = self._prove(
+                self.config.personal_markers,
+                "Không gian cá nhân: bấm mở nhưng chưa thấy panel",
+                self.config.state_wait_attempts,
+            )
         screen = self._like_all(screen)
         close = self._match(screen, self.config.close_template)
         if close.found:

@@ -179,6 +179,9 @@ class TamQuocLenhRunner:
 
     def run(self) -> bool:
         logger = logging.getLogger("dc3q")
+        # Runner được tái sử dụng cho nhiều tài khoản; mỗi lượt phải ghi số dư lại.
+        self._que_balance_saved = False
+        self._nguyen_balance_saved = False
         opened = False
         panel_seen = False
         que_done = False

@@ -1,12 +1,29 @@
 import csv
 from importlib import import_module
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 from app.accounts.writer import write_account_balance
 from app.vision.balance import read_balance_near_icon
 from app.vision.image import load_image
 
 ROOT = Path(__file__).parents[1]
+
+
+def test_tam_quoc_lenh_resets_balance_write_guards_for_each_account_run():
+    module = import_module("app.actions.dc3q.targets.01_tam-quoc-lenh")
+    runner = object.__new__(module.TamQuocLenhRunner)
+    runner.config = SimpleNamespace(max_steps=0)
+    runner._que_balance_saved = True
+    runner._nguyen_balance_saved = True
+
+    with pytest.raises(RuntimeError, match="vượt quá số bước"):
+        runner.run()
+
+    assert runner._que_balance_saved is False
+    assert runner._nguyen_balance_saved is False
 
 
 def test_read_three_balances_from_supplied_reference_frames():

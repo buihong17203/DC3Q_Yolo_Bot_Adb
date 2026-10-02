@@ -125,6 +125,28 @@ def test_quan_doan_clicks_enter_button_before_waiting_for_real_panel():
     assert calls == [([enter], 24), ("tap", button_match), ([panel], 8)]
 
 
+def test_quan_doan_route_accepts_enter_button_as_open_postcondition():
+    runner = anchored_runner()
+    runner.config.entrance_templates = [Path("screen_home_button_open_quandoan.png")]
+    runner.config.entrance_wait_attempts = 24
+    runner.config.wait_seconds = 0
+    closed = match(True, .95, 927, 213)
+    entrance = match(True, .99, 628, 472)
+    states = iter([("closed", closed), ("closed", closed)])
+    runner._home_entry_state = lambda screen: next(states)
+    runner._first = lambda screen, templates, threshold=None: entrance
+    runner.screen_provider = lambda: "route"
+    runner.sleep = lambda _: None
+    tapped = []
+    runner._tap = tapped.append
+
+    screen, proof = runner._open_home_entry("home")
+
+    assert screen == "route"
+    assert proof is entrance
+    assert tapped == [closed]
+
+
 def test_enabled_event_menu_targets_use_distinct_closed_and_open_images():
     for name in ["01_tam-quoc-lenh", "02_hoat-dong", "03_cua-hang", "06_xa-giao"]:
         data = yaml.safe_load((ROOT / f"config/dc3q/targets/{name}.yaml").read_text(encoding="utf-8"))

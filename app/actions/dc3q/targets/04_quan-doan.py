@@ -208,8 +208,11 @@ class QuanDoanRunner:
         if state != "closed":
             raise RuntimeError("Quân đoàn: không xác định được nút đối diện Trưởng thành")
         self._tap(control)
-        for _ in range(8):
+        for _ in range(self.config.entrance_wait_attempts):
             screen = self.screen_provider()
+            entrance = self._first(screen, self.config.entrance_templates)
+            if entrance is not None:
+                return screen, entrance
             state, opened = self._home_entry_state(screen)
             if state == "open":
                 return screen, opened
