@@ -10,4 +10,5 @@ steps:
   - diem_danh
   - diem_danh_nhan_tich_luy_10_20_30_ngay
   - trung_thu_thue_in_allowed_hours
+  - tan_thu_if_present_claim_safe_rewards
   - close_to_home

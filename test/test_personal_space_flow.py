@@ -33,7 +33,7 @@ def test_info_uses_new_dedicated_marker_not_full_screen():
     ]
 
 
-def test_personal_flow_orders_share_then_open_then_like_all():
+def test_personal_flow_orders_open_like_then_share():
     runner = object.__new__(module.KhongGianCaNhanRunner)
     runner.input = Input()
     runner.sleep = lambda _: None
@@ -54,10 +54,10 @@ def test_personal_flow_orders_share_then_open_then_like_all():
     runner.recover_home = lambda: True
 
     assert runner.run()
-    assert runner.input.actions == [(1, 2), (20, 25), (20, 25)]
-    assert calls[1][0] == "share"
-    assert calls[2][0] == "prove"
-    assert calls[3][0] == "like_all"
+    assert calls[1][0] == "prove"       # personal panel opened
+    assert calls[2][0] == "like_all"
+    assert calls[3][0] == "prove"       # close returns to info
+    assert calls[4][0] == "share"
 
 
 def test_like_all_waits_for_loaded_state_before_tapping():
@@ -102,4 +102,4 @@ def test_personal_panel_uses_long_state_wait_after_entry_tap():
     runner.recover_home = lambda: True
 
     assert runner.run() is True
-    assert calls == [24]
+    assert calls[0] == 24

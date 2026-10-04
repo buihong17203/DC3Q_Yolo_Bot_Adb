@@ -55,6 +55,12 @@ class AccountRuntime:
         self.runtime_file.parent.mkdir(parents=True, exist_ok=True)
         if not self.runtime_file.exists() or self.runtime_file.stat().st_size == 0:
             self._reset_from_accounts(self.game_day(datetime.now(self.TIMEZONE), self.reset_hour))
+            return
+        with self.runtime_file.open("r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+        if reader.fieldnames != self.FIELDS:
+            self._write(rows)
 
     def maybe_rollover(self, now: datetime | None = None) -> None:
         now = now or datetime.now(self.TIMEZONE)

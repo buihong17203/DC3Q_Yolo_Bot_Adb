@@ -141,7 +141,6 @@ class KhongGianCaNhanRunner:
                     self.config.info_markers,
                     "Không gian cá nhân: bấm avatar nhưng chưa thấy Thông tin của tôi",
                 )
-            screen = self._share_once(screen)
             entry = self._first(screen, self.config.entry_templates)
             if entry is None:
                 raise RuntimeError("Không gian cá nhân: không tìm thấy nút mở")
@@ -153,8 +152,14 @@ class KhongGianCaNhanRunner:
             )
         screen = self._like_all(screen)
         close = self._match(screen, self.config.close_template)
-        if close.found:
-            self._tap(close)
+        if not close.found:
+            raise RuntimeError("Không gian cá nhân: Like xong nhưng thiếu nút đóng panel")
+        self._tap(close)
+        screen = self._prove(
+            self.config.info_markers,
+            "Không gian cá nhân: đóng panel nhưng chưa về Thông tin của tôi",
+        )
+        self._share_once(screen)
         if not self.recover_home():
             raise RuntimeError("Không gian cá nhân: không recover_home được")
         return True

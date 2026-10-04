@@ -17,7 +17,7 @@ login:
   poll_seconds: 1.0
   timeout_seconds: 600
   logged_in_threshold: 0.55
-  logged_in_confirmations: 1
+  logged_in_confirmations: 3
   coordinates: {}
   unexpected:
     event_configs:

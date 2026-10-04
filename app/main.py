@@ -258,7 +258,10 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
         archive_dir=workflow.get("runtime_archive_dir", "docs/docs_days_runtime"),
     )
     runtime.maybe_rollover()
-    loaded = accounts.load(runtime_status=runtime.statuses())
+    loaded = accounts.load(
+        runtime_status=runtime.statuses(),
+        limit=(int(workflow["account_limit"]) if workflow.get("account_limit") is not None else None),
+    )
     LOGGER.info("Accounts: %d account(s) từ %s", len(loaded), _resolve_project_path(root, cfg["account_file"]))
     if not loaded:
         LOGGER.warning("accounts.csv không có account khả dụng.")
@@ -306,6 +309,9 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                     account_id, "KNB", value,
                 ),
                 knb_icon=_resolve_project_path(root, "config/dc3q/item/item_knb.png"),
+                cutoff_hour=int(workflow.get("cutoff_hour", 22)),
+                cutoff_minute=int(workflow.get("cutoff_minute", 59)),
+                persistent_daily=bool(workflow.get("persistent_daily", True)),
             ),
             runtime,
         )
@@ -374,6 +380,26 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         home_markers=paths(target_cfg["home"]["markers"]),
                         welfare_tabs=paths(target_cfg["welfare"]["tabs"]),
                         welfare_open=paths(target_cfg["welfare"]["open"]),
+                        newcomer_tabs=paths(target_cfg["newcomer"]["tabs"]),
+                        newcomer_open=paths(target_cfg["newcomer"]["open"]),
+                        newcomer_vassal_tabs=paths(target_cfg["newcomer"]["vassal"]["tabs"]),
+                        newcomer_vassal_open=paths(target_cfg["newcomer"]["vassal"]["open"]),
+                        newcomer_vassal_claimable=_resolve_project_path(root, target_cfg["newcomer"]["vassal"]["claimable"]),
+                        newcomer_offer_tabs=paths(target_cfg["newcomer"]["offer"]["tabs"]),
+                        newcomer_offer_open=paths(target_cfg["newcomer"]["offer"]["open"]),
+                        newcomer_offer_claimable=_resolve_project_path(root, target_cfg["newcomer"]["offer"]["claimable"]),
+                        newcomer_offer_claimed=_resolve_project_path(root, target_cfg["newcomer"]["offer"]["claimed"]),
+                        newcomer_seven_day_tabs=paths(target_cfg["newcomer"]["seven_day"]["tabs"]),
+                        newcomer_seven_day_open=paths(target_cfg["newcomer"]["seven_day"]["open"]),
+                        newcomer_seven_day_claimable=_resolve_project_path(root, target_cfg["newcomer"]["seven_day"]["claimable"]),
+                        newcomer_seven_day_claimed=_resolve_project_path(root, target_cfg["newcomer"]["seven_day"]["claimed"]),
+                        newcomer_login_tabs=paths(target_cfg["newcomer"]["login"]["tabs"]),
+                        newcomer_login_open=paths(target_cfg["newcomer"]["login"]["open"]),
+                        newcomer_login_claimable=_resolve_project_path(root, target_cfg["newcomer"]["login"]["claimable"]),
+                        newcomer_login_claimed=_resolve_project_path(root, target_cfg["newcomer"]["login"]["claimed"]),
+                        newcomer_unavailable=_resolve_project_path(root, target_cfg["newcomer"]["unavailable"]),
+                        newcomer_reward_marker=_resolve_project_path(root, target_cfg["newcomer"]["reward"]["marker"]),
+                        newcomer_reward_dismiss=_resolve_project_path(root, target_cfg["newcomer"]["reward"]["dismiss"]),
                         national_tabs=paths(target_cfg["national_fortune"]["tabs"]),
                         national_open=paths(target_cfg["national_fortune"]["open"]),
                         national_free=_resolve_project_path(root, target_cfg["national_fortune"]["free"]),
@@ -504,10 +530,33 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         float(c.get("social_control_threshold", .55))))
             elif module_name == "07_truong-thanh":
                 c = target_config["truong_thanh"]
-                flows = [module.SubFlow(x["name"], paths(x["entry"]), paths(x["free"]), paths(x["spent"]), paths(x["close"])) for x in c["flows"]]
+                flows = [module.SubFlow(x["name"], paths(x["entry"]), paths(x["free"]), paths(x["spent"]), paths(x["close"]), float(x.get("free_threshold", .90)), paths(x.get("hub_entry", [])), bool(x.get("repeat_free", False)), float(x.get("close_threshold", .70)), paths(x.get("bonus_continue", [])), tuple(x.get("bonus_tap_point", [480, 360]))) for x in c["flows"]]
                 target = module.TruongThanhRunner(controller._screen, controller.input, controller.logout_action.vision,
                     module.TruongThanhConfig(paths(c["home"]["entry"]), paths(c["home"]["menu"]), paths(c["home"]["markers"]),
-                        paths(c["close"]), list(c.get("skipped_subflows", [])), flows,
+                        paths(c["close"]), paths(c["bonus_continue"]["templates"]),
+                        tuple(c["bonus_continue"]["tap_point"]), paths(c["a4_return"]),
+                        paths(c["hub_markers"]),
+                        _resolve_project_path(root, c["a1"]["entry"]), _resolve_project_path(root, c["a1"]["view"]),
+                        _resolve_project_path(root, c["a1"]["plus_slot"]), paths(c["a1"]["execute"]), paths(c["a1"]["running"]),
+                        [tuple(point) for point in c["a1"]["card_centers"]], tuple(c["a1"]["close_point"]),
+                        _resolve_project_path(root, c["a1"]["reward"]), tuple(c["a1"]["execution_count_roi"]),
+                        _resolve_project_path(root, c["a1"]["locked_slot"]), _resolve_project_path(root, c["a1"]["assist"]),
+                        tuple(c["a1"]["assist_count_roi"]), _resolve_project_path(root, c["a1"]["assist_popup"]),
+                        _resolve_project_path(root, c["a1"]["assist_confirm"]), tuple(c["a1"]["board_swipe"]),
+                        int(c["a1"].get("max_board_swipes", 2)), tuple(c["a1"]["back_point"]),
+                        _resolve_project_path(root, c["a2"]["entry"]), paths(c["a2"]["open"]), paths(c["a2"]["main"]),
+                        _resolve_project_path(root, c["a2"]["free"]), _resolve_project_path(root, c["a2"]["paid"]),
+                        paths(c["a2"]["rewards"]), _resolve_project_path(root, c["a2"]["popup_close"]),
+                        _resolve_project_path(root, c["a3"]["right_anchor"]), paths(c["a3"]["markers"]), tuple(c["a3"]["close_point"]),
+                        paths(c["a3"]["raise_flag"]), paths(c["a3"]["result"]),
+                        paths(c["a5"]["normal_free"]), paths(c["a5"]["gold_free"]),
+                        _resolve_project_path(root, c["a5"]["normal_select"]),
+                        _resolve_project_path(root, c["a5"]["quick"]), _resolve_project_path(root, c["a5"]["initial_close"]),
+                        tuple(c["a5"]["normal_quantity_roi"]), tuple(c["a5"]["normal_free_roi"]),
+                        tuple(c["a5"]["gold_quantity_roi"]), tuple(c["a5"]["gold_free_roi"]),
+                        tuple(c["a5"]["reward_dismiss_point"]), int(c["a5"].get("max_adjustments", 10)),
+                        float(c.get("state_threshold", .8)), float(c.get("state_margin", .05)),
+                        list(c.get("skipped_subflows", [])), flows,
                         float(c.get("threshold", .7)), int(c.get("max_steps", 60)), float(c.get("wait_seconds", .8))))
             elif module_name == "08_vo-tuong":
                 c = target_config["vo_tuong"]

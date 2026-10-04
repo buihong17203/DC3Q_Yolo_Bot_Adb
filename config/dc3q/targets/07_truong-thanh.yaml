@@ -3,21 +3,34 @@ truong_thanh:
   threshold: 0.70
   max_steps: 60
   wait_seconds: 0.8
+  # Tạm tắt theo yêu cầu; chỉ chạy A1 Bảo Vật.
   skipped_subflows:
-    # Assets show risky/unclear resource states; never blind-click.
-    - A1_bao-vat
     - A2_tuong-an
     - A3_chua-cong
+    - A4_ve-tuong
+    - A5_trai-ngua
+    - A6_than-binh
+    - A7_chien-hon
+  state_threshold: 0.80
+  state_margin: 0.05
   home:
-    menu:
-      - data/img/templates/stars/home/screen/screen_home_morong_chamthan.png
+    # Trường thành có control riêng tại HOME; không dùng asset menu không tồn tại.
+    menu: []
     entry:
       - data/img/templates/stars/home/screen/screen_truong-thanh_01.png
     markers:
       - data/img/templates/stars/home/screen/screen_chien-tranh_01.png
       - data/img/templates/stars/home/screen/screen_chien-tranh_02.png
-  close:
+  bonus_continue:
+    templates:
+      - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/screen_vt_tcc_anmanhinhdetieptuc.jpg
+    tap_point: [800, 480]
+  a4_return:
     - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/full-screen_vt_tcc_cmnd_trove.png
+  close:
+    - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/screen_vt_vethanh.png
+    - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_home_button_hoithanh.png
+    - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_home_button_hoithanh.png
     - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_anvaochotrongdethoat.png
     - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_batngua_button_dong.png
     - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_bnn_button_dong.png
@@ -26,18 +39,93 @@ truong_thanh:
     - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_dong.png
     - data/img/templates/targets/07_truong-thanh/A7_chien-hon/screen/screen_ch_anvaochotrongdethoat.png
     - data/img/templates/targets/07_truong-thanh/A7_chien-hon/screen/screen_ch_button_dong.png
+  hub_markers:
+    - data/img/templates/stars/home/screen/screen_bao-vat.png
+    - data/img/templates/stars/home/screen/screen_tuong-an.png
+    - data/img/templates/stars/home/screen/screen_chua-cong.png
+    - data/img/templates/stars/home/screen/screen_ve-tuong.png
+    - data/img/templates/stars/home/screen/screen_trai-ngua.png
+    - data/img/templates/stars/home/screen/screen_than-binh.png
+    - data/img/templates/stars/home/screen/screen_chien-hon.png
+  a1:
+    entry: data/img/templates/stars/home/screen/screen_bao-vat.png
+    view: data/img/templates/targets/07_truong-thanh/A1_bao-vat/screen/screen_tt_bv_cv_button_xem.png
+    plus_slot: data/img/templates/targets/07_truong-thanh/A1_bao-vat/screen/screen_tt_bv_cv_slot_themtuong.png
+    execute:
+      - data/img/templates/targets/07_truong-thanh/A1_bao-vat/screen/screen_tt_bv_cv_button_chaphang.png
+    running:
+      - data/img/templates/targets/07_truong-thanh/A1_bao-vat/screen/screen_tt_bv_cv_trangthai_dangchaphanh.png
+    card_centers: [[550, 370], [648, 370], [747, 370], [845, 370], [550, 483], [648, 483], [747, 483], [845, 483]]
+    close_point: [932, 28]
+    reward: data/img/templates/targets/07_truong-thanh/A1_bao-vat/screen/screen_tt_bv_cv_button_nhanthuong.png
+    execution_count_roi: [680, 475, 890, 540]
+    locked_slot: data/img/templates/targets/07_truong-thanh/A1_bao-vat/screen/screen_tt_bv_cv_slot_khoa.png
+    assist: data/img/templates/targets/07_truong-thanh/A1_bao-vat/screen/screen_tt_bv_cv_button_cauvientro.png
+    assist_count_roi: [310, 440, 480, 500]
+    assist_popup: data/img/templates/targets/07_truong-thanh/A1_bao-vat/screen/screen_tt_bv_cv_popup_yeucauchivien.png
+    assist_confirm: data/img/templates/targets/07_truong-thanh/A1_bao-vat/screen/screen_tt_bv_cv_button_xacnhan.png
+    board_swipe: [700, 440, 700, 180, 900]
+    max_board_swipes: 2
+    back_point: [85, 77]
+  a2:
+    entry: data/img/templates/stars/home/screen/screen_tuong-an.png
+    main:
+      - data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_ttd_button_dong.png
+    open:
+      - data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_ttd_button_open_thamdolanhdia_01.png
+      - data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_ttd_button_open_thamdolanhdia_02.png
+    free: data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tdld_button_thamdo.png
+    paid: data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tdld_button_thamdo_1cuonthu.png
+    rewards:
+      - data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tdld_thuong_01.png
+      - data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tdld_thuong_02.png
+      - data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tdld_thuong_03.png
+      - data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tdld_thuong_04.png
+    popup_close: data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_ttd_button_dong.png
+  a3:
+    right_anchor: data/img/templates/stars/home/screen/screen_ve-tuong.png
+    markers:
+      - data/img/templates/targets/07_truong-thanh/A3_chua-cong/screen/screen_cc_tab_chienky_open.png
+      - data/img/templates/targets/07_truong-thanh/A3_chua-cong/screen/screen_cc_tab_phonghau_open_chamthan.png
+    raise_flag:
+      - data/img/templates/targets/07_truong-thanh/A3_chua-cong/screen/screen_cc_chienky_button_giuongco.png
+    result:
+      - data/img/templates/targets/07_truong-thanh/A3_chua-cong/screen/screen_cc_nhapbatkydedong.png
+    close_point: [926, 34]
+  a5:
+    normal_free:
+      - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_bnn_button_nguathuong_conluot.png
+    gold_free:
+      - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_bnn_button_nguavang_conluot.png
+    normal_select: data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_bnn_muc_nguathuong_chualon.png
+    quick: data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_batngua_button_batnguanhanh.png
+    initial_close: data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_batngua_button_dong.png
+    normal_quantity_roi: [318, 404, 357, 431]
+    normal_free_roi: [286, 430, 388, 462]
+    gold_quantity_roi: [620, 404, 660, 431]
+    gold_free_roi: [588, 430, 690, 462]
+    reward_dismiss_point: [480, 500]
+    max_adjustments: 10
   flows:
     - name: A4_ve-tuong
+      free_threshold: 0.95
+      hub_entry:
+        - data/img/templates/stars/home/screen/screen_ve-tuong.png
       entry:
-        - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/screen_vt_vethanh.png
+        - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/screen_vt_thiencocac_01.png
+        - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/screen_vt_thiencocac_02.png
       free:
         - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/screen_vt_tcc_button_dienquai1lan_free.png
       spent:
-        - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/full screen/full-screen_vt_tcc_chucmungnhanduoc.png
         - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/full-screen_vt_tcc_chucmungnhanduoc.png
+      bonus_continue:
+        - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/screen_vt_tcc_anmanhinhdetieptuc.jpg
+      bonus_tap_point: [480, 360]
       close:
         - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/full-screen_vt_tcc_cmnd_trove.png
     - name: A5_trai-ngua
+      hub_entry:
+        - data/img/templates/stars/home/screen/screen_trai-ngua.png
       entry:
         - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_home_tuongmaquan_mienphi.png
       free:
@@ -47,6 +135,9 @@ truong_thanh:
       close:
         - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_anvaochotrongdethoat.png
     - name: A6_than-binh
+      hub_entry:
+        - data/img/templates/stars/home/screen/screen_than-binh.png
+      repeat_free: true
       entry:
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_home_khuvuc_tambinhmichbao.png
       free:
@@ -59,13 +150,15 @@ truong_thanh:
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_trove.png
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_dong.png
     - name: A7_chien-hon
+      close_threshold: 0.65
+      hub_entry:
+        - data/img/templates/stars/home/screen/screen_chien-hon.png
       entry:
-        - data/img/templates/targets/07_truong-thanh/A7_chien-hon/full screen/screen_ch_tab_nhanchienhon_close.png
         - data/img/templates/targets/07_truong-thanh/A7_chien-hon/screen/screen_ch_tab_nhanchienhon_close_chamthan.png
       free:
         - data/img/templates/targets/07_truong-thanh/A7_chien-hon/screen/screen_ch_nhanchienhon_button_rut1lan_mienphi.png
       spent:
-        - data/img/templates/targets/07_truong-thanh/A7_chien-hon/screen/screen_ch_popup_chucmungnhanduoc.png
+        - data/img/templates/targets/07_truong-thanh/A7_chien-hon/screen/screen_ch_nhanchienhon_button_rut1lan_hetmienphi.png
       close:
         - data/img/templates/targets/07_truong-thanh/A7_chien-hon/screen/screen_ch_anvaochotrongdethoat.png
         - data/img/templates/targets/07_truong-thanh/A7_chien-hon/screen/screen_ch_button_dong.png

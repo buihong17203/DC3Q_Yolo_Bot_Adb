@@ -26,7 +26,8 @@ khong_gian_ca_nhan:
     all: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_kgcn_liketoanbo.png
   share:
     before: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_ttct_chiase.png
-    panel: data/img/templates/targets/05_khong-gian-ca-nhan/full screen/full-screen_chiase.png
+    # Nút này chỉ xuất hiện trong bảng đã mở; dùng crop screen làm hậu điều kiện.
+    panel: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_chiase_chiase.png
     button: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_chiase_chiase.png
     after:
       - data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_thongtincuatoi.png

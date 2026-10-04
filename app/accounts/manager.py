@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
+from threading import Lock
 from .reader import read_accounts
 
 
@@ -24,19 +25,29 @@ class AccountManager:
         self.path = Path(path)
         self._accounts: list[Account] = []
         self._cursor = 0
+        self._claimed: dict[str, Account] = {}
+        self._limit: int | None = None
+        self._lock = Lock()
 
-    def load(self, runtime_status: dict[str, dict[str, str]] | None = None) -> list[Account]:
+    def load(self, runtime_status: dict[str, dict[str, str]] | None = None,
+             *, limit: int | None = None) -> list[Account]:
+        self._limit = limit
         rows = read_accounts(self.path)
+        if limit is not None:
+            rows = rows[:max(0, limit)]
         runtime_status = runtime_status or {}
-        # Keep accounts.csv as the source of credentials; runtime only decides
-        # which accounts are already completed for the current game day.
+        # Cap the requested row range before filtering completed runtime rows.
         self._accounts = [
             Account(r.get("id", str(i)), r)
             for i, r in enumerate(rows, start=1)
-            if runtime_status.get(r.get("id", str(i)), {}).get("status") not in {"DONE"}
+            if runtime_status.get(r.get("id", str(i)), {}).get("status") not in {"DONE", "ERROR"}
         ]
         self._cursor = 0
+        self._claimed.clear()
         return list(self._accounts)
+
+    def reload(self, runtime_status: dict[str, dict[str, str]] | None = None) -> list[Account]:
+        return self.load(runtime_status, limit=self._limit)
 
     def get(self, account_id: str) -> Account | None:
         return next((a for a in self._accounts if a.id == account_id), None)
@@ -49,22 +60,32 @@ class AccountManager:
             return None
         return self._accounts[self._cursor]
 
+    def claim_next(self) -> Account | None:
+        """Atomically reserve one account for one device worker."""
+        with self._lock:
+            if self._cursor >= len(self._accounts):
+                return None
+            account = self._accounts[self._cursor]
+            self._cursor += 1
+            self._claimed[account.id] = account
+            return account
+
     def commit_logged_in(self, account_id: str) -> Account:
-        account = self.get(account_id)
-        if account is None:
-            raise KeyError(f"Không tìm thấy account: {account_id}")
-        if self._cursor >= len(self._accounts) or self._accounts[self._cursor].id != account_id:
-            raise ValueError("Chỉ được commit account đang đứng đầu hàng đợi")
-        self._cursor += 1
-        return account
+        with self._lock:
+            account = self._claimed.pop(account_id, None)
+            if account is None:
+                raise ValueError("Account chưa được worker claim hoặc đã commit")
+            return account
 
     def skip_current(self, account_id: str) -> Account:
         """Consume one rejected account without treating it as logged in."""
-        account = self.peek_next()
-        if account is None or account.id != account_id:
-            raise ValueError("Chỉ được bỏ qua account đang đứng đầu hàng đợi")
-        self._cursor += 1
-        return account
+        with self._lock:
+            account = self._claimed.pop(account_id, None)
+            if account is None:
+                raise ValueError("Account chưa được worker claim hoặc đã bỏ qua")
+            return account
 
     def reset(self) -> None:
-        self._cursor = 0
+        with self._lock:
+            self._cursor = 0
+            self._claimed.clear()

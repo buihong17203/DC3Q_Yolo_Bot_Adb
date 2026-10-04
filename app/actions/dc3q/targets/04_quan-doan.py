@@ -171,6 +171,11 @@ class QuanDoanRunner:
                 self._tap(close)
                 logger.info("QD | recovery đóng Quân đoàn")
                 continue
+            state, _ = self._home_entry_state(screen)
+            if state == "open":
+                self._close_home_route()
+                logger.info("QD | recovery đóng đường dẫn Quân đoàn")
+                return True
             if self._first(screen, self.config.home_markers) is not None:
                 logger.info("QD | recovery đã về HOME")
                 return True

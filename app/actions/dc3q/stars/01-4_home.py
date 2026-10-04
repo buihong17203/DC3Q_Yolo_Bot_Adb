@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.adb.input import DailyCutoff
+
 
 class HomeAction:
     """Handle safe HOME popups and run the configured HOME target once."""
@@ -57,15 +59,24 @@ class HomeAction:
         if self.target_index < len(targets):
             try:
                 target = targets[self.target_index]
-                if target.run():
-                    self.last_task_error = "; ".join(getattr(target, "soft_errors", []))
-                    self.target_index += 1
-                    self.recovery_attempts = 0
-            except RuntimeError as exc:
+                if not target.run():
+                    raise RuntimeError(f"{self.current_task} returned False")
+                self.last_task_error = "; ".join(getattr(target, "soft_errors", []))
+                self.target_index += 1
+                self.recovery_attempts = 0
+            except DailyCutoff:
+                raise
+            except Exception as exc:
                 target = targets[self.target_index]
                 recover = getattr(target, "recover_home", None)
-                if recover is None or not recover():
+                if recover is None:
                     raise
+                try:
+                    recovered = recover()
+                except Exception:
+                    raise exc
+                if not recovered:
+                    raise exc
                 # Recoverable module failure: record it, then continue the chain.
                 self.last_task_error = str(exc)
                 self.target_index += 1

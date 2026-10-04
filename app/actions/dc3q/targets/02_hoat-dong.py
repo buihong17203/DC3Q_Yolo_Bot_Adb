@@ -17,6 +17,26 @@ class HoatDongConfig:
     home_markers: list[Path]
     welfare_tabs: list[Path]
     welfare_open: list[Path]
+    newcomer_tabs: list[Path]
+    newcomer_open: list[Path]
+    newcomer_vassal_tabs: list[Path]
+    newcomer_vassal_open: list[Path]
+    newcomer_vassal_claimable: Path
+    newcomer_offer_tabs: list[Path]
+    newcomer_offer_open: list[Path]
+    newcomer_offer_claimable: Path
+    newcomer_offer_claimed: Path
+    newcomer_seven_day_tabs: list[Path]
+    newcomer_seven_day_open: list[Path]
+    newcomer_seven_day_claimable: Path
+    newcomer_seven_day_claimed: Path
+    newcomer_login_tabs: list[Path]
+    newcomer_login_open: list[Path]
+    newcomer_login_claimable: Path
+    newcomer_login_claimed: Path
+    newcomer_unavailable: Path
+    newcomer_reward_marker: Path
+    newcomer_reward_dismiss: Path
     national_tabs: list[Path]
     national_open: list[Path]
     national_free: Path
@@ -261,6 +281,84 @@ class HoatDongRunner:
             self.sleep(self.config.wait_seconds)
         raise RuntimeError("Hoạt động: bấm Quà online nhưng nội dung chưa mở")
 
+    def _open_newcomer_if_present(self, screen):
+        """Open optional Tân thủ only when its supplied state image is proven."""
+        state, _, closed_match = self._tab_state(screen, self.config.newcomer_tabs, self.config.newcomer_open)
+        if state == "open":
+            return screen
+        if state != "closed":
+            logging.getLogger("dc3q").info("HD | tài khoản không có tab Tân thủ; bỏ qua")
+            return None
+        self._tap(closed_match)
+        for _ in range(8):
+            verify = self.screen_provider()
+            verified, _, _ = self._tab_state(verify, self.config.newcomer_tabs, self.config.newcomer_open)
+            if verified == "open":
+                return verify
+            self.sleep(self.config.wait_seconds)
+        raise RuntimeError("Hoạt động: bấm Tân thủ nhưng chưa thấy tab mở")
+
+    def _wait_newcomer_reward(self):
+        for _ in range(10):
+            screen = self.screen_provider()
+            if self._match(screen, self.config.newcomer_reward_marker).found:
+                dismiss = self._match(screen, self.config.newcomer_reward_dismiss)
+                if not dismiss.found:
+                    raise RuntimeError("Hoạt động/Tân thủ: thấy thưởng nhưng thiếu vùng đóng an toàn")
+                self._tap(dismiss)
+                return self.screen_provider()
+            self.sleep(self.config.wait_seconds)
+        raise RuntimeError("Hoạt động/Tân thủ: bấm Nhận nhưng chưa thấy thưởng")
+
+    def _claim_newcomer_vassal_rewards(self, screen):
+        """Claim every visible Chư hầu chi thủy button; never tap Đến."""
+        claims = 0
+        while claims < 20:
+            buttons = self._all_matches(screen, self.config.newcomer_vassal_claimable, 0.95)
+            if not buttons:
+                return screen
+            self._tap(buttons[0])
+            claims += 1
+            logging.getLogger("dc3q").info("HD | Tân thủ/Chư hầu chi thủy: bấm Nhận lần=%d", claims)
+            screen = self._wait_newcomer_reward()
+        raise RuntimeError("Hoạt động/Tân thủ: vượt giới hạn 20 phần thưởng Chư hầu chi thủy")
+
+    def _claim_newcomer_single_reward(self, screen, kind: str):
+        claimable = getattr(self.config, f"newcomer_{kind}_claimable")
+        claimed = getattr(self.config, f"newcomer_{kind}_claimed")
+        available = self._match(screen, claimable, self.config.state_threshold)
+        done = self._match(screen, claimed, self.config.state_threshold)
+        unavailable = self._match(screen, self.config.newcomer_unavailable, self.config.state_threshold)
+        states = [("claimable", available), ("claimed", done), ("unavailable", unavailable)]
+        state, winner = max(states, key=lambda pair: pair[1].confidence)
+        runner_up = max(item.confidence for name, item in states if name != state)
+        if not winner.found or winner.confidence < runner_up + 0.05:
+            logging.getLogger("dc3q").info("HD | Tân thủ/%s: trạng thái không chắc chắn; bỏ qua", kind)
+            return screen
+        if state != "claimable":
+            return screen
+        self._tap(winner)
+        screen = self._wait_newcomer_reward()
+        for _ in range(8):
+            verify = self.screen_provider()
+            if self._match(verify, claimed, self.config.state_threshold).found:
+                return verify
+            self.sleep(self.config.wait_seconds)
+        raise RuntimeError(f"Hoạt động/Tân thủ/{kind}: nhận xong nhưng chưa thấy Đã nhận")
+
+    def _process_newcomer(self, screen):
+        screen = self._open_tab(screen, self.config.newcomer_vassal_tabs,
+                                self.config.newcomer_vassal_open, "Chư hầu chi thủy")
+        screen = self._claim_newcomer_vassal_rewards(screen)
+        for kind, name, tabs, opened in (
+            ("offer", "Ưu đãi tân thủ", self.config.newcomer_offer_tabs, self.config.newcomer_offer_open),
+            ("seven_day", "Quà 7 ngày", self.config.newcomer_seven_day_tabs, self.config.newcomer_seven_day_open),
+            ("login", "Đăng nhập tích lũy", self.config.newcomer_login_tabs, self.config.newcomer_login_open),
+        ):
+            screen = self._open_tab(screen, tabs, opened, name, scroll_if_missing=True)
+            screen = self._claim_newcomer_single_reward(screen, kind)
+        return self._open_tab(screen, self.config.welfare_tabs, self.config.welfare_open, "Phúc lợi")
+
     def _wait_for(self, templates: list[Path], attempts: int = 8):
         """Poll transitions; Activity panel can render after the entry tap."""
         last_screen = None
@@ -333,9 +431,10 @@ class HoatDongRunner:
         width, height = x2 - x1, y2 - y1
         cells = []
         for index in range(30):
-            row, col = divmod(index, 8)
-            left = x1 + round(col * width / 8)
-            right = x1 + round((col + 1) * width / 8)
+            # Live board is 9 columns × 4 rows: 1–27, then 28–30.
+            row, col = divmod(index, 9)
+            left = x1 + round(col * width / 9)
+            right = x1 + round((col + 1) * width / 9)
             top = y1 + round(row * height / 4)
             bottom = y1 + round((row + 1) * height / 4)
             cells.append(
@@ -394,9 +493,9 @@ class HoatDongRunner:
 
     def _tap_attendance(self, index: int) -> None:
         x1, y1, x2, y2 = self.config.attendance_grid
-        row, col = divmod(index, 8)
+        row, col = divmod(index, 9)
         self.input.tap(
-            x1 + round((col + 0.5) * (x2 - x1) / 8),
+            x1 + round((col + 0.5) * (x2 - x1) / 9),
             y1 + round((row + 0.5) * (y2 - y1) / 4),
         )
         self.sleep(self.config.wait_seconds)
@@ -510,6 +609,7 @@ class HoatDongRunner:
 
     def run(self) -> bool:
         logger = logging.getLogger("dc3q")
+        self.soft_errors = []
         screen = self.screen_provider()
         entry = self._first(screen, self.config.entry_templates)
         if entry is None:
@@ -555,9 +655,13 @@ class HoatDongRunner:
         else:
             raise RuntimeError("Hoạt động: trạng thái Lễ bao quốc vận xung đột")
 
-        screen = self._open_online_tab(screen)
-        logger.info("HD | đã mở tab Quà online")
-        self._claim_online(screen)
+        try:
+            screen = self._open_online_tab(screen)
+            logger.info("HD | đã mở tab Quà online")
+            self._claim_online(screen)
+        except Exception as exc:
+            self.soft_errors.append(f"Quà online: {exc}")
+            logger.error("HD | Quà online lỗi; tiếp tục Điểm danh: %s", exc)
         screen = self.screen_provider()
 
         screen = self._open_attendance_tab(screen)
@@ -604,6 +708,13 @@ class HoatDongRunner:
             self._claim_tax(screen)
         else:
             logger.info("HD | bỏ qua Trưng thu thuế ngoài khung giờ")
+
+        screen = self.screen_provider()
+        newcomer = self._open_newcomer_if_present(screen)
+        if newcomer is not None:
+            logger.info("HD | phát hiện tab Tân thủ")
+            screen = self._process_newcomer(newcomer)
+            logger.info("HD | Tân thủ hoàn tất; trở lại Phúc lợi")
 
         screen = self.screen_provider()
         close = self._match(screen, self.config.close_template)

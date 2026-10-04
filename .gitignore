@@ -9,3 +9,5 @@ data/accounts/*
 !data/accounts/.gitkeep
 temp/*
 !temp/.gitkeep
+docs/docs_days_runtime/*.csv
+scripts/dc3q/stars/pilot-*-accounts.yaml

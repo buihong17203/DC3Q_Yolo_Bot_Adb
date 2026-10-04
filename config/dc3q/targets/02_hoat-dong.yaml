@@ -25,6 +25,44 @@ hoat_dong:
     open:
       - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_tab_phucloi_open_01.png
       - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_tab_phucloi_open_02.png
+  newcomer:
+    tabs:
+      - data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tab_tanthu_close_01.png
+      - data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tab_tanthu_close_02.png
+    open:
+      - data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tab_tanthu_open_01.png
+      - data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tab_tanthu_open_02.png
+    vassal:
+      tabs:
+        - data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_tab_chuhauchithuy_close_01.png
+        - data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_tab_chuhauchithuy_close_02.png
+      open:
+        - data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_tab_chuhauchithuy_open_01.png
+        - data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_tab_chuhauchithuy_open_02.png
+      claimable: data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_chct_button_nhan.png
+    offer:
+      tabs: [data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_tab_uudaitanthu_close_01.png]
+      open: [data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_tab_uudaitanthu_open_01.png]
+      claimable: data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_udtt_chuanhan.png
+      claimed: data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_udtt_danhan.png
+    seven_day:
+      tabs:
+        - data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_tab_qua7ngay_close_01.png
+        - data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_tab_qua7ngay_close_02.png
+      open:
+        - data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_tab_qua7ngay_open_01.png
+        - data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_tab_qua7ngay_open_02.png
+      claimable: data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_udtt_button_nhan.png
+      claimed: data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_udtt_state_danhan.png
+    login:
+      tabs: [data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_tab_dangnhaptichluy_close.png]
+      open: [data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_tab_dangnhaptichluy_open.png]
+      claimable: data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_dntl_button_nhan.png
+      claimed: data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_dntl_state_danhan.png
+    unavailable: data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_state_khongduocnhan.png
+    reward:
+      marker: data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_chucmungnhanduoc.png
+      dismiss: data/img/templates/targets/02_hoat-dong/tan-thu/screen/screen_hd_tt_anvaochotrongdethoat.png
   national_fortune:
     tabs:
       - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_lebaoquocvan_close_01.png
@@ -51,8 +89,8 @@ hoat_dong:
       - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_diemdanh_open_02.png
 
     # ADB viewport 960x540; coordinates exclude LDPlayer's 35px title bar.
-    # 30 ngày = 8 + 8 + 8 + 6; bỏ cột thưởng mốc 30/50/80/120 bên trái.
-    grid: [313, 199, 913, 500]
+    # 30 ngày = 9 + 9 + 9 + 3; thưởng tích lũy nằm phía trên, không phải cột trái.
+    grid: [238, 199, 913, 500]
     milestone:
       claimable: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_diemdanh_tichluy_10-20-30_01.png
       locked: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_diemdanh_tichluy_10-20-30_02.png

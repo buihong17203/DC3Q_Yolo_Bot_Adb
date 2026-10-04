@@ -147,6 +147,25 @@ def test_quan_doan_route_accepts_enter_button_as_open_postcondition():
     assert tapped == [closed]
 
 
+def test_quan_doan_recovery_closes_open_route_after_panel_close():
+    runner = object.__new__(module.QuanDoanRunner)
+    runner.config = SimpleNamespace(
+        prayer_close=Path("prayer-close"), panel_markers=[Path("panel")],
+        close_template=Path("panel-close"), home_markers=[Path("home")],
+        wait_seconds=0,
+    )
+    runner.sleep = lambda _: None
+    runner.screen_provider = lambda: "open-route"
+    runner._match = lambda screen, template, threshold=None: match(False)
+    runner._first = lambda screen, templates, threshold=None: None
+    runner._home_entry_state = lambda screen: ("open", match(True, .99, 430, 220))
+    closed = []
+    runner._close_home_route = lambda: closed.append(True)
+
+    assert runner.recover_home() is True
+    assert closed == [True]
+
+
 def test_enabled_event_menu_targets_use_distinct_closed_and_open_images():
     for name in ["01_tam-quoc-lenh", "02_hoat-dong", "03_cua-hang", "06_xa-giao"]:
         data = yaml.safe_load((ROOT / f"config/dc3q/targets/{name}.yaml").read_text(encoding="utf-8"))

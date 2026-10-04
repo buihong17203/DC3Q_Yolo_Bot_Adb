@@ -206,12 +206,16 @@ class CuaHangRunner:
         opened = self._best(screen, self.config.limited_open)
         closed = self._best(screen, self.config.limited_tabs)
         gift_open = self._best(screen, self.config.gift_tab_open)
+        gift_closed = self._best(screen, self.config.gift_tab_closed)
         if (opened and opened.confidence >= self.config.threshold
                 and opened.confidence >= closed.confidence + 0.05
                 and opened.confidence >= gift_open.confidence + 0.05):
             return True
-        # Period controls exist only inside Cửa hàng thời hạn and are stronger
-        # destination evidence than the colliding top-level tab chrome.
+        # Period templates can collide with offer art on Cửa hàng gợi ý. Trust
+        # them only after the top-level Cửa hàng gợi ý tab is proven closed.
+        if (gift_closed.confidence < self.config.threshold
+                or gift_closed.confidence <= gift_open.confidence):
+            return False
         for closed_states, open_states in zip(
                 self.config.limited_tabs_closed, self.config.limited_tabs_open):
             period_closed = self._best(screen, closed_states)
@@ -533,24 +537,32 @@ class CuaHangRunner:
     def _claim_daily_gift(self, screen):
         logger = logging.getLogger("dc3q")
         clicked = False
-        # Panel/tab can match before the gift card finishes rendering.
-        for _ in range(12):
+        claimed_frames = 0
+        # Panel/tab can match before the gift card finishes rendering. A reward
+        # popup may also arrive after the card already changed to "Đã mua".
+        for _ in range(16):
             state, control = self._competing_state(
                 screen, self.config.daily_unclaimed, self.config.daily_claimed,
                 (825, 90, 962, 190),
             )
-            if state == "claimed":
-                return screen, True
             if state == "free" and not clicked:
                 self._tap(control)
                 clicked = True
                 logger.info("CH | nhận Quà hằng ngày miễn phí")
+                claimed_frames = 0
             elif self._reward(screen):
-                pass
+                logger.info("CH | đóng popup thưởng Quà hằng ngày")
+                claimed_frames = 0
+            elif state == "claimed":
+                claimed_frames += 1
+                if claimed_frames >= 3:
+                    return screen, True
+            else:
+                claimed_frames = 0
             screen = self.screen_provider()
             self.sleep(self.config.wait_seconds)
         if clicked:
-            raise RuntimeError("Cửa hàng: đã bấm Quà hằng ngày nhưng chưa thấy Đã mua")
+            raise RuntimeError("Cửa hàng: đã bấm Quà hằng ngày nhưng chưa thấy Đã mua ổn định sau popup")
         return screen, False
 
     def _open_gift_tab(self, screen):

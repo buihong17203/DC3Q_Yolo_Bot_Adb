@@ -4,6 +4,9 @@ from enum import Enum
 from pathlib import Path
 from time import monotonic, sleep
 from typing import Callable
+from datetime import datetime
+from zoneinfo import ZoneInfo
+from app.adb.input import DailyCutoff
 from app.accounts.manager import AccountManager, Account
 from app.accounts.runtime import AccountRuntime
 from app.actions.dc3q.stars import (
@@ -28,6 +31,26 @@ def redact_runtime_screenshot(image, *, authentication: bool):
         fill=(0, 0, 0),
     )
     return redacted
+
+
+TIMEZONE = ZoneInfo("Asia/Ho_Chi_Minh")
+
+
+def in_daily_cutoff(now: datetime, hour: int = 22, minute: int = 59) -> bool:
+    """Pause gameplay during the one-minute pre-reset drain window."""
+    return now.hour == hour and now.minute >= minute
+
+
+def save_optional_knb(reader, screen, icon, writer, account_id: str) -> bool:
+    """Best-effort metadata capture; never blocks verified logout."""
+    try:
+        value = reader(screen, icon, (82, 8, 125, 32), search_roi=(750, 50, 850, 150), threshold=.45)
+        writer(account_id, value)
+        return True
+    except Exception as exc:
+        import logging
+        logging.getLogger("dc3q").warning("HOME | bỏ qua lưu KNB: %s", exc)
+        return False
 
 
 class AccountLoginPhase(str, Enum):
@@ -63,6 +86,9 @@ class AccountLoginConfig:
     home_targets: list[object] | None = None
     save_knb_balance: Callable[[str, int], None] | None = None
     knb_icon: Path | None = None
+    cutoff_hour: int = 22
+    cutoff_minute: int = 59
+    persistent_daily: bool = True
 
 
 class AccountLoginController:
@@ -78,6 +104,9 @@ class AccountLoginController:
         self.detector = LoginStateDetector()
         self.screenshot = AdbScreenshot(adb, device)
         self.input = AdbInput(adb, device)
+        self.input.set_cutoff_guard(
+            lambda: in_daily_cutoff(datetime.now(TIMEZONE), config.cutoff_hour, config.cutoff_minute)
+        )
         self.login_action = AccountLoginAction(self.input, LoginCoordinates(config.username, config.password, config.submit))
         self.logout_action = AccountLogoutAction(self.input, config.logout_templates)
         self.home_action = HomeAction(self.input, self.logout_action.vision, config)
@@ -90,6 +119,7 @@ class AccountLoginController:
         self._submit_attempts = 0
         self._last_submit_at = 0.0
         self._submit_transitioning = False
+        self._active_game_day = self.runtime.game_day(datetime.now(TIMEZONE), self.runtime.reset_hour)
         port = self.device.serial.rsplit("-", 1)[-1]
         self._rolling_screenshot = Path.cwd() / "temp" / f"screenshot_multi_{port}.png"
 
@@ -163,6 +193,53 @@ class AccountLoginController:
         )
         return True
 
+    def _drain_daily_cutoff(self) -> None:
+        logger = __import__("logging").getLogger("dc3q")
+        logger.info("ROLLOVER | 22:59: dừng nghiệp vụ, recover HOME và đăng xuất")
+        with self.input.allow_cutoff_actions():
+            if self.current and self.phase == AccountLoginPhase.PROCESS_HOME_EVENTS:
+                targets = self.config.home_targets or []
+                index = self.home_action.target_index
+                if index < len(targets):
+                    recover = getattr(targets[index], "recover_home", None)
+                    if recover is None or not recover():
+                        raise RuntimeError("22:59: không recover được HOME; dừng an toàn")
+                self.logout_action.logout(
+                    self._screen,
+                    templates=self.config.logout_templates,
+                    threshold=self.config.logout_threshold,
+                    max_attempts=self.config.logout_max_attempts,
+                    login_detector=self.detector,
+                    login_templates=self.config.login_templates,
+                    login_threshold=self.config.threshold,
+                )
+                self.runtime.mark_logged_out(self.current.id)
+            elif self.current and self.phase in {
+                AccountLoginPhase.LOGGING_IN, AccountLoginPhase.LOGGING_OUT,
+            }:
+                # Không gửi lại login sau cutoff. Chỉ logout nếu phiên đã vào game;
+                # logout state machine tự chấp nhận LOGIN là hậu điều kiện terminal.
+                self.logout_action.logout(
+                    self._screen,
+                    templates=self.config.logout_templates,
+                    threshold=self.config.logout_threshold,
+                    max_attempts=self.config.logout_max_attempts,
+                    login_detector=self.detector,
+                    login_templates=self.config.login_templates,
+                    login_threshold=self.config.threshold,
+                )
+                self.runtime.mark_logged_out(self.current.id)
+        self.current = None
+        self.phase = AccountLoginPhase.WAIT_LOGIN_SCREEN
+        self.home_action.reset()
+        while in_daily_cutoff(datetime.now(TIMEZONE), self.config.cutoff_hour, self.config.cutoff_minute):
+            sleep(1)
+        now = datetime.now(TIMEZONE)
+        self.runtime.maybe_rollover(now)
+        loaded = self.accounts.reload(self.runtime.statuses())
+        self._active_game_day = self.runtime.game_day(now, self.runtime.reset_hour)
+        logger.info("ROLLOVER | queue ngày mới=%s", [account.id for account in loaded])
+
     def poll_once(self) -> AccountLoginPhase:
         self.runtime.maybe_rollover()
         image, d = self._detect()
@@ -172,7 +249,7 @@ class AccountLoginController:
                 self.reconcile_existing_home()
                 return self.phase
             if d.state == LoginScreenState.LOGIN_SCREEN:
-                account = self.accounts.peek_next()
+                account = self.accounts.claim_next()
                 if account is None:
                     self.phase = AccountLoginPhase.EXHAUSTED
                     return self.phase
@@ -298,12 +375,11 @@ class AccountLoginController:
             try:
                 if self.config.save_knb_balance and self.config.knb_icon:
                     from app.vision.balance import read_balance_near_icon
-                    knb = read_balance_near_icon(
-                        self._screen(), self.config.knb_icon,
-                        (82, 8, 125, 32), search_roi=(750, 50, 850, 150), threshold=.45,
-                    )
-                    self.config.save_knb_balance(self.current.id, knb)
-                    LOGGER.info("HOME | lưu KNB=%d trước đăng xuất", knb)
+                    if save_optional_knb(
+                        read_balance_near_icon, self._screen(), self.config.knb_icon,
+                        self.config.save_knb_balance, self.current.id,
+                    ):
+                        LOGGER.info("HOME | đã lưu KNB trước đăng xuất")
                 self.logout_action.logout(
                     self._screen,
                     templates=self.config.logout_templates,
@@ -341,10 +417,28 @@ class AccountLoginController:
         self.ensure_game_active()
         deadline = monotonic() + self.config.login_timeout_seconds
         while not (stop_event and stop_event.is_set()):
+            if in_daily_cutoff(datetime.now(TIMEZONE), self.config.cutoff_hour, self.config.cutoff_minute):
+                self._drain_daily_cutoff()
+                continue
             before = self.phase
-            self.poll_once()
+            try:
+                self.poll_once()
+            except DailyCutoff:
+                self._drain_daily_cutoff()
+                continue
             if self.phase == AccountLoginPhase.EXHAUSTED:
-                return
+                if not self.config.persistent_daily:
+                    return
+                sleep(self.config.poll_seconds)
+                now = datetime.now(TIMEZONE)
+                game_day = self.runtime.game_day(now, self.runtime.reset_hour)
+                if game_day != self._active_game_day:
+                    self.runtime.maybe_rollover(now)
+                    loaded = self.accounts.reload(self.runtime.statuses())
+                    self._active_game_day = game_day
+                    if loaded:
+                        self.phase = AccountLoginPhase.WAIT_LOGIN_SCREEN
+                continue
             if before == AccountLoginPhase.LOGGING_IN and self.phase == AccountLoginPhase.LOGGING_IN and monotonic() > deadline:
                 if self.current:
                     self.runtime.mark_error(self.current.id, self.device.serial, "login timeout")

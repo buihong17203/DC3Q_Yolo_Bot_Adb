@@ -2,8 +2,9 @@ name: target_truong_thanh
 type: home_target
 config: config/dc3q/targets/07_truong-thanh.yaml
 
-# HOME -> Trường thành -> only visually proven free/safe subflows.
-# Skip A1/A2/A3: 145 assets do not prove a conservative free-only path.
+# HOME -> Trường thành -> each available safe subflow -> HOME.
+# A1/A2/A3 remain unavailable until their supplied screen assets prove a
+# complete safe action and exit path; no full-screen reference is executable.
 # Blacklist paid/resource controls: vàng, tôn ngọc, cuốn thư, bán, phân giải, cầu viện.
 steps:
   - open_home_menu_if_needed
