@@ -39,10 +39,14 @@ def test_a1_accepts_execution_count_decreasing_exactly_one():
     make_runner(6)._run_a1()
 
 
-def test_a1_rejects_execution_count_that_does_not_decrease():
-    with pytest.raises(RuntimeError, match="không giảm đúng 1"):
-        make_runner([7] * 8)._run_a1()
+def test_a1_keeps_running_when_counter_is_stale_after_running_is_proven():
+    make_runner([7] * 8)._run_a1()
 
 
 def test_a1_waits_for_delayed_execution_count_update():
     make_runner([7, 7, 6])._run_a1()
+
+
+def test_roi_number_uses_trailing_counter_not_ocr_s6_from_so():
+    assert module._last_ocr_number(["S6 lan dugc thuc hien:7"]) == 7
+    assert module._last_ocr_number(["S6 lan dugc thuc hien:2"]) == 2

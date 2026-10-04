@@ -43,14 +43,17 @@ def test_assistance_exhausted_goes_back_and_tries_next_mission():
 def test_each_search_swipes_slowly_then_clicks_first_view_found():
     value = object.__new__(module.TruongThanhRunner)
     value.config = SimpleNamespace(
-        a1_view="view", a1_execution_count_roi=(1, 2, 3, 4),
+        a1_view="view", a1_plus_slot="plus",
+        a1_execution_count_roi=(1, 2, 3, 4),
         a1_board_swipe=(700, 440, 700, 180, 900),
         a1_max_board_swipes=2, wait_seconds=0,
     )
     value._read_roi_number = lambda screen, roi: 5
+    value._a1_board_verified = lambda screen: True
     matches = iter([
         SimpleNamespace(found=False),
         SimpleNamespace(found=True, x=800, y=380, width=100, height=40),
+        SimpleNamespace(found=True),
     ])
     value._match = lambda *args, **kwargs: next(matches)
     screens = iter(["after_slow_swipe", "detail"])

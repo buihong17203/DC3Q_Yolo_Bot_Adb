@@ -45,7 +45,7 @@ def test_personal_flow_orders_open_like_then_share():
         home_markers=[Path("home.png")], wait_seconds=0, state_wait_attempts=24,
     )
     calls = []
-    first_calls = iter([None, None, Match()])
+    first_calls = iter([None, None, Match(), Match()])
     runner._first = lambda screen, templates, threshold=None: next(first_calls)
     runner._prove = lambda templates, message, attempts=8: calls.append(("prove", templates)) or object()
     runner._share_once = lambda screen: calls.append(("share",)) or object()
@@ -56,8 +56,7 @@ def test_personal_flow_orders_open_like_then_share():
     assert runner.run()
     assert calls[1][0] == "prove"       # personal panel opened
     assert calls[2][0] == "like_all"
-    assert calls[3][0] == "prove"       # close returns to info
-    assert calls[4][0] == "share"
+    assert calls[3][0] == "share"       # close already proved info
 
 
 def test_like_all_waits_for_loaded_state_before_tapping():
@@ -93,7 +92,7 @@ def test_personal_panel_uses_long_state_wait_after_entry_tap():
         home_markers=[Path("home.png")], wait_seconds=0, state_wait_attempts=24,
     )
     calls = []
-    first_calls = iter([None, Match(), Match()])
+    first_calls = iter([None, Match(), Match(), Match()])
     runner._first = lambda screen, templates, threshold=None: next(first_calls)
     runner._share_once = lambda screen: screen
     runner._prove = lambda templates, message, attempts=8: calls.append(attempts) or object()

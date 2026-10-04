@@ -194,7 +194,8 @@ class QuanDoanRunner:
         # với chi tiết bên phải sau animation mở.
         opened = self._match_roi(
             screen, self.config.entry_templates[0],
-            (int(width * .38), y1, int(width * .62), y2), self.config.home_control_threshold,
+            (int(width * .38), y1, int(width * .62), y2),
+            max(0.40, self.config.home_control_threshold),
         )
         if opened.found:
             return "open", opened

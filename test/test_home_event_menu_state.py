@@ -73,6 +73,23 @@ def test_quan_doan_open_01_wins_over_false_positive_02():
     assert control.x == 433
 
 
+def test_quan_doan_rejects_weak_01_collision_on_clean_home():
+    runner = anchored_runner()
+    thresholds = []
+
+    def match_roi(screen, template, roi, threshold=None):
+        thresholds.append((template.name, threshold))
+        confidence = .288 if template.name == "screen_quan-doan_01.png" else .227
+        return match(confidence >= threshold, confidence, 474, 237)
+
+    runner._match_roi = match_roi
+    state, control = runner._home_entry_state(object())
+
+    assert state == "unknown"
+    assert control is None
+    assert thresholds[0] == ("screen_quan-doan_01.png", .40)
+
+
 def test_quan_doan_does_not_tap_open_toggle_again():
     runner = object.__new__(module.QuanDoanRunner)
     opened_toggle = match(True, 1.0, 426, 218)

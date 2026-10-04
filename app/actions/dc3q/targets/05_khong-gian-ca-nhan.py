@@ -90,6 +90,24 @@ class KhongGianCaNhanRunner:
     def home_templates(self) -> list[Path]:
         return self.config.home_markers
 
+    def _return_to_info_after_personal_close(self, screen):
+        if self._first(screen, self.config.info_markers) is not None:
+            return screen
+        if self._first(screen, self.home_templates()) is None:
+            return self._prove(
+                self.config.info_markers,
+                "Không gian cá nhân: đóng panel nhưng chưa về Thông tin của tôi/HOME",
+            )
+        point = self.home_entry(screen) if self.home_entry else None
+        if point is None:
+            raise RuntimeError("Không gian cá nhân: về HOME nhưng chưa chứng minh được nút mở hồ sơ")
+        self.input.tap(*point)
+        self.sleep(self.config.wait_seconds)
+        return self._prove(
+            self.config.info_markers,
+            "Không gian cá nhân: mở lại hồ sơ nhưng chưa thấy Thông tin của tôi",
+        )
+
     def _like_once(self, screen):
         before = self._match(screen, self.config.like_before, self.config.state_threshold)
         after = self._match(screen, self.config.like_after, self.config.state_threshold)
@@ -155,10 +173,7 @@ class KhongGianCaNhanRunner:
         if not close.found:
             raise RuntimeError("Không gian cá nhân: Like xong nhưng thiếu nút đóng panel")
         self._tap(close)
-        screen = self._prove(
-            self.config.info_markers,
-            "Không gian cá nhân: đóng panel nhưng chưa về Thông tin của tôi",
-        )
+        screen = self._return_to_info_after_personal_close(self.screen_provider())
         self._share_once(screen)
         if not self.recover_home():
             raise RuntimeError("Không gian cá nhân: không recover_home được")

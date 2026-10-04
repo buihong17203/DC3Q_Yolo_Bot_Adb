@@ -7,6 +7,12 @@ from time import sleep as default_sleep
 from typing import Callable
 
 
+def _last_ocr_number(texts) -> int | None:
+    import re
+    values = [int(value) for text in texts for value in re.findall(r"\d+", str(text))]
+    return values[-1] if values else None
+
+
 @dataclass(frozen=True)
 class SubFlow:
     name: str
@@ -156,6 +162,16 @@ class TruongThanhRunner:
             if self._first(screen, self.config.home_markers) is not None:
                 logger.info("TT | recovery đã về HOME")
                 return True
+            # A1 Chính vụ has no dedicated X template, but a verified Xem/
+            # Nhận thưởng control proves this exact board. Close its known X.
+            a1_view = getattr(self.config, "a1_view", None)
+            a1_reward = getattr(self.config, "a1_reward", None)
+            if ((a1_view is not None and self._match(screen, a1_view).found)
+                    or (a1_reward is not None and self._match(screen, a1_reward).found)):
+                self.input.tap(*self.config.a1_close_point)
+                self.sleep(self.config.wait_seconds)
+                logger.info("TT | recovery đóng bảng Chính vụ A1")
+                continue
             close = self._first(screen, self.config.close_templates)
             if close is None:
                 self.sleep(self.config.wait_seconds)
@@ -198,7 +214,19 @@ class TruongThanhRunner:
             screen = self.screen_provider()
         return screen
 
+    def _a1_board_verified(self, screen) -> bool:
+        if self._match(screen, self.config.a1_view, 0.95).found:
+            return True
+        if self._match(screen, self.config.a1_reward).found:
+            return True
+        return self._first(screen, self.config.a1_running) is not None
+
     def _a1_open_next_mission(self, screen):
+        if not self._a1_board_verified(screen):
+            logging.getLogger("dc3q").error(
+                "TT | A1 từ chối thao tác: chưa xác nhận đúng bảng Chính vụ"
+            )
+            return None
         remaining = self._read_roi_number(screen, self.config.a1_execution_count_roi)
         if remaining is None or remaining <= 0:
             logging.getLogger("dc3q").info(
@@ -206,20 +234,34 @@ class TruongThanhRunner:
             )
             return None
         for swipe_index in range(self.config.a1_max_board_swipes + 1):
-            view = self._match(screen, self.config.a1_view)
+            # Xem and Tăng tốc share button chrome. Live collision measured
+            # Xem-template=0.759 on Tăng tốc; only a near-exact Xem may tap.
+            view = self._match(screen, self.config.a1_view, 0.95)
             if view.found:
                 self._tap(view)
-                logging.getLogger("dc3q").info(
-                    "TT | A1 mở Chính vụ | lượt_trước=%d | vuốt=%d",
-                    remaining, swipe_index,
+                for _ in range(3):
+                    detail = self.screen_provider()
+                    if self._match(detail, self.config.a1_plus_slot).found:
+                        logging.getLogger("dc3q").info(
+                            "TT | A1 mở Chính vụ | lượt_trước=%d | vuốt=%d",
+                            remaining, swipe_index,
+                        )
+                        return detail, remaining
+                    self.sleep(self.config.wait_seconds)
+                logging.getLogger("dc3q").error(
+                    "TT | A1 bấm Xem nhưng vẫn ở bảng Chính vụ; đóng A1 an toàn"
                 )
-                detail = self.screen_provider()
-                return detail, remaining
+                return None
             if swipe_index == self.config.a1_max_board_swipes:
                 break
             self.input.swipe(*self.config.a1_board_swipe)
             self.sleep(self.config.wait_seconds)
             screen = self.screen_provider()
+            if not self._a1_board_verified(screen):
+                logging.getLogger("dc3q").error(
+                    "TT | A1 dừng vuốt: frame mới không còn là bảng Chính vụ"
+                )
+                return None
         logging.getLogger("dc3q").info(
             "TT | A1 còn %d lượt nhưng không còn nút Xem sau %d lần vuốt",
             remaining, self.config.a1_max_board_swipes,
@@ -311,10 +353,7 @@ class TruongThanhRunner:
             opened = self._a1_open_next_mission(screen)
             if opened is None:
                 break
-            detail, remaining_before = opened
-            screen, plus = self._wait_first([self.config.a1_plus_slot], attempts=12)
-            if plus is None:
-                raise RuntimeError("Trường thành A1: Xem nhưng chưa thấy đội võ tướng")
+            screen, remaining_before = opened
             if not self._a1_fill_and_execute(screen):
                 self.input.tap(*self.config.a1_back_point)
                 self.sleep(self.config.wait_seconds)
@@ -344,15 +383,20 @@ class TruongThanhRunner:
                 if count_attempt < 7:
                     self.sleep(self.config.wait_seconds)
                     screen = self.screen_provider()
-            if remaining_after is None or remaining_after != remaining_before - 1:
-                raise RuntimeError(
-                    "Trường thành A1: số lần được thực hiện không giảm đúng 1 "
-                    f"({remaining_before}→{remaining_after})"
+            if remaining_after == remaining_before - 1:
+                logging.getLogger("dc3q").info(
+                    "TT | A1 số lần được thực hiện | %d→%d",
+                    remaining_before, remaining_after,
                 )
-            logging.getLogger("dc3q").info(
-                "TT | A1 số lần được thực hiện | %d→%d",
-                remaining_before, remaining_after,
-            )
+            else:
+                # The running marker and automatic return already prove dispatch.
+                # Live OCR can remain stale/wrong (observed 6 while pixels show 7);
+                # never replay or reject a proven dispatch because of that counter.
+                logging.getLogger("dc3q").warning(
+                    "TT | A1 bộ đếm chưa ổn định sau Chấp hành | OCR=%s→%s; "
+                    "giữ hậu điều kiện Đang chấp hành",
+                    remaining_before, remaining_after,
+                )
             screen = self._a1_claim_rewards(screen)
         else:
             raise RuntimeError("Trường thành A1: vượt giới hạn 12 nhiệm vụ")
@@ -494,12 +538,15 @@ class TruongThanhRunner:
         self.sleep(self.config.wait_seconds)
 
     def _read_roi_number(self, screen, roi) -> int | None:
-        import re
         from rapidocr_onnxruntime import RapidOCR
         x1, y1, x2, y2 = roi
         result, _ = RapidOCR()(self._screen_array(screen)[y1:y2, x1:x2])
-        values = [int(value) for row in (result or []) for value in re.findall(r"\d+", str(row[1]))]
-        return values[0] if values else None
+        texts = [row[1] for row in (result or [])]
+        value = _last_ocr_number(texts)
+        logging.getLogger("dc3q").info(
+            "TT | OCR số trong ROI=%s | text=%s | số=%s", roi, texts, value,
+        )
+        return value
 
     def _a5_fast_claim(self, screen) -> None:
         logger = logging.getLogger("dc3q")
