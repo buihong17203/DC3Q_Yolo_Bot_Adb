@@ -62,11 +62,32 @@ class TruongThanhConfig:
     a2_paid: Path
     a2_rewards: list[Path]
     a2_popup_close: Path
+    a2_tab_closed: list[Path]
+    a2_tab_open: list[Path]
+    a2_reward_close: Path
+    a2_chest_glowing: Path
+    a2_chest_popup: Path
+    a2_chest_popup_close: Path
+    a2_chest_popup_close_point: tuple[int, int]
+    a2_reset_2000: Path
     a3_right_anchor: Path
     a3_markers: list[Path]
+    a3_phong_hau_open: list[Path]
+    a3_tab_closed: list[Path]
+    a3_tab_open: list[Path]
     a3_close_point: tuple[int, int]
     a3_raise_flag: list[Path]
     a3_result: list[Path]
+    a3_result_dismiss_point: tuple[int, int]
+    a4_hub_entry: list[Path]
+    a4_entry: list[Path]
+    a4_free: list[Path]
+    a4_bonus_continue: list[Path]
+    a4_reward: list[Path]
+    a4_return: list[Path]
+    a4_paid: list[Path]
+    a4_close_point: tuple[int, int]
+    a4_recall: list[Path]
     a5_normal_free: list[Path]
     a5_gold_free: list[Path]
     a5_normal_select: Path
@@ -162,6 +183,16 @@ class TruongThanhRunner:
             if self._first(screen, self.config.home_markers) is not None:
                 logger.info("TT | recovery đã về HOME")
                 return True
+            chest_popup = getattr(self.config, "a2_chest_popup", None)
+            chest_close = getattr(self.config, "a2_chest_popup_close", None)
+            if (chest_popup is not None and chest_close is not None
+                    and self._match(screen, chest_popup).found):
+                close = self._match(screen, chest_close)
+                if not close.found:
+                    return False
+                self._tap(close)
+                logger.info("TT | recovery đóng Rương chiến lợi phẩm từ full-screen")
+                continue
             # A1 Chính vụ has no dedicated X template, but a verified Xem/
             # Nhận thưởng control proves this exact board. Close its known X.
             a1_view = getattr(self.config, "a1_view", None)
@@ -413,23 +444,58 @@ class TruongThanhRunner:
             self._match(screen, self.config.a2_paid, 0.0),
         )
 
-    def _wait_a2_after_free(self):
-        for _ in range(12):
-            screen = self.screen_provider()
+    def _wait_a2_after_free(self, initial_screen=None):
+        """Settle one free probe without ever touching the paid probe state."""
+        logger = logging.getLogger("dc3q")
+        screen = initial_screen
+        for _ in range(24):
+            if screen is None:
+                screen = self.screen_provider()
+            reset = self._match(screen, self.config.a2_reset_2000)
+            if reset.found:
+                self._tap(reset)
+                logger.info("TT | A2 nhận 2000 và reset vùng thăm dò")
+                screen = None
+                continue
             if self._first(screen, self.config.a2_rewards) is not None:
-                close = self._match(screen, self.config.a2_popup_close)
+                # Live popup X scores 0.652; the reward marker already proves
+                # this exact layer, so keep the lower floor local to its X.
+                close = self._match(screen, self.config.a2_reward_close, 0.60)
                 if not close.found:
                     raise RuntimeError("Trường thành A2: có thưởng nhưng thiếu nút đóng")
                 self._tap(close)
-                return self.screen_provider()
-            if self._first(screen, self.config.a2_main) is not None:
+                logger.info("TT | A2 đóng popup thưởng thăm dò")
+                screen = None
+                continue
+            chest_popup = self._match(screen, self.config.a2_chest_popup)
+            if chest_popup.found:
+                close = self._match(screen, self.config.a2_chest_popup_close)
+                if not close.found:
+                    raise RuntimeError("Trường thành A2: thấy Rương chiến lợi phẩm nhưng thiếu nút Đóng")
+                self._tap(close)
+                logger.info("TT | A2 đóng Rương chiến lợi phẩm từ full-screen")
+                screen = None
+                continue
+            chest = self._match(screen, self.config.a2_chest_glowing)
+            if chest.found:
+                self._tap(chest)
+                logger.info("TT | A2 mở rương thăm dò phát sáng")
+                screen = None
+                continue
+            free, paid = self._a2_state(screen)
+            if (free.confidence >= self.config.state_threshold
+                    or paid.confidence >= self.config.state_threshold):
                 return screen
             self.sleep(self.config.wait_seconds)
+            screen = None
         raise RuntimeError("Trường thành A2: Thăm dò không có hậu điều kiện")
 
     def _a2_claim_free(self, screen) -> None:
         logger = logging.getLogger("dc3q")
         for _ in range(10):
+            # Rương/reset/popup always outrank another probe, including on
+            # the initial exploration frame where FREE may also be visible.
+            screen = self._wait_a2_after_free(screen)
             free, paid = self._a2_state(screen)
             if paid.confidence >= self.config.state_threshold and paid.confidence >= free.confidence + self.config.state_margin:
                 logger.info("TT | A2 dừng: lượt tiếp theo dùng 1 cuốn thư")
@@ -440,9 +506,6 @@ class TruongThanhRunner:
             self._tap(free)
             logger.info("TT | A2 bấm Thăm dò miễn phí")
             screen = self._wait_a2_after_free()
-            if self._first(screen, self.config.a2_main) is not None:
-                logger.info("TT | A2 hết lượt miễn phí; tự về Tướng Tinh Đài")
-                return
         raise RuntimeError("Trường thành A2: vượt giới hạn lượt miễn phí")
 
     def _run_a2(self) -> None:
@@ -453,9 +516,24 @@ class TruongThanhRunner:
             logging.getLogger("dc3q").info("TT | A2 NOT_AVAILABLE")
             return
         self._tap(entry)
-        screen, main = self._wait_first(self.config.a2_main, attempts=12)
+        screen, main = self._wait_first(self.config.a2_tab_closed + self.config.a2_tab_open, attempts=12)
         if main is None:
             raise RuntimeError("Trường thành A2: mở Tướng ấn nhưng thiếu trạng thái")
+        opened = max(
+            (self._match(screen, template, 0.0) for template in self.config.a2_tab_open),
+            key=lambda match: match.confidence,
+        )
+        tab = max(
+            (self._match(screen, template, 0.0) for template in self.config.a2_tab_closed),
+            key=lambda match: match.confidence,
+        )
+        if tab.confidence >= self.config.threshold and tab.confidence >= opened.confidence + self.config.state_margin:
+            self._tap(tab)
+            screen, opened = self._wait_first(self.config.a2_tab_open, attempts=12)
+            if opened is None:
+                raise RuntimeError("Trường thành A2: bấm Tướng Tinh Đài nhưng tab chưa mở")
+        elif opened.confidence < self.config.threshold or opened.confidence < tab.confidence + self.config.state_margin:
+            raise RuntimeError("Trường thành A2: trạng thái tab Tướng Tinh Đài không rõ")
         open_control = self._first(screen, self.config.a2_open)
         if open_control is None:
             raise RuntimeError("Trường thành A2: thiếu nút Thăm dò lãnh địa")
@@ -524,15 +602,53 @@ class TruongThanhRunner:
         if result is None:
             raise RuntimeError("Trường thành A3: Giương cờ thiếu hậu điều kiện")
         logging.getLogger("dc3q").info("TT | A3 Giương cờ thành công")
-        self.input.tap(*self.config.a5_reward_dismiss_point)
+        self.input.tap(*self.config.a3_result_dismiss_point)
         self.sleep(self.config.wait_seconds)
+        _, opened = self._wait_first(self.config.a3_tab_open, attempts=12)
+        if opened is None:
+            raise RuntimeError("Trường thành A3: đóng popup nhưng chưa về tab Chiến Kỳ")
+
+    def _open_a3_chien_ky(self, screen):
+        """Open Chiến Kỳ from proven Phong Hậu; never trust tab chrome alone."""
+        phong_hau = self._first(screen, self.config.a3_phong_hau_open)
+        closed = self._first(screen, self.config.a3_tab_closed)
+        flag = self._first(screen, self.config.a3_raise_flag)
+        if flag is not None:
+            return screen
+        if phong_hau is not None:
+            if closed is None:
+                raise RuntimeError("Trường thành A3: đang ở Phong Hậu nhưng thiếu tab Chiến Kỳ")
+            self._tap(closed)
+            screen, state = self._wait_first(
+                [*self.config.a3_raise_flag, *self.config.a3_tab_open], attempts=12,
+            )
+            if state is None:
+                raise RuntimeError("Trường thành A3: bấm Chiến Kỳ nhưng tab chưa mở")
+            return screen
+        opened = max(
+            (self._match(screen, template, 0.0) for template in self.config.a3_tab_open),
+            key=lambda match: match.confidence,
+        )
+        if (closed is not None and closed.confidence >= self.config.threshold
+                and closed.confidence >= opened.confidence + self.config.state_margin):
+            self._tap(closed)
+            screen, state = self._wait_first(
+                [*self.config.a3_raise_flag, *self.config.a3_tab_open], attempts=12,
+            )
+            if state is None:
+                raise RuntimeError("Trường thành A3: bấm Chiến Kỳ nhưng tab chưa mở")
+            return screen
+        raise RuntimeError("Trường thành A3: chưa chứng minh được tab Chiến Kỳ/Giương cờ")
 
     def _run_a3(self) -> None:
         self._open_home_entry()
         self._tap_a3_entry(self.screen_provider())
-        screen, marker = self._wait_first(self.config.a3_markers, attempts=12)
+        screen, marker = self._wait_first(
+            self.config.a3_tab_closed + self.config.a3_tab_open, attempts=12,
+        )
         if marker is None:
-            raise RuntimeError("Trường thành A3: không mở được Phong Hầu/Chiến Kỳ")
+            raise RuntimeError("Trường thành A3: không mở được Chúa Công")
+        screen = self._open_a3_chien_ky(screen)
         self._a3_raise_flag(screen)
         self.input.tap(*self.config.a3_close_point)
         self.sleep(self.config.wait_seconds)
@@ -547,6 +663,63 @@ class TruongThanhRunner:
             "TT | OCR số trong ROI=%s | text=%s | số=%s", roi, texts, value,
         )
         return value
+
+    def _run_a4(self) -> None:
+        """Run the single free Thiên Cơ Các draw, then unwind to HOME."""
+        logger = logging.getLogger("dc3q")
+        self._open_home_entry()
+        screen = self.screen_provider()
+        hub_entry = self._first(screen, self.config.a4_hub_entry)
+        if hub_entry is None:
+            logger.info("TT | A4 NOT_AVAILABLE: thiếu Vệ Tướng")
+            return
+        self._tap(hub_entry)
+        screen, entry = self._wait_first(self.config.a4_entry, attempts=12)
+        if entry is None:
+            raise RuntimeError("Trường thành A4: vào Vệ Tướng nhưng thiếu Thiên Cơ Các")
+        self._tap(entry)
+        screen, state = self._wait_first(
+            [*self.config.a4_free, *self.config.a4_paid], attempts=12,
+        )
+        if state is None:
+            raise RuntimeError("Trường thành A4: mở Thiên Cơ Các nhưng thiếu trạng thái")
+        free = self._first(screen, self.config.a4_free, 0.95)
+        if free is not None:
+            self._tap(free)
+            logger.info("TT | A4 bấm Diễn quẻ 1 lần miễn phí")
+            screen, result = self._wait_first(
+                [*self.config.a4_bonus_continue, *self.config.a4_reward], attempts=12,
+            )
+            if result is None:
+                raise RuntimeError("Trường thành A4: FREE thiếu popup kết quả")
+            if self._first(screen, self.config.a4_bonus_continue) is not None:
+                self.input.tap(480, 360)
+                self.sleep(self.config.wait_seconds)
+                logger.info("TT | A4 ấn màn hình để tiếp tục")
+                screen, result = self._wait_first(self.config.a4_return, attempts=12)
+                if result is None:
+                    raise RuntimeError("Trường thành A4: đóng thưởng nhưng thiếu Trở về")
+            back = self._first(screen, self.config.a4_return)
+            if back is None:
+                raise RuntimeError("Trường thành A4: thiếu nút Trở về")
+            self._tap(back)
+            logger.info("TT | A4 bấm Trở về")
+            screen, paid = self._wait_first(self.config.a4_paid, attempts=12)
+            if paid is None:
+                raise RuntimeError("Trường thành A4: chưa chứng minh trạng thái 1 khóa")
+        elif self._first(screen, self.config.a4_paid) is None:
+            raise RuntimeError("Trường thành A4: trạng thái FREE/1 khóa không rõ")
+        logger.info("TT | A4 đã xong: Diễn quẻ 1 lần chuyển thành 1 khóa")
+        self.input.tap(*self.config.a4_close_point)
+        self.sleep(self.config.wait_seconds)
+        screen, recall = self._wait_first(self.config.a4_recall, attempts=12)
+        if recall is None:
+            raise RuntimeError("Trường thành A4: đóng Thiên Cơ Các nhưng thiếu Hồi thành")
+        self._tap(recall)
+        logger.info("TT | A4 bấm Hồi thành")
+        _, home = self._wait_first(self.config.home_markers, attempts=12)
+        if home is None:
+            raise RuntimeError("Trường thành A4: Hồi thành nhưng chưa về HOME")
 
     def _a5_fast_claim(self, screen) -> None:
         logger = logging.getLogger("dc3q")
@@ -772,3 +945,23 @@ class TruongThanhRunner:
             if not self.recover_home():
                 raise RuntimeError(f"Trường thành {flow.name}: không recover được HOME")
         return True
+
+
+class TruongThanhRuntimeStep:
+    """Expose one Trường Thành child as one resumable runtime task."""
+
+    def __init__(self, runner: TruongThanhRunner, runtime_task: str, method: str):
+        self.runner = runner
+        self.runtime_task = runtime_task
+        self.method = method
+        self.soft_errors: list[str] = []
+
+    def run(self) -> bool:
+        self.soft_errors = []
+        getattr(self.runner, self.method)()
+        if not self.runner.recover_home():
+            raise RuntimeError(f"{self.runtime_task}: không recover được HOME")
+        return True
+
+    def recover_home(self) -> bool:
+        return self.runner.recover_home()

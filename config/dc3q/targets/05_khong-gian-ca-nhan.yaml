@@ -14,6 +14,7 @@ khong_gian_ca_nhan:
   info:
     markers:
       - data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_thongtincuatoi.png
+    close: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_cb_nt_button_dong.png
   personal:
     markers:
       - data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_kgcn_liketoanbo.png

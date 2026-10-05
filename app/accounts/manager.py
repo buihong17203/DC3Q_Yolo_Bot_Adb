@@ -27,27 +27,36 @@ class AccountManager:
         self._cursor = 0
         self._claimed: dict[str, Account] = {}
         self._limit: int | None = None
+        self._active_tasks: list[str] | None = None
         self._lock = Lock()
 
     def load(self, runtime_status: dict[str, dict[str, str]] | None = None,
-             *, limit: int | None = None) -> list[Account]:
+             *, limit: int | None = None,
+             active_tasks: list[str] | None = None) -> list[Account]:
         self._limit = limit
+        self._active_tasks = active_tasks
         rows = read_accounts(self.path)
         if limit is not None:
             rows = rows[:max(0, limit)]
         runtime_status = runtime_status or {}
         # Cap the requested row range before filtering completed runtime rows.
+        def unfinished(account_id: str) -> bool:
+            state = runtime_status.get(account_id, {})
+            if active_tasks is not None:
+                return any(state.get(task, "READY") != "DONE" for task in active_tasks)
+            return state.get("status") not in {"DONE", "ERROR"}
+
         self._accounts = [
             Account(r.get("id", str(i)), r)
             for i, r in enumerate(rows, start=1)
-            if runtime_status.get(r.get("id", str(i)), {}).get("status") not in {"DONE", "ERROR"}
+            if unfinished(r.get("id", str(i)))
         ]
         self._cursor = 0
         self._claimed.clear()
         return list(self._accounts)
 
     def reload(self, runtime_status: dict[str, dict[str, str]] | None = None) -> list[Account]:
-        return self.load(runtime_status, limit=self._limit)
+        return self.load(runtime_status, limit=self._limit, active_tasks=self._active_tasks)
 
     def get(self, account_id: str) -> Account | None:
         return next((a for a in self._accounts if a.id == account_id), None)

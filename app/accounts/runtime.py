@@ -31,7 +31,7 @@ class AccountRuntime:
     ]
     FIELDS = [
         "id", "status", "attempts", "assigned_device", *TASK_FIELDS,
-        "last_run", "error_message", "tasks", "game_day", "reset_hour",
+        "last_run", "tasks", "game_day", "reset_hour",
     ]
 
     TIMEZONE = ZoneInfo("Asia/Ho_Chi_Minh")
@@ -59,6 +59,14 @@ class AccountRuntime:
         with self.runtime_file.open("r", encoding="utf-8-sig", newline="") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
+        if reader.fieldnames and "error_message" in reader.fieldnames:
+            for row in rows:
+                error = (row.get("error_message") or "").strip()
+                if error:
+                    self._append_error(
+                        row.get("id", ""), "MIGRATION", error,
+                        timestamp=row.get("last_run") or None,
+                    )
         if reader.fieldnames != self.FIELDS:
             self._write(rows)
 
@@ -117,7 +125,6 @@ class AccountRuntime:
                 "attempts": "0",
                 "assigned_device": "",
                 "last_run": "",
-                "error_message": "",
                 "tasks": "{}",
                 "game_day": game_day.isoformat(),
                 "reset_hour": str(self.reset_hour),
@@ -133,6 +140,18 @@ class AccountRuntime:
             writer = csv.DictWriter(f, fieldnames=self.FIELDS)
             writer.writeheader()
             writer.writerows({field: row.get(field, "READY" if field in self.TASK_FIELDS else "") for field in self.FIELDS} for row in rows)
+
+    def _append_error(self, account_id: str, task: str, error: str,
+                      *, timestamp: str | None = None, kind: str = "TASK") -> None:
+        now = datetime.now(self.TIMEZONE)
+        stamp = timestamp or now.isoformat(timespec="seconds")
+        day = stamp[:10] if len(stamp) >= 10 else now.date().isoformat()
+        path = self.runtime_file.parent / f"error_message_{day}.txt"
+        message = " ".join(str(error).splitlines()).strip()
+        line = f"{stamp} | account={account_id} | task={task or '-'} | type={kind} | {message}\n"
+        with self._lock:
+            with path.open("a", encoding="utf-8") as handle:
+                handle.write(line)
 
 
     def statuses(self) -> dict[str, dict[str, str]]:
@@ -171,7 +190,6 @@ class AccountRuntime:
                     row["attempts"] = str(int(row.get("attempts") or 0) + 1)
                     row["assigned_device"] = device
                     row["last_run"] = datetime.now(self.TIMEZONE).isoformat(timespec="seconds")
-                    row["error_message"] = ""
                     self._write(rows)
                     return
             raise KeyError(account_id)
@@ -203,13 +221,11 @@ class AccountRuntime:
         task_col = self._normalize_task(task)
         if not task_col:
             return
-        row = self.statuses().get(account_id, {})
-        prior = row.get("error_message", "").strip()
-        summary = f"{prior}; {error}" if prior and error not in prior else (prior or error)
+        now = datetime.now(self.TIMEZONE).isoformat(timespec="seconds")
+        self._append_error(account_id, task_col, error, timestamp=now)
         self.update(account_id, **{
             task_col: "ERROR",
-            "error_message": summary,
-            "last_run": datetime.now(self.TIMEZONE).isoformat(timespec="seconds"),
+            "last_run": now,
         })
 
     def mark_logged_out(self, account_id: str) -> None:
@@ -217,11 +233,13 @@ class AccountRuntime:
                      last_run=datetime.now(self.TIMEZONE).isoformat(timespec="seconds"))
 
     def mark_error(self, account_id: str, device: str, error: str, *, task: str | None = None) -> None:
-        changes = {
-            "status": "ERROR", "assigned_device": device, "error_message": error,
-            "last_run": datetime.now(self.TIMEZONE).isoformat(timespec="seconds"),
-        }
+        now = datetime.now(self.TIMEZONE).isoformat(timespec="seconds")
         task_col = self._normalize_task(task)
+        self._append_error(account_id, task_col or task or "ACCOUNT", error,
+                           timestamp=now, kind="ACCOUNT")
+        changes = {
+            "status": "ERROR", "assigned_device": device, "last_run": now,
+        }
         if task_col:
             changes[task_col] = "ERROR"
         self.update(account_id, **changes)

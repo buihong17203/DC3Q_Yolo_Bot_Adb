@@ -327,6 +327,14 @@ class AccountLoginController:
                     assert self.current
                     self.accounts.commit_logged_in(self.current.id)
                     self.runtime.mark_logged_in(self.current.id, self.device.serial)
+                    row = self.runtime.statuses().get(self.current.id, {})
+                    completed = set()
+                    for target in self.config.home_targets or []:
+                        task = getattr(target, "runtime_task", "")
+                        field = self.runtime._normalize_task(task)
+                        if field and row.get(field) == "DONE":
+                            completed.add(task)
+                    self.home_action.set_completed_tasks(completed)
                     self.phase = AccountLoginPhase.PROCESS_HOME_EVENTS
                     return self.poll_once()
             else:

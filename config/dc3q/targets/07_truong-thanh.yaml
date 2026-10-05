@@ -3,11 +3,8 @@ truong_thanh:
   threshold: 0.70
   max_steps: 60
   wait_seconds: 0.8
-  # Tạm tắt theo yêu cầu; chỉ chạy A1 Bảo Vật.
+  # A1-A4 hoạt động; A5-A7 vẫn tắt.
   skipped_subflows:
-    - A2_tuong-an
-    - A3_chua-cong
-    - A4_ve-tuong
     - A5_trai-ngua
     - A6_than-binh
     - A7_chien-hon
@@ -71,6 +68,10 @@ truong_thanh:
     entry: data/img/templates/stars/home/screen/screen_tuong-an.png
     main:
       - data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_ttd_button_dong.png
+    tab_closed:
+      - data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tab_tuong_tinh_dai_close.png
+    tab_open:
+      - data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tab_tuong_tinh_dai_open.png
     open:
       - data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_ttd_button_open_thamdolanhdia_01.png
       - data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_ttd_button_open_thamdolanhdia_02.png
@@ -82,16 +83,50 @@ truong_thanh:
       - data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tdld_thuong_03.png
       - data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tdld_thuong_04.png
     popup_close: data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_ttd_button_dong.png
+    reward_close: data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tdld_button_dong.png
+    chest_glowing: data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tdld_ruong_phatsang.png
+    chest_popup: data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tdld_popup_ruongchienloipham.png
+    chest_popup_close: data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tdld_button_dong_ruongchienloipham.png
+    # Fresh ADB frame: dedicated Đóng asset matched x=410,y=427,w=142,h=58.
+    chest_popup_close_point: [481, 456]
+    reset_2000: data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_phan_thuong_2000_button_nhan.png
   a3:
     right_anchor: data/img/templates/stars/home/screen/screen_ve-tuong.png
     markers:
       - data/img/templates/targets/07_truong-thanh/A3_chua-cong/screen/screen_cc_tab_chienky_open.png
       - data/img/templates/targets/07_truong-thanh/A3_chua-cong/screen/screen_cc_tab_phonghau_open_chamthan.png
+    phong_hau_open:
+      - data/img/templates/targets/07_truong-thanh/A3_chua-cong/screen/screen_cc_tab_phonghau_open_chamthan.png
+    tab_closed:
+      - data/img/templates/targets/07_truong-thanh/A3_chua-cong/screen/screen_cc_tab_chienky_close.png
+    tab_open:
+      - data/img/templates/targets/07_truong-thanh/A3_chua-cong/screen/screen_cc_tab_chienky_open.png
     raise_flag:
       - data/img/templates/targets/07_truong-thanh/A3_chua-cong/screen/screen_cc_chienky_button_giuongco.png
     result:
       - data/img/templates/targets/07_truong-thanh/A3_chua-cong/screen/screen_cc_nhapbatkydedong.png
+    result_dismiss_point: [480, 500]
     close_point: [926, 34]
+  a4:
+    hub_entry:
+      - data/img/templates/stars/home/screen/screen_ve-tuong.png
+    entry:
+      - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/screen_vt_thiencocac_01.png
+      - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/screen_vt_thiencocac_02.png
+    free:
+      - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/screen_vt_tcc_button_dienquai1lan_free.png
+    bonus_continue:
+      - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/screen_vt_tcc_anmanhinhdetieptuc.jpg
+    reward:
+      - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/full-screen_vt_tcc_cmnd_trove.png
+    return:
+      - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/full-screen_vt_tcc_cmnd_trove.png
+    # Pixel content is the paid "1 khóa – Diễn quẻ 1 lần" control.
+    paid:
+      - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/full-screen_vt_tcc_chucmungnhanduoc.png
+    close_point: [927, 33]
+    recall:
+      - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/screen_vt_vethanh.png
   a5:
     normal_free:
       - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_bnn_button_nguathuong_conluot.png

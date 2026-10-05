@@ -1,0 +1,211 @@
+{
+  "scope_root": "D:\\Antigravity_Data\\DC3Q_Yolo_Bot_Adb - 01\\data\\img\\templates\\targets\\07_truong-thanh\\A2_tuong-an",
+  "entries": [
+    {
+      "old": "full screen/image copy 10.png",
+      "new": "full screen/full_screen_ta_popup_xac_nhan_tach_20_tuong_an.png",
+      "sha256": "d25a7bee593d86a8c4558e4a73d575e34bd100ec3317a147df5f48281aa2813a"
+    },
+    {
+      "old": "full screen/image copy 2.png",
+      "new": "full screen/full_screen_ta_tach_tuong_an_chua_chon_pham_chat.png",
+      "sha256": "8c4eb7fc26a6bad262052d1856e5beb08568fb656d446030fd8cbcd4d8413242"
+    },
+    {
+      "old": "full screen/image copy 3.png",
+      "new": "full screen/full_screen_ta_tach_tuong_an_chon_mau_trang.png",
+      "sha256": "3667ead711a2aadb55bf4499395a3b161408b7a760e71014118dbeb9431a9775"
+    },
+    {
+      "old": "full screen/image copy 4.png",
+      "new": "full screen/full_screen_ta_tach_tuong_an_chon_mau_trang_luc.png",
+      "sha256": "fb71aa28f7b705fc21d299da4e8b246f8bb3fab545c82b56f575166da013a45d"
+    },
+    {
+      "old": "full screen/image copy 5.png",
+      "new": "full screen/full_screen_ta_tach_tuong_an_chon_mau_trang_luc_lam_tim.png",
+      "sha256": "df1349eacd63c9cf17597b1860c0636c19f60202d47d4a8bee6967c1f2133730"
+    },
+    {
+      "old": "full screen/image copy 6.png",
+      "new": "full screen/full_screen_ta_tach_tuong_an_chon_tat_ca_pham_chat.png",
+      "sha256": "ec1b1b20004e5d71d7127935fdb4171817cdd914a60d8739fcb42782a84a96e6"
+    },
+    {
+      "old": "full screen/image copy 7.png",
+      "new": "full screen/full_screen_ta_bao_gom_ky_nang_cap_sao_chua_chon.png",
+      "sha256": "76ec613ce74a5157c9484ae096ff7240855b8d08f9b13e9cf834e8af4d78e553"
+    },
+    {
+      "old": "full screen/image copy 8.png",
+      "new": "full screen/full_screen_ta_popup_xac_nhan_tach_tuong_an_kem_ky_nang_cap_sao.png",
+      "sha256": "ef521281e17180832e7774ccf9a7ac1bee7ea7ae9d648aa9e46f379f36399bda"
+    },
+    {
+      "old": "full screen/image copy 9.png",
+      "new": "full screen/full_screen_ta_bao_gom_ky_nang_cap_sao_da_chon.png",
+      "sha256": "2495f5a7531a1eb5a9937d89c13416b2e9900e97e3f77d91ae8c519ace08f5af"
+    },
+    {
+      "old": "full screen/image copy.png",
+      "new": "full screen/full_screen_ta_tach_tuong_an.png",
+      "sha256": "220ad337ac28a51eb9d849c62f751a491ebfe27930c34a676ea486fb5cd9d13b"
+    },
+    {
+      "old": "full screen/image.png",
+      "new": "full screen/full_screen_ta_tham_do_nhan_thuong_2000.png",
+      "sha256": "026e28aac1f8762e8c4d650c99918ea4718265c0fb92006945e6f70b447729f0"
+    },
+    {
+      "old": "screen/image copy 10.png",
+      "new": "screen/screen_ta_tab_tuong_tinh_dai_open.png",
+      "sha256": "1afd490d94eda5365bb950d9b9b73c19a1fb403afaeb37bdcce37088999305c0"
+    },
+    {
+      "old": "screen/image copy 11.png",
+      "new": "screen/screen_ta_tab_tuong_tinh_dai_close.png",
+      "sha256": "2d9eb25f23a5314eb0d252ed3c1ccdeeccfc4362744abd8eb780e74488b8a4e3"
+    },
+    {
+      "old": "screen/image copy 12.png",
+      "new": "screen/screen_ta_huong_dan_chon_pham_tuong_an.png",
+      "sha256": "edcabf0613e827822a7dd1d0907cc050272b9d2afe67b3bc2a29eb1cee4347fb"
+    },
+    {
+      "old": "screen/image copy 13.png",
+      "new": "screen/screen_ta_checkbox_mau_trang_chua_chon.png",
+      "sha256": "6d5042c5607e338b0979b52719bf90ec2059f3691bac88e2cd2807c31b9db86f"
+    },
+    {
+      "old": "screen/image copy 14.png",
+      "new": "screen/screen_ta_checkbox_mau_lam_chua_chon.png",
+      "sha256": "a9e8fe34fa2093671ced20cddd6ef5a292e07b9287b69c9b216b88ccd3174e77"
+    },
+    {
+      "old": "screen/image copy 15.png",
+      "new": "screen/screen_ta_checkbox_mau_luc_chua_chon.png",
+      "sha256": "8503c1a3a1d6d43b33ef42cb2be0ba224d26708cfe3f20499eb17ed09f1ed014"
+    },
+    {
+      "old": "screen/image copy 16.png",
+      "new": "screen/screen_ta_checkbox_mau_tim_chua_chon.png",
+      "sha256": "5ccb711c21531827c12d93bbac4f7ffbe722b6a82e357cf2df4c8c5049b6c999"
+    },
+    {
+      "old": "screen/image copy 17.png",
+      "new": "screen/screen_ta_checkbox_mau_do_chua_chon.png",
+      "sha256": "3b868c297ff3fbca265264e4632f5179d208b888a58a2d23fd87631ff1cba99e"
+    },
+    {
+      "old": "screen/image copy 18.png",
+      "new": "screen/screen_ta_checkbox_mau_trang_da_chon.png",
+      "sha256": "62fb07da56c0c9d18444bf6e249f40b94fac60bc1f8bfdbb473e8ed4d389d8ef"
+    },
+    {
+      "old": "screen/image copy 19.png",
+      "new": "screen/screen_ta_checkbox_mau_lam_da_chon.png",
+      "sha256": "c5ce45dce7abbe81595e7a2d045c4c8a5c491b965023e2e9c3ada1b16ecefe90"
+    },
+    {
+      "old": "screen/image copy 2.png",
+      "new": "screen/screen_ta_title_su_kien_ky_ngo.png",
+      "sha256": "3b9784b4c22b4cbf5118413b8481f0f45169dad704236385a30cc830e5f47026"
+    },
+    {
+      "old": "screen/image copy 20.png",
+      "new": "screen/screen_ta_checkbox_mau_do_da_chon.png",
+      "sha256": "5d4e4a473f296788d2da592379d67abe225322a105057435b097e66a2dbf80c4"
+    },
+    {
+      "old": "screen/image copy 21.png",
+      "new": "screen/screen_ta_checkbox_mau_luc_da_chon.png",
+      "sha256": "7ff6ddcf362573e8b6b8ab2b22c54ec5efc322fe3c2016ee7858977e2ceb51d2"
+    },
+    {
+      "old": "screen/image copy 22.png",
+      "new": "screen/screen_ta_checkbox_mau_tim_da_chon.png",
+      "sha256": "40b705e9104b5d039633e37f392f960586eaf4f4af679c1220960b7feaaae14a"
+    },
+    {
+      "old": "screen/image copy 23.png",
+      "new": "screen/screen_ta_checkbox_ky_nang_cap_sao_chua_chon.png",
+      "sha256": "c0f4f9ee068ec55f04ec5f2f9228ec1ee11754235e37629ac4967fa654501461"
+    },
+    {
+      "old": "screen/image copy 24.png",
+      "new": "screen/screen_ta_popup_text_xac_nhan_tach_tuong_an_kem_ky_nang_cap_sao.png",
+      "sha256": "edc21415d9bbaf39844802b822bed5758ab4db0398e720b0a852554b9254a35b"
+    },
+    {
+      "old": "screen/image copy 25.png",
+      "new": "screen/screen_ta_button_xac_nhan.png",
+      "sha256": "1d4229a1381ffc787d334bb2b36870a37fb7055f2b9d1761ad7d1c90788ba5da"
+    },
+    {
+      "old": "screen/image copy 26.png",
+      "new": "screen/screen_ta_button_tach.png",
+      "sha256": "4ac8bb93f401fd3b390c323deed43a537499c0c28e9d1cc6a030c764b302221b"
+    },
+    {
+      "old": "screen/image copy 27.png",
+      "new": "screen/screen_ta_title_xac_nhan_tach_tuong_an.png",
+      "sha256": "c5fbdbb74a79dc2742a6b19e15fe4e0b57bbccfa537541d40979a2e3b380715b"
+    },
+    {
+      "old": "screen/image copy 28.png",
+      "new": "screen/screen_ta_button_xac_nhan_large.png",
+      "sha256": "484018a7867d8e80bb52022120f110f62508a8f0867689a948ef0eb0b8ca8de7"
+    },
+    {
+      "old": "screen/image copy 29.png",
+      "new": "screen/screen_ta_button_tach_disabled.png",
+      "sha256": "0d817be7a415aadb7af9b9b80f0772817edb822c756435b6088d3cd118871142"
+    },
+    {
+      "old": "screen/image copy 3.png",
+      "new": "screen/screen_ta_ruong_mien_phi.png",
+      "sha256": "90875332014c4e69be00e341cd88dc83de17db6b1d26e37fca549e98b7a513c4"
+    },
+    {
+      "old": "screen/image copy 4.png",
+      "new": "screen/screen_ta_ruong_da_mo.png",
+      "sha256": "b956ba0e0560178ccd382d9b29ef010403c8a8e067ca50dfb7cc2a74590afe45"
+    },
+    {
+      "old": "screen/image copy 5.png",
+      "new": "screen/screen_ta_ruong_gia_50.png",
+      "sha256": "193264bc19bd889859cd0c2206a2316224e97c019d6919ad5cc1f99ed68b3502"
+    },
+    {
+      "old": "screen/image copy 6.png",
+      "new": "screen/screen_ta_ruong_dong_khong_nhan.png",
+      "sha256": "2b92f2f59a818f883774a4d8aa72c97c7de25a597f912631a533243443a8b18c"
+    },
+    {
+      "old": "screen/image copy 7.png",
+      "new": "screen/screen_ta_button_tach_so_luong_lon.png",
+      "sha256": "33353905decd13f7398e4f386ef32a581093c1635212391c2247927d8e62459f"
+    },
+    {
+      "old": "screen/image copy 8.png",
+      "new": "screen/screen_ta_button_tach_tuong_an_disabled.png",
+      "sha256": "a205b9c29540121a14a370446616c8c922cb4974799b889f61929c18467556ba"
+    },
+    {
+      "old": "screen/image copy 9.png",
+      "new": "screen/screen_ta_button_tach_tuong_an_enabled.png",
+      "sha256": "499d4915087474499e8bb2afb9a848db1584c28cb0ce7153e1cd39ea20a23701"
+    },
+    {
+      "old": "screen/image copy.png",
+      "new": "screen/screen_ta_button_nhan.png",
+      "sha256": "121756e4d956b02ee6fc88f8e46e2d3b1ec05427486a8284474d5a07edba7f8f"
+    },
+    {
+      "old": "screen/image.png",
+      "new": "screen/screen_ta_phan_thuong_2000_button_nhan.png",
+      "sha256": "f1e9baf6bf127b95ce3546f67b3b96af85a657ac9a493c96fa5dd56d9f409f8b"
+    }
+  ],
+  "unresolved": []
+}

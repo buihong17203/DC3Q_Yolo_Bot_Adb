@@ -24,7 +24,7 @@ def test_a2_taps_only_clear_free_state_and_stops_on_paid():
     runner._tap = taps.append
     states = iter([(hit(1.0), miss(.72)), (miss(.32), hit(1.0))])
     runner._a2_state = lambda screen: next(states)
-    runner._wait_a2_after_free = lambda: object()
+    runner._wait_a2_after_free = lambda screen=None: object()
     runner._first = lambda screen, templates: None
 
     runner._a2_claim_free(object())
@@ -36,6 +36,7 @@ def test_a2_unknown_state_never_taps():
     runner = object.__new__(module.TruongThanhRunner)
     runner.config = SimpleNamespace(a2_free="free", a2_paid="paid", state_threshold=.80, state_margin=.05)
     runner._a2_state = lambda screen: (miss(.4), miss(.5))
+    runner._wait_a2_after_free = lambda screen=None: screen
     taps = []
     runner._tap = taps.append
 

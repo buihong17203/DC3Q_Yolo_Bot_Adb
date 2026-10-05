@@ -12,7 +12,7 @@ def test_a3_clicks_raise_flag_then_requires_result():
     runner = object.__new__(module.TruongThanhRunner)
     runner.config = SimpleNamespace(
         a3_raise_flag=["flag"], a3_result=["result"],
-        a5_reward_dismiss_point=(480, 500), wait_seconds=0,
+        a3_result_dismiss_point=(480, 500), a3_tab_open=["open"], wait_seconds=0,
     )
     taps = []
     runner._first = lambda screen, templates, threshold=None: hit() if templates == ["flag"] else None

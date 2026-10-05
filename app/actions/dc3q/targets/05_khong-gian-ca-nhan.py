@@ -25,6 +25,7 @@ class KhongGianCaNhanConfig:
     max_steps: int = 24
     wait_seconds: float = 0.8
     state_wait_attempts: int = 24
+    info_close: Path | None = None
 
 
 class KhongGianCaNhanRunner:
@@ -80,6 +81,14 @@ class KhongGianCaNhanRunner:
                 return True
             if self._first(screen, self.config.personal_markers) is not None:
                 close = self._match(screen, self.config.close_template)
+                if not close.found:
+                    return False
+                self._tap(close)
+                continue
+            if self._first(screen, self.config.info_markers) is not None:
+                if self.config.info_close is None:
+                    return False
+                close = self._match(screen, self.config.info_close)
                 if not close.found:
                     return False
                 self._tap(close)

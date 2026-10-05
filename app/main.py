@@ -258,9 +258,27 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
         archive_dir=workflow.get("runtime_archive_dir", "docs/docs_days_runtime"),
     )
     runtime.maybe_rollover()
+    task_by_module = {
+        "01_tam-quoc-lenh": ["Tam_Quoc_Lenh"],
+        "02_hoat-dong": ["Hoat_Dong"],
+        "03_cua-hang": ["Cua_Hang"],
+        "04_quan-doan": ["Quan_Doan"],
+        "05_khong-gian-ca-nhan": ["Khong_Gian_Ca_Nhan"],
+        "06_xa-giao": ["Xa_Giao"],
+    }
+    active_tasks = []
+    for module_name, target_config in home_target_specs:
+        if module_name == "07_truong-thanh":
+            skipped = set(target_config["truong_thanh"].get("skipped_subflows", []))
+            active_tasks.append("TT_A1_Bao_Vat")
+            if "A2_tuong-an" not in skipped:
+                active_tasks.append("TT_A2_Tuong_An")
+        else:
+            active_tasks.extend(task_by_module.get(module_name, []))
     loaded = accounts.load(
         runtime_status=runtime.statuses(),
         limit=(int(workflow["account_limit"]) if workflow.get("account_limit") is not None else None),
+        active_tasks=active_tasks,
     )
     LOGGER.info("Accounts: %d account(s) từ %s", len(loaded), _resolve_project_path(root, cfg["account_file"]))
     if not loaded:
@@ -512,6 +530,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         float(c.get("threshold", .65)), float(c.get("state_threshold", .8)),
                         int(c.get("max_steps", 24)), float(c.get("wait_seconds", .8)),
                         int(c.get("state_wait_attempts", 24)),
+                        info_close=_resolve_project_path(root, c["info"]["close"]),
                     ),
                     home_entry=lambda screen: controller.logout_action._avatar_from_noi_chinh(
                         screen, logout_templates, controller.config.logout_threshold,
@@ -547,8 +566,19 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         _resolve_project_path(root, c["a2"]["entry"]), paths(c["a2"]["open"]), paths(c["a2"]["main"]),
                         _resolve_project_path(root, c["a2"]["free"]), _resolve_project_path(root, c["a2"]["paid"]),
                         paths(c["a2"]["rewards"]), _resolve_project_path(root, c["a2"]["popup_close"]),
-                        _resolve_project_path(root, c["a3"]["right_anchor"]), paths(c["a3"]["markers"]), tuple(c["a3"]["close_point"]),
-                        paths(c["a3"]["raise_flag"]), paths(c["a3"]["result"]),
+                        paths(c["a2"]["tab_closed"]), paths(c["a2"]["tab_open"]),
+                        _resolve_project_path(root, c["a2"]["reward_close"]),
+                        _resolve_project_path(root, c["a2"]["chest_glowing"]),
+                        _resolve_project_path(root, c["a2"]["chest_popup"]),
+                        _resolve_project_path(root, c["a2"]["chest_popup_close"]),
+                        tuple(c["a2"]["chest_popup_close_point"]),
+                        _resolve_project_path(root, c["a2"]["reset_2000"]),
+                        _resolve_project_path(root, c["a3"]["right_anchor"]), paths(c["a3"]["markers"]), paths(c["a3"]["phong_hau_open"]),
+                        paths(c["a3"]["tab_closed"]), paths(c["a3"]["tab_open"]), tuple(c["a3"]["close_point"]),
+                        paths(c["a3"]["raise_flag"]), paths(c["a3"]["result"]), tuple(c["a3"]["result_dismiss_point"]),
+                        paths(c["a4"]["hub_entry"]), paths(c["a4"]["entry"]), paths(c["a4"]["free"]), paths(c["a4"]["bonus_continue"]),
+                        paths(c["a4"]["reward"]), paths(c["a4"]["return"]), paths(c["a4"]["paid"]),
+                        tuple(c["a4"]["close_point"]), paths(c["a4"]["recall"]),
                         paths(c["a5"]["normal_free"]), paths(c["a5"]["gold_free"]),
                         _resolve_project_path(root, c["a5"]["normal_select"]),
                         _resolve_project_path(root, c["a5"]["quick"]), _resolve_project_path(root, c["a5"]["initial_close"]),
@@ -574,7 +604,17 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         paths(c["forbidden"]["unfinished_battle"]), float(c.get("threshold", .6)), int(c.get("max_steps", 16)), float(c.get("wait_seconds", .8))))
             else:
                 raise ValueError(f"Home target chưa hỗ trợ: {module_name}")
-            targets.append(target)
+            if module_name == "07_truong-thanh":
+                targets.append(module.TruongThanhRuntimeStep(target, "TT_A1_BAO_VAT", "_run_a1"))
+                skipped = set(target.config.skipped_subflows)
+                if "A2_tuong-an" not in skipped:
+                    targets.append(module.TruongThanhRuntimeStep(target, "TT_A2_TUONG_AN", "_run_a2"))
+                if "A3_chua-cong" not in skipped:
+                    targets.append(module.TruongThanhRuntimeStep(target, "TT_A3_CHUA_CONG", "_run_a3"))
+                if "A4_ve-tuong" not in skipped:
+                    targets.append(module.TruongThanhRuntimeStep(target, "TT_A4_VE_TUONG", "_run_a4"))
+            else:
+                targets.append(target)
         controller.config.home_targets = targets
         return controller
 

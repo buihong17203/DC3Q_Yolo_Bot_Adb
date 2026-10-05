@@ -17,6 +17,19 @@ class HomeAction:
         self.target_index = 0
         self.recovery_attempts = 0
         self.last_task_error = ""
+        self.completed_tasks: set[str] = set()
+
+    def set_completed_tasks(self, tasks: set[str]) -> None:
+        self.completed_tasks = set(tasks)
+        self._skip_completed()
+
+    def _skip_completed(self) -> None:
+        targets = self.config.home_targets or []
+        while self.target_index < len(targets):
+            task = getattr(targets[self.target_index], "runtime_task", "")
+            if task not in self.completed_tasks:
+                break
+            self.target_index += 1
 
     @property
     def target_done(self) -> bool:
@@ -82,6 +95,7 @@ class HomeAction:
                 self.target_index += 1
                 self.recovery_attempts = 0
             self.confirmations = 0
+            self._skip_completed()
             return False
         self.confirmations += 1
         return self.confirmations >= self.config.logged_in_confirmations
