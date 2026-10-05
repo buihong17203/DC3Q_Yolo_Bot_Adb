@@ -99,6 +99,7 @@ class TruongThanhConfig:
     a5_gold_free_roi: tuple[int, int, int, int]
     a5_reward_dismiss_point: tuple[int, int]
     a5_max_adjustments: int
+    a7_free_label_roi: tuple[int, int, int, int]
     state_threshold: float
     state_margin: float
     skipped_subflows: list[str]
@@ -779,8 +780,19 @@ class TruongThanhRunner:
         match = re.search(r"lu.?t\s*mien\D*(\d+)", text)
         return int(match.group(1)) if match else None
 
+    def _a7_has_free_label(self, screen) -> bool:
+        import unicodedata
+        from rapidocr_onnxruntime import RapidOCR
+        x1, y1, x2, y2 = self.config.a7_free_label_roi
+        result, _ = RapidOCR()(self._screen_array(screen)[y1:y2, x1:x2])
+        text = " ".join(str(row[1]) for row in (result or []))
+        plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
+        logging.getLogger("dc3q").info("TT | A7 OCR nhãn FREE=%r", text)
+        return "mien" in plain and "phi" in plain
+
     def _run_a5(self, flow: SubFlow) -> None:
         logger = logging.getLogger("dc3q")
+        self._open_home_entry()
         screen = self.screen_provider()
         hub_entry = self._first(screen, flow.hub_entry or [])
         if hub_entry is None:
@@ -807,6 +819,88 @@ class TruongThanhRunner:
             logger.info("TT | A5 không còn lượt miễn phí; không bấm")
             return
         self._a5_fast_claim(screen)
+
+    def _flow_by_name(self, name: str) -> SubFlow:
+        for flow in self.config.flows:
+            if flow.name == name:
+                return flow
+        raise RuntimeError(f"Trường thành: thiếu cấu hình {name}")
+
+    def _run_a6(self) -> None:
+        """Thần Binh: tap only proven free states 3,2,1; stop on paid ticket state."""
+        logger = logging.getLogger("dc3q")
+        flow = self._flow_by_name("A6_than-binh")
+        self._open_home_entry()
+        screen = self.screen_provider()
+        hub_entry = self._first(screen, flow.hub_entry or [])
+        if hub_entry is None:
+            logger.info("TT | A6 NOT_AVAILABLE")
+            return
+        self._tap(hub_entry)
+        screen, state = self._wait_first([*flow.entry, *flow.free, *flow.spent, *flow.close], attempts=12)
+        if state is None:
+            raise RuntimeError("Trường thành A6: vào Thần Binh nhưng thiếu trạng thái")
+        entry = self._first(screen, flow.entry)
+        if entry is not None:
+            self._tap(entry)
+            screen, state = self._wait_first([*flow.free, *flow.spent, *flow.close], attempts=12)
+            if state is None:
+                raise RuntimeError("Trường thành A6: mở Tầm Binh Mịch Bảo nhưng thiếu trạng thái")
+        free_states = flow.free[:3]
+        if len(free_states) != 3:
+            raise RuntimeError("Trường thành A6: cần đúng 3 trạng thái FREE")
+        for index, template in zip((3, 2, 1), free_states):
+            free = self._match(screen, template, flow.free_threshold)
+            if not free.found:
+                break
+            self._tap(free)
+            logger.info("TT | A6 bấm FREE trạng thái %d", index)
+            screen, state = self._wait_first([*flow.free, *flow.spent, *flow.close], attempts=12)
+            if state is None:
+                raise RuntimeError("Trường thành A6: FREE thiếu hậu điều kiện")
+        if self._first(screen, flow.spent) is None:
+            screen, _ = self._wait_first([*flow.spent, *flow.close], attempts=6)
+        if self._first(screen, flow.spent) is None:
+            logger.info("TT | A6 dừng fail-closed: chưa chứng minh trạng thái 1 vé")
+            return
+        logger.info("TT | A6 dừng: lượt tiếp theo dùng 1 vé")
+        if not self._finish_flow(flow, screen):
+            raise RuntimeError("Trường thành A6: trạng thái 1 vé nhưng thiếu Trở về/đóng")
+
+    def _run_a7(self) -> None:
+        """Chiến Hồn: one free draw only; paid Rút 1 lần means done."""
+        logger = logging.getLogger("dc3q")
+        flow = self._flow_by_name("A7_chien-hon")
+        self._open_home_entry()
+        screen = self.screen_provider()
+        hub_entry = self._first(screen, flow.hub_entry or [])
+        if hub_entry is None:
+            logger.info("TT | A7 NOT_AVAILABLE")
+            return
+        self._tap(hub_entry)
+        screen, state = self._wait_first([*flow.entry, *flow.free, *flow.spent, *flow.close], attempts=12)
+        if state is None:
+            raise RuntimeError("Trường thành A7: vào Chiến Hồn nhưng thiếu trạng thái")
+        entry = self._first(screen, flow.entry)
+        if entry is not None:
+            self._tap(entry)
+            screen, state = self._wait_first([*flow.free, *flow.spent], attempts=12)
+            if state is None:
+                raise RuntimeError("Trường thành A7: mở Nhận Chiến Hồn nhưng thiếu trạng thái")
+        free = self._first(screen, flow.free, flow.free_threshold)
+        if free is not None and self._a7_has_free_label(screen):
+            self._tap(free)
+            logger.info("TT | A7 bấm Rút 1 lần miễn phí")
+            screen, paid = self._wait_first(flow.spent, attempts=12)
+            if paid is None:
+                raise RuntimeError("Trường thành A7: FREE thiếu trạng thái trả thưởng/đã hết miễn phí")
+        else:
+            if self._first(screen, flow.spent) is None:
+                logger.info("TT | A7 bỏ qua: không chứng minh được Rút 1 lần MIỄN PHÍ")
+                return
+            logger.info("TT | A7 đã xong: Rút 1 lần không miễn phí")
+        if not self._finish_flow(flow, screen):
+            raise RuntimeError("Trường thành A7: đã xong nhưng thiếu X/đóng")
 
     def _open_home_entry(self) -> None:
         screen = self.screen_provider()
@@ -935,6 +1029,10 @@ class TruongThanhRunner:
                 self._open_home_entry()
                 if flow.name == "A5_trai-ngua":
                     self._run_a5(flow)
+                elif flow.name == "A6_than-binh":
+                    self._run_a6()
+                elif flow.name == "A7_chien-hon":
+                    self._run_a7()
                 else:
                     self._run_flow(flow)
             except Exception as exc:

@@ -271,8 +271,15 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
         if module_name == "07_truong-thanh":
             skipped = set(target_config["truong_thanh"].get("skipped_subflows", []))
             active_tasks.append("TT_A1_Bao_Vat")
-            if "A2_tuong-an" not in skipped:
-                active_tasks.append("TT_A2_Tuong_An")
+            for flow_name, task in (
+                ("A2_tuong-an", "TT_A2_Tuong_An"),
+                ("A3_chua-cong", "TT_A3_Chua_Cong"),
+                ("A4_ve-tuong", "TT_A4_Ve_Tuong"),
+                ("A6_than-binh", "TT_A6_Than_Binh"),
+                ("A7_chien-hon", "TT_A7_Chien_Hon"),
+            ):
+                if flow_name not in skipped:
+                    active_tasks.append(task)
         else:
             active_tasks.extend(task_by_module.get(module_name, []))
     loaded = accounts.load(
@@ -585,6 +592,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         tuple(c["a5"]["normal_quantity_roi"]), tuple(c["a5"]["normal_free_roi"]),
                         tuple(c["a5"]["gold_quantity_roi"]), tuple(c["a5"]["gold_free_roi"]),
                         tuple(c["a5"]["reward_dismiss_point"]), int(c["a5"].get("max_adjustments", 10)),
+                        tuple(c["a7"]["free_label_roi"]),
                         float(c.get("state_threshold", .8)), float(c.get("state_margin", .05)),
                         list(c.get("skipped_subflows", [])), flows,
                         float(c.get("threshold", .7)), int(c.get("max_steps", 60)), float(c.get("wait_seconds", .8))))
@@ -613,6 +621,12 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                     targets.append(module.TruongThanhRuntimeStep(target, "TT_A3_CHUA_CONG", "_run_a3"))
                 if "A4_ve-tuong" not in skipped:
                     targets.append(module.TruongThanhRuntimeStep(target, "TT_A4_VE_TUONG", "_run_a4"))
+                for flow_name, task in (
+                    ("A6_than-binh", "TT_A6_THAN_BINH"),
+                    ("A7_chien-hon", "TT_A7_CHIEN_HON"),
+                ):
+                    if flow_name not in skipped:
+                        targets.append(module.TruongThanhRuntimeStep(target, task, "_run_" + flow_name[:2].lower()))
             else:
                 targets.append(target)
         controller.config.home_targets = targets

@@ -3,10 +3,9 @@ truong_thanh:
   threshold: 0.70
   max_steps: 60
   wait_seconds: 0.8
-  # A1-A4 hoạt động; A5-A7 vẫn tắt.
+  # A5 vẫn tắt; A6-A7 bật.
   skipped_subflows:
     - A5_trai-ngua
-    - A6_than-binh
     - A7_chien-hon
   state_threshold: 0.80
   state_margin: 0.05
@@ -141,6 +140,9 @@ truong_thanh:
     gold_free_roi: [588, 430, 690, 462]
     reward_dismiss_point: [480, 500]
     max_adjustments: 10
+  a7:
+    # Raw ADB 960x540; only the yellow “Miễn phí” label above Rút 1 lần.
+    free_label_roi: [270, 420, 345, 447]
   flows:
     - name: A4_ve-tuong
       free_threshold: 0.95
@@ -170,6 +172,7 @@ truong_thanh:
       close:
         - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_anvaochotrongdethoat.png
     - name: A6_than-binh
+      free_threshold: 0.85
       hub_entry:
         - data/img/templates/stars/home/screen/screen_than-binh.png
       repeat_free: true
@@ -177,15 +180,16 @@ truong_thanh:
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_home_khuvuc_tambinhmichbao.png
       free:
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_1lan_mienphi.png
-        - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_tieptuc_luotmien1.png
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_tieptuc_luotmien2.png
+        - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_tieptuc_luotmien1.png
       spent:
-        - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_popup_chucmungnhanduoc.png
+        - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_tieptuc_tonngoc.png
       close:
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_trove.png
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_dong.png
     - name: A7_chien-hon
-      close_threshold: 0.65
+      free_threshold: 0.80
+      close_threshold: 0.64
       hub_entry:
         - data/img/templates/stars/home/screen/screen_chien-hon.png
       entry:

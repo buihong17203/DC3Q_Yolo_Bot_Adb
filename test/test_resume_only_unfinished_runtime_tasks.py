@@ -50,17 +50,24 @@ def test_home_action_skips_done_tasks_and_runs_each_unfinished_task_once():
     assert (done.runs, error.runs, ready.runs) == (0, 1, 1)
 
 
-def test_truong_thanh_a1_and_a2_expose_separate_runtime_tasks():
+def test_truong_thanh_runtime_steps_expose_separate_leaf_tasks():
     from importlib import import_module
     module = import_module("app.actions.dc3q.targets.07_truong-thanh")
     runner = SimpleNamespace(
-        _run_a1=lambda: None, _run_a2=lambda: None, recover_home=lambda: True,
+        _run_a1=lambda: None, _run_a2=lambda: None, _run_a6=lambda: None,
+        _run_a7=lambda: None, recover_home=lambda: True,
     )
 
     a1 = module.TruongThanhRuntimeStep(runner, "TT_A1_BAO_VAT", "_run_a1")
     a2 = module.TruongThanhRuntimeStep(runner, "TT_A2_TUONG_AN", "_run_a2")
+    a6 = module.TruongThanhRuntimeStep(runner, "TT_A6_THAN_BINH", "_run_a6")
+    a7 = module.TruongThanhRuntimeStep(runner, "TT_A7_CHIEN_HON", "_run_a7")
 
     assert a1.runtime_task == "TT_A1_BAO_VAT"
     assert a2.runtime_task == "TT_A2_TUONG_AN"
+    assert a6.runtime_task == "TT_A6_THAN_BINH"
+    assert a7.runtime_task == "TT_A7_CHIEN_HON"
     assert a1.run() is True
     assert a2.run() is True
+    assert a6.run() is True
+    assert a7.run() is True
