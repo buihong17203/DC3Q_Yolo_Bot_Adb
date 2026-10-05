@@ -275,6 +275,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                 ("A2_tuong-an", "TT_A2_Tuong_An"),
                 ("A3_chua-cong", "TT_A3_Chua_Cong"),
                 ("A4_ve-tuong", "TT_A4_Ve_Tuong"),
+                ("A5_trai-ngua", "TT_A5_Trai_Ngua"),
                 ("A6_than-binh", "TT_A6_Than_Binh"),
                 ("A7_chien-hon", "TT_A7_Chien_Hon"),
             ):
@@ -622,6 +623,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                 if "A4_ve-tuong" not in skipped:
                     targets.append(module.TruongThanhRuntimeStep(target, "TT_A4_VE_TUONG", "_run_a4"))
                 for flow_name, task in (
+                    ("A5_trai-ngua", "TT_A5_TRAI_NGUA"),
                     ("A6_than-binh", "TT_A6_THAN_BINH"),
                     ("A7_chien-hon", "TT_A7_CHIEN_HON"),
                 ):

@@ -3,10 +3,8 @@ truong_thanh:
   threshold: 0.70
   max_steps: 60
   wait_seconds: 0.8
-  # A5 vẫn tắt; A6-A7 bật.
-  skipped_subflows:
-    - A5_trai-ngua
-    - A7_chien-hon
+  # A1-A7 là các checkpoint độc lập; thiếu công trình thì skip an toàn.
+  skipped_subflows: []
   state_threshold: 0.80
   state_margin: 0.05
   home:
