@@ -8,18 +8,21 @@ quan_doan:
   entrance_wait_attempts: 24
   # Màn chính Quân đoàn còn tải sau khi X xuất hiện; chờ Báo danh ổn định.
   registration_wait_attempts: 24
+  # Frame thật sau tap đạt 0.751; chỉ hạ hậu kiểm, không hạ phân loại ban đầu.
+  registration_done_threshold: 0.74
   # ROI mép phải rất chặt; frame thật mới của _02 đạt 0.291.
   home_control_threshold: 0.28
   home:
-    # Neo Trưởng thành bên trái để giới hạn vùng tìm control Quân đoàn.
+    # Giữ để tương thích loader; nhận diện trạng thái dùng trực tiếp hai khu.
     anchor: data/img/templates/stars/home/screen/screen_truong-thanh_01.png
-    # entry[0] = đã mở, nút đóng gần giữa; entry[1] = nút mở ở mép phải.
+    # entry[0] ở khu 2 = đã mở, ưu tiên; nếu vắng mới tìm entry[1] khu 1 = chưa mở.
     menu: []
     entry:
       - data/img/templates/stars/home/screen/screen_quan-doan_01.png
       - data/img/templates/stars/home/screen/screen_quan-doan_02.png
     entrance:
       - data/img/templates/targets/04_quan-doan/screen/screen_home_button_open_quandoan.png
+    route_home: data/img/templates/stars/home/screen/screen_quan-chhuc.png
     markers:
       - data/img/templates/stars/home/screen/screen_noi-chinh_01.png
   panel:

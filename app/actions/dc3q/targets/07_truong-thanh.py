@@ -174,6 +174,20 @@ class TruongThanhRunner:
                     a4_return_tapped = True
                     logger.info("TT | recovery A4 bấm Trở về")
                     continue
+            # A6 reward animation can arrive late. The paid Continue marker
+            # proves this exact result layer; only tap its safe Trở về.
+            a6_flow = next(
+                (flow for flow in getattr(self.config, "flows", []) if flow.name == "A6_than-binh"),
+                None,
+            )
+            if a6_flow is not None and self._first(screen, a6_flow.spent) is not None:
+                a6_return = self._first(screen, a6_flow.close[:1])
+                if a6_return is not None:
+                    self._tap(a6_return)
+                    logger.info("TT | recovery A6 bấm Trở về")
+                else:
+                    self.sleep(self.config.wait_seconds)
+                continue
             if self._first(screen, self.config.hub_markers) is not None:
                 toggle = self._first(screen, self.config.entry_templates)
                 if toggle is None:
@@ -790,8 +804,9 @@ class TruongThanhRunner:
         logging.getLogger("dc3q").info("TT | A7 OCR nhãn FREE=%r", text)
         return "mien" in plain and "phi" in plain
 
-    def _run_a5(self, flow: SubFlow) -> None:
+    def _run_a5(self, flow: SubFlow | None = None) -> None:
         logger = logging.getLogger("dc3q")
+        flow = flow or self._flow_by_name("A5_trai-ngua")
         self._open_home_entry()
         screen = self.screen_provider()
         hub_entry = self._first(screen, flow.hub_entry or [])

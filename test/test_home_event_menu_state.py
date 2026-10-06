@@ -39,7 +39,7 @@ def test_quan_doan_uses_truong_thanh_anchor_then_taps_02_at_right_edge():
     assert calls[0][0] == "screen_quan-doan_01.png"
     assert calls[1][0] == "screen_quan-doan_02.png"
     assert calls[1][1][0] >= 780
-    assert calls[1][1][1] >= 204
+    assert calls[1][1][1] >= 160
     assert calls[1][2] == .28
 
 
@@ -59,7 +59,7 @@ def test_quan_doan_uses_truong_thanh_anchor_then_finds_01_near_center():
     assert calls[0][1][0] < 480 < calls[0][1][2]
 
 
-def test_quan_doan_open_01_wins_over_false_positive_02():
+def test_quan_doan_khu_2_open_wins_when_khu_1_is_still_visible():
     runner = anchored_runner()
     runner._match_roi = lambda screen, template, roi, threshold=None: (
         match(True, .443, 433, 174)
@@ -71,6 +71,22 @@ def test_quan_doan_open_01_wins_over_false_positive_02():
 
     assert state == "open"
     assert control.x == 433
+
+
+def test_quan_doan_checks_both_areas_without_truong_thanh_anchor():
+    runner = anchored_runner()
+    runner._match = lambda screen, template, threshold=None: match(False)
+    calls = []
+    runner._match_roi = lambda screen, template, roi, threshold=None: (
+        calls.append((template.name, roi)) or
+        (match(True, .95, 426, 218) if template.name == "screen_quan-doan_01.png" else match(False))
+    )
+
+    state, control = runner._home_entry_state(object())
+
+    assert state == "open"
+    assert control.x == 426
+    assert [name for name, _ in calls] == ["screen_quan-doan_01.png"]
 
 
 def test_quan_doan_rejects_weak_01_collision_on_clean_home():
@@ -87,7 +103,10 @@ def test_quan_doan_rejects_weak_01_collision_on_clean_home():
 
     assert state == "unknown"
     assert control is None
-    assert thresholds[0] == ("screen_quan-doan_01.png", .40)
+    assert thresholds == [
+        ("screen_quan-doan_01.png", .40),
+        ("screen_quan-doan_02.png", .28),
+    ]
 
 
 def test_quan_doan_does_not_tap_open_toggle_again():
@@ -142,26 +161,66 @@ def test_quan_doan_clicks_enter_button_before_waiting_for_real_panel():
     assert calls == [([enter], 24), ("tap", button_match), ([panel], 8)]
 
 
-def test_quan_doan_route_accepts_enter_button_as_open_postcondition():
+def test_quan_doan_uses_visible_enter_button_without_edge_spam():
     runner = anchored_runner()
     runner.config.entrance_templates = [Path("screen_home_button_open_quandoan.png")]
-    runner.config.entrance_wait_attempts = 24
-    runner.config.wait_seconds = 0
-    closed = match(True, .95, 927, 213)
     entrance = match(True, .99, 628, 472)
-    states = iter([("closed", closed), ("closed", closed)])
-    runner._home_entry_state = lambda screen: next(states)
+    runner._home_entry_state = lambda screen: ("closed", match(True, .95, 927, 213))
     runner._first = lambda screen, templates, threshold=None: entrance
-    runner.screen_provider = lambda: "route"
-    runner.sleep = lambda _: None
     tapped = []
-    runner._tap = tapped.append
+    runner.input = SimpleNamespace(tap=lambda x, y: tapped.append((x, y)))
 
     screen, proof = runner._open_home_entry("home")
 
-    assert screen == "route"
+    assert screen == "home"
     assert proof is entrance
-    assert tapped == [closed]
+    assert tapped == []
+
+
+def test_quan_doan_spams_right_edge_center_until_enter_button_appears():
+    runner = anchored_runner()
+    runner.config.entrance_templates = [Path("screen_home_button_open_quandoan.png")]
+    runner.config.entrance_wait_attempts = 4
+    runner.config.wait_seconds = 0
+    runner.screen_provider = lambda: "fresh"
+    runner._home_entry_state = lambda screen: ("unknown", None)
+    entrance = match(True, .99, 628, 472)
+    checks = iter([None, None, entrance])
+    runner._first = lambda screen, templates, threshold=None: next(checks)
+    taps = []
+    runner.input = SimpleNamespace(tap=lambda x, y: taps.append((x, y)))
+    runner.sleep = lambda _: None
+
+    screen, proof = runner._open_home_entry("home")
+
+    assert screen == "fresh"
+    assert proof is entrance
+    assert taps == [(928, 270), (928, 270)]
+
+
+def test_quan_doan_closes_route_with_quan_chhuc_then_proves_home():
+    runner = object.__new__(module.QuanDoanRunner)
+    runner.config = SimpleNamespace(
+        route_home=Path("screen_quan-chhuc.png"),
+        home_markers=[Path("home")], wait_seconds=0,
+    )
+    frames = iter(["route", "home"])
+    runner.screen_provider = lambda: next(frames)
+    quan_chhuc = match(True, .99, 100, 200)
+    runner._match = lambda screen, template, threshold=None: (
+        quan_chhuc if screen == "route" and template.name == "screen_quan-chhuc.png"
+        else match(False)
+    )
+    runner._first = lambda screen, templates, threshold=None: (
+        match(True, .99) if screen == "home" and templates == [Path("home")] else None
+    )
+    tapped = []
+    runner._tap = tapped.append
+    runner.sleep = lambda _: None
+
+    runner._close_home_route()
+
+    assert tapped == [quan_chhuc]
 
 
 def test_quan_doan_recovery_closes_open_route_after_panel_close():

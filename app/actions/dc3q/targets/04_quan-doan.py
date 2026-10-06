@@ -30,6 +30,8 @@ class QuanDoanConfig:
     entrance_wait_attempts: int = 24
     registration_wait_attempts: int = 24
     home_control_threshold: float = 0.30
+    registration_done_threshold: float = 0.74
+    route_home: Path | None = None
 
 
 class QuanDoanRunner:
@@ -116,7 +118,8 @@ class QuanDoanRunner:
         for _ in range(8):
             verify = self.screen_provider()
             verified = self._match(
-                verify, self.config.registration_done, self.config.state_threshold,
+                verify, self.config.registration_done,
+                getattr(self.config, "registration_done_threshold", self.config.state_threshold),
             )
             if verified.found:
                 logger.info("QD | Báo danh quân đoàn thành công")
@@ -183,15 +186,10 @@ class QuanDoanRunner:
         return False
 
     def _home_entry_state(self, screen):
-        """Neo Trưởng thành: _02 ở mép phải mở; _01 gần giữa đóng."""
-        anchor = self._match(screen, self.config.home_anchor, self.config.threshold)
-        if not anchor.found:
-            return "unknown", None
+        """Khu 2 có _01: đã mở; nếu vắng mới xét khu 1 có _02: chưa mở."""
         width, height = self._screen_size(screen)
-        y1 = max(0, anchor.y - 40)
-        y2 = min(height, anchor.y + anchor.height + 100)
-        # Trạng thái đã mở (_01) thắng tuyệt đối: _02 còn có thể khớp giả
-        # với chi tiết bên phải sau animation mở.
+        y1, y2 = int(height * .30), int(height * .75)
+        # Bảng mở vẫn có thể để lộ control khu 1; khu 2 là bằng chứng mạnh hơn.
         opened = self._match_roi(
             screen, self.config.entry_templates[0],
             (int(width * .38), y1, int(width * .62), y2),
@@ -210,25 +208,34 @@ class QuanDoanRunner:
     def _open_home_entry(self, screen):
         state, control = self._home_entry_state(screen)
         if state == "open":
-            return screen, control
-        if state != "closed":
-            raise RuntimeError("Quân đoàn: không xác định được nút đối diện Trưởng thành")
-        self._tap(control)
-        for _ in range(self.config.entrance_wait_attempts):
-            screen = self.screen_provider()
             entrance = self._first(screen, self.config.entrance_templates)
             if entrance is not None:
                 return screen, entrance
-            state, opened = self._home_entry_state(screen)
-            if state == "open":
-                return screen, opened
+        width, height = self._screen_size(screen)
+        edge_point = (int(width * 0.967), height // 2)
+        for _ in range(getattr(self.config, "entrance_wait_attempts", 24)):
+            entrance = self._first(screen, self.config.entrance_templates)
+            if entrance is not None:
+                return screen, entrance
+            self.input.tap(*edge_point)
             self.sleep(self.config.wait_seconds)
-        raise RuntimeError("Quân đoàn: bấm nút bên phải nhưng chưa chuyển sang trạng thái mở")
+            screen = self.screen_provider()
+        raise RuntimeError("Quân đoàn: bấm giữa cạnh phải nhưng chưa thấy Vào quân đoàn")
 
     def _close_home_route(self) -> None:
         logger = logging.getLogger("dc3q")
         for _ in range(8):
             screen = self.screen_provider()
+            if self._first(screen, self.config.home_markers) is not None:
+                logger.info("QD | đã về HOME sau đường dẫn")
+                return
+            route_home = getattr(self.config, "route_home", None)
+            if route_home is not None:
+                control = self._match(screen, route_home)
+                if control.found:
+                    self._tap(control)
+                    logger.info("QD | bấm Quân chức để về HOME")
+                    continue
             state, control = self._home_entry_state(screen)
             if state == "closed":
                 logger.info("QD | đường dẫn Quân đoàn đã đóng; ở HOME")

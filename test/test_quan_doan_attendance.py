@@ -24,6 +24,7 @@ def runner():
         prayer_entry=Path("screen_qd_button_open_cauvanquandoan.png"),
         prayer_open=[Path("prayer-nonzero"), Path("prayer-zero")],
         state_threshold=0.76,
+        registration_done_threshold=0.74,
         registration_wait_attempts=24,
         wait_seconds=0,
         max_steps=30,
@@ -39,6 +40,7 @@ def test_quan_doan_config_maps_registration_and_prayer_states():
     )["quan_doan"]
     assert cfg["enabled"] is True
     assert cfg["entrance_wait_attempts"] == 24
+    assert cfg["registration_done_threshold"] == 0.74
     assert Path(cfg["registration"]["available"]).name == "screen_qd_button_baodanh_chuabaodanh.png"
     assert Path(cfg["registration"]["done"]).name == "screen_qd_button_baodanh_dabaodanh.png"
     assert Path(cfg["prayer"]["available"]).name == "screen_qd_cvqd_button_10cauvan.png"
@@ -75,6 +77,23 @@ def test_available_registration_clicks_and_requires_done_state():
 
     assert value._register(object()) == "registered"
     assert len(tapped) == 1
+
+
+def test_registration_postcondition_accepts_observed_0751_score():
+    value = runner()
+    calls = []
+
+    def find(screen, template, threshold=None):
+        calls.append((template.name, threshold))
+        score = 1.0 if template.name == "registration-yellow" else 0.751
+        return match(score >= threshold, score)
+
+    value._match = find
+    value._tap = lambda found: None
+    value.screen_provider = lambda: object()
+
+    assert value._register(object()) == "registered"
+    assert calls[-1] == ("registration-gray", 0.74)
 
 
 def test_registration_waits_through_loading_frame_before_clicking():

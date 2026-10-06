@@ -522,6 +522,8 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         int(c.get("entrance_wait_attempts", 24)),
                         int(c.get("registration_wait_attempts", 24)),
                         float(c.get("home_control_threshold", .30)),
+                        float(c.get("registration_done_threshold", .74)),
+                        _resolve_project_path(root, c["home"]["route_home"]),
                     ),
                 )
             elif module_name == "05_khong-gian-ca-nhan":

@@ -5,12 +5,13 @@ import yaml
 ROOT = Path(__file__).parents[1]
 
 
-def test_account_workflow_includes_truong_thanh_after_xa_giao():
+def test_account_workflow_includes_all_requested_targets_in_order():
     workflow = yaml.safe_load((ROOT / "scripts/dc3q/stars/dang-nhap.yaml").read_text(encoding="utf-8"))
     assert [Path(item).stem for item in workflow["home_targets"]] == [
         "01_tam-quoc-lenh", "02_hoat-dong", "03_cua-hang", "04_quan-doan",
         "05_khong-gian-ca-nhan", "06_xa-giao", "07_truong-thanh",
     ]
+    assert workflow["auto_logout"] is True
 
 
 def test_activity_script_places_optional_newcomer_after_tax():

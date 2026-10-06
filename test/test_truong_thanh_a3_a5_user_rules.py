@@ -26,6 +26,17 @@ def test_a3_clicks_raise_flag_then_requires_result():
     assert len(taps) == 2
 
 
+def test_a5_runtime_checkpoint_accepts_no_flow_argument():
+    runner = object.__new__(module.TruongThanhRunner)
+    flow = module.SubFlow("A5_trai-ngua", [], [], [], [])
+    runner.config = SimpleNamespace(flows=[flow])
+    runner._open_home_entry = lambda: None
+    runner.screen_provider = lambda: object()
+    runner._first = lambda screen, templates, threshold=None: None
+
+    runner._run_a5()
+
+
 def test_a5_fast_skips_when_both_free_states_absent():
     runner = object.__new__(module.TruongThanhRunner)
     runner.config = SimpleNamespace(
