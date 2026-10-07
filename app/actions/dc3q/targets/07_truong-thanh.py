@@ -26,6 +26,7 @@ class SubFlow:
     close_threshold: float = 0.70
     bonus_continue: list[Path] | None = None
     bonus_tap_point: tuple[int, int] = (480, 360)
+    recall: list[Path] | None = None
 
 
 @dataclass(frozen=True)
@@ -138,6 +139,22 @@ class TruongThanhRunner:
         self.input.tap(match.x + match.width // 2, match.y + match.height // 2)
         self.sleep(self.config.wait_seconds)
 
+    def _fresh_proven_free(self, free_templates, paid_templates, free_threshold):
+        """Authorize one tap only from a fresh frame where FREE clearly wins."""
+        screen = self.screen_provider()
+        free_matches = [self._match(screen, template, 0.0) for template in free_templates]
+        paid_matches = [self._match(screen, template, 0.0) for template in paid_templates]
+        free = max(free_matches, key=lambda match: match.confidence, default=None)
+        paid_score = max((match.confidence for match in paid_matches), default=0.0)
+        free_score = free.confidence if free is not None else 0.0
+        logging.getLogger("dc3q").info(
+            "TT | cổng FREE frame mới | free=%.3f | trả_phí=%.3f | ngưỡng=%.3f",
+            free_score, paid_score, free_threshold,
+        )
+        if free is None or free_score < free_threshold or free_score < paid_score + self.config.state_margin:
+            return screen, None
+        return screen, free
+
     def _wait_first(self, templates: list[Path], attempts: int = 6,
                     threshold: float | None = None):
         screen = None
@@ -181,13 +198,8 @@ class TruongThanhRunner:
                 None,
             )
             if a6_flow is not None and self._first(screen, a6_flow.spent) is not None:
-                a6_return = self._first(screen, a6_flow.close[:1])
-                if a6_return is not None:
-                    self._tap(a6_return)
-                    logger.info("TT | recovery A6 bấm Trở về")
-                else:
-                    self.sleep(self.config.wait_seconds)
-                continue
+                logger.error("TT | recovery A6 dừng tuyệt đối: thấy trạng thái tốn 1 ngọc bài")
+                return False
             if self._first(screen, self.config.hub_markers) is not None:
                 toggle = self._first(screen, self.config.entry_templates)
                 if toggle is None:
@@ -459,6 +471,18 @@ class TruongThanhRunner:
             self._match(screen, self.config.a2_paid, 0.0),
         )
 
+    def _close_a2_chest_popup(self, screen, attempts: int = 3):
+        """A2 only: proven chest popup authorizes its fixed Close point."""
+        for _ in range(attempts):
+            if not self._match(screen, self.config.a2_chest_popup).found:
+                return screen
+            self.input.tap(*self.config.a2_chest_popup_close_point)
+            self.sleep(self.config.wait_seconds)
+            screen = self.screen_provider()
+        if self._match(screen, self.config.a2_chest_popup).found:
+            raise RuntimeError("Trường thành A2: Rương chiến lợi phẩm vẫn còn sau 3 lần Đóng")
+        return screen
+
     def _wait_a2_after_free(self, initial_screen=None):
         """Settle one free probe without ever touching the paid probe state."""
         logger = logging.getLogger("dc3q")
@@ -484,12 +508,8 @@ class TruongThanhRunner:
                 continue
             chest_popup = self._match(screen, self.config.a2_chest_popup)
             if chest_popup.found:
-                close = self._match(screen, self.config.a2_chest_popup_close)
-                if not close.found:
-                    raise RuntimeError("Trường thành A2: thấy Rương chiến lợi phẩm nhưng thiếu nút Đóng")
-                self._tap(close)
-                logger.info("TT | A2 đóng Rương chiến lợi phẩm từ full-screen")
-                screen = None
+                screen = self._close_a2_chest_popup(screen)
+                logger.info("TT | A2 đóng Rương chiến lợi phẩm bằng điểm cố định đã xác minh")
                 continue
             chest = self._match(screen, self.config.a2_chest_glowing)
             if chest.found:
@@ -698,7 +718,9 @@ class TruongThanhRunner:
         )
         if state is None:
             raise RuntimeError("Trường thành A4: mở Thiên Cơ Các nhưng thiếu trạng thái")
-        free = self._first(screen, self.config.a4_free, 0.95)
+        screen, free = self._fresh_proven_free(
+            self.config.a4_free, self.config.a4_paid, 0.95,
+        )
         if free is not None:
             self._tap(free)
             logger.info("TT | A4 bấm Diễn quẻ 1 lần miễn phí")
@@ -745,6 +767,7 @@ class TruongThanhRunner:
              self.config.a5_gold_quantity_roi, self.config.a5_gold_free_roi),
         )
         for name, free_templates, minus_template, quantity_roi, free_roi in branches:
+            screen = self.screen_provider()
             free_control = self._first(screen, free_templates, 0.95)
             if free_control is None:
                 logger.info("TT | A5 %s không có control lượt miễn phí", name)
@@ -776,6 +799,15 @@ class TruongThanhRunner:
                     self._tap(select)
                     screen = self.screen_provider()
                     free_control = self._first(screen, free_templates, 0.95)
+            else:
+                screen = self.screen_provider()
+                free_control = self._first(screen, free_templates, 0.95)
+                fresh_free = self._read_roi_number(screen, free_roi)
+                fresh_quantity = self._read_roi_number(screen, quantity_roi)
+                if fresh_free is None or fresh_free <= 0 or fresh_quantity != fresh_free:
+                    raise RuntimeError(
+                        "Trường thành A5: Ngựa vàng frame mới không chứng minh dây = lượt FREE"
+                    )
             if free_control is None:
                 raise RuntimeError(f"Trường thành A5: {name} mất nút quay miễn phí")
             self._tap(free_control)
@@ -865,8 +897,10 @@ class TruongThanhRunner:
         if len(free_states) != 3:
             raise RuntimeError("Trường thành A6: cần đúng 3 trạng thái FREE")
         for index, template in zip((3, 2, 1), free_states):
-            free = self._match(screen, template, flow.free_threshold)
-            if not free.found:
+            screen, free = self._fresh_proven_free(
+                [template], flow.spent, flow.free_threshold,
+            )
+            if free is None:
                 break
             self._tap(free)
             logger.info("TT | A6 bấm FREE trạng thái %d", index)
@@ -878,9 +912,53 @@ class TruongThanhRunner:
         if self._first(screen, flow.spent) is None:
             logger.info("TT | A6 dừng fail-closed: chưa chứng minh trạng thái 1 vé")
             return
-        logger.info("TT | A6 dừng: lượt tiếp theo dùng 1 vé")
-        if not self._finish_flow(flow, screen):
-            raise RuntimeError("Trường thành A6: trạng thái 1 vé nhưng thiếu Trở về/đóng")
+        logger.info("TT | A6 thấy 1 ngọc bài: không bấm quay; đóng bằng X")
+        self._exit_a6_paid(flow, screen)
+
+    def _a6_paid_kind(self, flow: SubFlow, screen) -> str | None:
+        """Distinguish Continue+jade from One-draw+jade on the same frame."""
+        if len(flow.spent) != 2:
+            return None
+        continued = self._match(screen, flow.spent[0], 0.0)
+        one_draw = self._match(screen, flow.spent[1], 0.0)
+        if (continued.confidence >= self.config.state_threshold
+                and continued.confidence >= one_draw.confidence + self.config.state_margin):
+            return "continue"
+        if (one_draw.confidence >= self.config.state_threshold
+                and one_draw.confidence >= continued.confidence + self.config.state_margin):
+            return "one_draw"
+        return None
+
+    def _exit_a6_paid(self, flow: SubFlow, screen) -> None:
+        """Continue+jade -> Trở về; One-draw+jade -> X; then HOME."""
+        kind = self._a6_paid_kind(flow, screen)
+        if kind == "continue":
+            back = self._first(screen, flow.close[:1], flow.close_threshold)
+            if back is None:
+                raise RuntimeError("Trường thành A6: Tiếp tục 1 ngọc bài nhưng thiếu Trở về")
+            self._tap(back)
+            screen, state = self._wait_first([flow.spent[1], *flow.entry], attempts=12)
+            if state is None:
+                raise RuntimeError("Trường thành A6: bấm Trở về nhưng chưa tới trạng thái 1 lần/màn chính")
+            if self._first(screen, flow.entry) is None:
+                kind = self._a6_paid_kind(flow, screen)
+        if kind == "one_draw":
+            x = self._first(screen, flow.close[1:2], flow.close_threshold)
+            if x is None:
+                raise RuntimeError("Trường thành A6: 1 lần mịch bảo 1 ngọc bài nhưng thiếu nút X")
+            self._tap(x)
+            screen, main = self._wait_first(flow.entry, attempts=12)
+            if main is None:
+                raise RuntimeError("Trường thành A6: bấm X nhưng chưa về màn Thần Binh chính")
+        elif self._first(screen, flow.entry) is None:
+            raise RuntimeError("Trường thành A6: trạng thái 1 ngọc bài không rõ; không bấm")
+        recall = self._first(screen, flow.recall or [])
+        if recall is None:
+            raise RuntimeError("Trường thành A6: màn chính thiếu Hồi thành")
+        self._tap(recall)
+        _, home = self._wait_first(self.config.home_markers, attempts=12)
+        if home is None:
+            raise RuntimeError("Trường thành A6: Hồi thành nhưng chưa về HOME")
 
     def _run_a7(self) -> None:
         """Chiến Hồn: one free draw only; paid Rút 1 lần means done."""
@@ -902,7 +980,9 @@ class TruongThanhRunner:
             screen, state = self._wait_first([*flow.free, *flow.spent], attempts=12)
             if state is None:
                 raise RuntimeError("Trường thành A7: mở Nhận Chiến Hồn nhưng thiếu trạng thái")
-        free = self._first(screen, flow.free, flow.free_threshold)
+        screen, free = self._fresh_proven_free(
+            flow.free, flow.spent, flow.free_threshold,
+        )
         if free is not None and self._a7_has_free_label(screen):
             self._tap(free)
             logger.info("TT | A7 bấm Rút 1 lần miễn phí")

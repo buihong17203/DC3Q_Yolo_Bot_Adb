@@ -181,10 +181,14 @@ truong_thanh:
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_tieptuc_luotmien2.png
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_tieptuc_luotmien1.png
       spent:
+        # Cấm tuyệt đối: cả hai control sau đều tiêu 1 ngọc bài.
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_tieptuc_tonngoc.png
+        - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_1lan_1ngocbai.png
       close:
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_trove.png
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_dong.png
+      recall:
+        - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_home_button_hoithanh.png
     - name: A7_chien-hon
       free_threshold: 0.80
       close_threshold: 0.64

@@ -55,7 +55,7 @@ def test_a2_handles_reward_chest_2000_then_stops_before_paid_probe():
 
     runner._a2_claim_free("initial_land")
 
-    assert taps == ["free", "reward_close", "chest_glowing", "chest_close", "reset_2000", "free"]
+    assert taps == ["free", "reward_close", "chest_glowing", "coordinate_tap", "reset_2000", "free"]
 
 
 def test_a2_opens_tuong_tinh_dai_tab_before_exploration():
@@ -98,6 +98,7 @@ def test_a2_opens_ready_chest_before_any_free_probe():
         a2_free="free", a2_paid="paid", a2_rewards=["reward"],
         a2_reward_close="reward_close", a2_chest_glowing="chest",
         a2_chest_popup="popup", a2_chest_popup_close="close",
+        a2_chest_popup_close_point=(481, 456),
         a2_reset_2000="reset", state_threshold=.80, state_margin=.05,
         wait_seconds=0,
     )
@@ -106,6 +107,7 @@ def test_a2_opens_ready_chest_before_any_free_probe():
     runner.screen_provider = lambda: next(screens)
     taps = []
     runner._tap = lambda match: taps.append(match.name)
+    runner.input = SimpleNamespace(tap=lambda x, y: taps.append("coordinate_tap"))
     runner._a2_state = lambda screen: (
         (hit("free"), miss("paid")) if screen == "chest_and_free"
         else (miss("free"), hit("paid"))
@@ -124,4 +126,24 @@ def test_a2_opens_ready_chest_before_any_free_probe():
 
     runner._a2_claim_free("chest_and_free")
 
-    assert taps == ["chest", "close"]
+    assert taps == ["chest", "coordinate_tap"]
+
+
+def test_a2_closes_proven_chest_popup_by_fixed_point_until_popup_disappears():
+    runner = object.__new__(module.TruongThanhRunner)
+    runner.config = SimpleNamespace(
+        a2_chest_popup="popup", a2_chest_popup_close_point=(481, 456), wait_seconds=0,
+    )
+    runner.sleep = lambda _: None
+    frames = iter(["popup_still_open", "land"])
+    runner.screen_provider = lambda: next(frames)
+    runner._match = lambda screen, template, threshold=None: (
+        hit("popup") if screen != "land" else miss("popup")
+    )
+    taps = []
+    runner.input = SimpleNamespace(tap=lambda x, y: taps.append((x, y)))
+
+    screen = runner._close_a2_chest_popup("popup")
+
+    assert screen == "land"
+    assert taps == [(481, 456), (481, 456)]

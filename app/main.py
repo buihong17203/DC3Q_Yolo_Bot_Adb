@@ -559,7 +559,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         float(c.get("social_control_threshold", .55))))
             elif module_name == "07_truong-thanh":
                 c = target_config["truong_thanh"]
-                flows = [module.SubFlow(x["name"], paths(x["entry"]), paths(x["free"]), paths(x["spent"]), paths(x["close"]), float(x.get("free_threshold", .90)), paths(x.get("hub_entry", [])), bool(x.get("repeat_free", False)), float(x.get("close_threshold", .70)), paths(x.get("bonus_continue", [])), tuple(x.get("bonus_tap_point", [480, 360]))) for x in c["flows"]]
+                flows = [module.SubFlow(x["name"], paths(x["entry"]), paths(x["free"]), paths(x["spent"]), paths(x["close"]), float(x.get("free_threshold", .90)), paths(x.get("hub_entry", [])), bool(x.get("repeat_free", False)), float(x.get("close_threshold", .70)), paths(x.get("bonus_continue", [])), tuple(x.get("bonus_tap_point", [480, 360])), paths(x.get("recall", []))) for x in c["flows"]]
                 target = module.TruongThanhRunner(controller._screen, controller.input, controller.logout_action.vision,
                     module.TruongThanhConfig(paths(c["home"]["entry"]), paths(c["home"]["menu"]), paths(c["home"]["markers"]),
                         paths(c["close"]), paths(c["bonus_continue"]["templates"]),

@@ -43,6 +43,7 @@ def test_a4_free_reward_return_paid_close_recall_home_sequence():
         return hit(name) if name else None
 
     runner._first = first
+    runner._fresh_proven_free = lambda free, paid, threshold: ("tcc_free", hit("free"))
     waits = iter([
         ("ve_tuong", hit("thien_co_cac")), ("tcc_free", hit("free")),
         ("reward", hit("continue")),

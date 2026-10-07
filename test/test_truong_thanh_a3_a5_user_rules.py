@@ -45,6 +45,7 @@ def test_a5_fast_skips_when_both_free_states_absent():
         a5_normal_quantity_roi=(0, 0, 1, 1), a5_normal_free_roi=(0, 0, 1, 1),
         a5_gold_quantity_roi=(0, 0, 1, 1), a5_gold_free_roi=(0, 0, 1, 1),
     )
+    runner.screen_provider = lambda: object()
     runner._first = lambda screen, templates, threshold=None: None
     taps = []
     runner._tap = taps.append
@@ -65,7 +66,7 @@ def test_a5_gold_reduces_quantity_to_free_count_before_claim():
     runner.sleep = lambda _: None
     runner.screen_provider = lambda: object()
     runner._first = lambda screen, templates, threshold=None: hit() if templates == ["gold"] else None
-    values = iter([1, 3, 2, 1, 0])  # free/quantity, adjusted quantities, terminal free
+    values = iter([1, 3, 2, 1, 1, 1, 0])  # initial; adjusted; fresh free/quantity; terminal
     runner._read_roi_number = lambda screen, roi: next(values)
     taps = []
     runner._tap = taps.append
