@@ -960,6 +960,14 @@ class TruongThanhRunner:
         if home is None:
             raise RuntimeError("Trường thành A6: Hồi thành nhưng chưa về HOME")
 
+    def _a7_fresh_free(self, flow: SubFlow):
+        """A7 paid/free buttons share artwork; OCR is the independent safety gate."""
+        screen = self.screen_provider()
+        free = self._first(screen, flow.free, flow.free_threshold)
+        if free is None or not self._a7_has_free_label(screen):
+            return screen, None
+        return screen, free
+
     def _run_a7(self) -> None:
         """Chiến Hồn: one free draw only; paid Rút 1 lần means done."""
         logger = logging.getLogger("dc3q")
@@ -980,10 +988,8 @@ class TruongThanhRunner:
             screen, state = self._wait_first([*flow.free, *flow.spent], attempts=12)
             if state is None:
                 raise RuntimeError("Trường thành A7: mở Nhận Chiến Hồn nhưng thiếu trạng thái")
-        screen, free = self._fresh_proven_free(
-            flow.free, flow.spent, flow.free_threshold,
-        )
-        if free is not None and self._a7_has_free_label(screen):
+        screen, free = self._a7_fresh_free(flow)
+        if free is not None:
             self._tap(free)
             logger.info("TT | A7 bấm Rút 1 lần miễn phí")
             screen, paid = self._wait_first(flow.spent, attempts=12)

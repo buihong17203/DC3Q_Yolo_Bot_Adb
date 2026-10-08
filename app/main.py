@@ -265,6 +265,9 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
         "04_quan-doan": ["Quan_Doan"],
         "05_khong-gian-ca-nhan": ["Khong_Gian_Ca_Nhan"],
         "06_xa-giao": ["Xa_Giao"],
+        "08_vo-tuong": ["Vo_Tuong"],
+        "09_quan-su": ["Tranh_Ba"],
+        "10_nhiem-vu": ["Giao_Tranh"],
     }
     active_tasks = []
     for module_name, target_config in home_target_specs:
@@ -602,10 +605,25 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
             elif module_name == "08_vo-tuong":
                 c = target_config["vo_tuong"]
                 target = module.VoTuongRunner(controller._screen, controller.input, controller.logout_action.vision,
-                    module.VoTuongConfig(paths(c["home"]["entry"]), paths(c["home"]["menu"]), paths(c["home"]["markers"]),
-                        paths(c["panel"]["markers"]), _resolve_project_path(root, c["panel"]["close"]),
-                        _resolve_project_path(root, c["reward"]["marker"]), _resolve_project_path(root, c["reward"]["dismiss"]),
-                        paths(c["safe_actions"]), paths(c["forbidden_actions"]), float(c.get("threshold", .6)), int(c.get("max_steps", 20)), float(c.get("wait_seconds", .8))))
+                    module.VoTuongConfig(
+                        paths(c["home"]["entry"]), paths(c["home"]["menu"]), paths(c["home"]["markers"]),
+                        paths(c["kho"]["markers"]), _resolve_project_path(root, c["kho"]["point_button"]),
+                        paths(c["point"]["markers"]),
+                        _resolve_project_path(root, c["thien_van"]["banner"]), paths(c["thien_van"]["markers"]),
+                        _resolve_project_path(root, c["thien_van"]["paid"]),
+                        _resolve_project_path(root, c["nhan_duc"]["banner"]), paths(c["nhan_duc"]["markers"]),
+                        _resolve_project_path(root, c["nhan_duc"]["free"]), _resolve_project_path(root, c["nhan_duc"]["paid"]),
+                        _resolve_project_path(root, c["chiem_tinh"]["banner"]), paths(c["chiem_tinh"]["markers"]),
+                        paths(c["chiem_tinh"]["plus"]), paths(c["chiem_tinh"]["popup"]),
+                        _resolve_project_path(root, c["chiem_tinh"]["slider_max"]), tuple(c["chiem_tinh"]["confirm_point"]),
+                        tuple(c["chiem_tinh"]["slider_start"]), tuple(c["chiem_tinh"]["slider_end"]),
+                        tuple(c["chiem_tinh"]["quantity_plus_point"]),
+                        paths(c["chiem_tinh"]["reward"]), tuple(c["chiem_tinh"]["reward_dismiss_point"]),
+                        _resolve_project_path(root, c["close"]), _resolve_project_path(root, c["reward"]["marker"]),
+                        _resolve_project_path(root, c["reward"]["dismiss"]), float(c.get("threshold", .7)),
+                        float(c.get("action_threshold", .8)), float(c.get("state_margin", .05)),
+                        float(c.get("close_threshold", .54)), int(c.get("max_steps", 40)),
+                        float(c.get("wait_seconds", .8))))
             elif module_name == "09_quan-su":
                 c = target_config["quan_su"]
                 target = module.QuanSuRunner(controller._screen, controller.input, controller.logout_action.vision,

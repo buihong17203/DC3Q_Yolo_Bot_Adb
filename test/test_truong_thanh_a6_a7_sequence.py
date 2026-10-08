@@ -137,7 +137,7 @@ def test_a7_free_once_then_paid_state_closes():
         None
     )
     waits = iter([("panel", hit(a7.entry[0])), ("free", hit(a7.free[0])), ("paid", hit(a7.spent[0]))])
-    runner._fresh_proven_free = lambda free, paid, threshold: ("free", hit(a7.free[0]))
+    runner._a7_fresh_free = lambda flow: ("free", hit(a7.free[0]))
     runner._wait_first = lambda templates, attempts=6, threshold=None: (
         ("paid", hit(a7.close[0])) if templates == a7.close else next(waits)
     )
@@ -165,7 +165,7 @@ def test_a7_never_taps_colliding_free_button_without_free_label():
         hit(a7.close[0]) if screen == "paid" and templates == a7.close else None
     )
     waits = iter([("panel", hit(a7.entry[0])), ("paid", hit(a7.spent[0]))])
-    runner._fresh_proven_free = lambda free, paid, threshold: ("paid", None)
+    runner._a7_fresh_free = lambda flow: ("paid", None)
     runner._wait_first = lambda templates, attempts=6, threshold=None: (
         ("paid", hit(a7.close[0])) if templates == a7.close else next(waits)
     )

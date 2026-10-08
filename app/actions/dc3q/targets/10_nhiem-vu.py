@@ -25,7 +25,8 @@ class NhiemVuConfig:
 
 
 class NhiemVuRunner:
-    """Nhiệm vụ reward-only runner; never clicks skip-day/premium/ambiguous controls."""
+    """Giao Tranh checkpoint runner; never clicks skip-day/premium/ambiguous controls."""
+    runtime_task = "GIAO_TRANH"
 
     def __init__(self, screen_provider, adb_input, vision, config: NhiemVuConfig,
                  sleep: Callable[[float], None] = default_sleep):

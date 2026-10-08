@@ -9,9 +9,23 @@ def test_account_workflow_includes_all_requested_targets_in_order():
     workflow = yaml.safe_load((ROOT / "scripts/dc3q/stars/dang-nhap.yaml").read_text(encoding="utf-8"))
     assert [Path(item).stem for item in workflow["home_targets"]] == [
         "01_tam-quoc-lenh", "02_hoat-dong", "03_cua-hang", "04_quan-doan",
-        "05_khong-gian-ca-nhan", "06_xa-giao", "07_truong-thanh",
+        "05_khong-gian-ca-nhan", "06_xa-giao", "07_truong-thanh", "08_vo-tuong",
     ]
     assert workflow["auto_logout"] is True
+
+
+def test_runtime_uses_giao_tranh_and_tranh_ba_columns():
+    from app.accounts.runtime import AccountRuntime
+
+    assert "Giao_Tranh" in AccountRuntime.TASK_FIELDS
+    assert "Tranh_Ba" in AccountRuntime.TASK_FIELDS
+    assert "Quan_Su" not in AccountRuntime.TASK_FIELDS
+    assert "Nhiem_Vu" not in AccountRuntime.TASK_FIELDS
+
+
+def test_vo_tuong_is_an_active_runtime_checkpoint():
+    source = (ROOT / "app/main.py").read_text(encoding="utf-8")
+    assert '"08_vo-tuong": ["Vo_Tuong"]' in source
 
 
 def test_activity_script_places_optional_newcomer_after_tax():

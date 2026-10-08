@@ -6,6 +6,10 @@ config: config/dc3q/targets/08_vo-tuong.yaml
 # Skip Ton Ngoc/cuộn thư/Chiêm tinh/ambiguous controls.
 steps:
   - open_vo_tuong
+  - open_kho_tuong
+  - open_diem_tuong
+  - open_nhan_duc_tu_tuong
   - claim_nhan_de_tu_tuong_free_if_available
   - dismiss_reward
-  - close_to_home
+  - close_nhan_duc_to_kho_tuong
+  - close_kho_tuong_to_home

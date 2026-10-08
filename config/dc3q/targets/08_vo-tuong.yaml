@@ -1,7 +1,10 @@
 vo_tuong:
   enabled: true
   threshold: 0.60
-  max_steps: 20
+  action_threshold: 0.80
+  state_margin: 0.05
+  close_threshold: 0.54
+  max_steps: 40
   wait_seconds: 0.8
   home:
     menu:
@@ -10,17 +13,48 @@ vo_tuong:
       - data/img/templates/stars/home/screen/screen_vo-tuong_01.png
     markers:
       - data/img/templates/stars/home/screen/screen_noi-chinh_01.png
-  panel:
+  kho:
+    markers:
+      - data/img/templates/targets/08_vo-tuong/screen/screen_vt_khotuong_button_diemtuong.png
+    point_button: data/img/templates/targets/08_vo-tuong/screen/screen_vt_khotuong_button_diemtuong.png
+  point:
+    markers:
+      - data/img/templates/targets/08_vo-tuong/full screen/full-screen_vt_diemtuong_conluot_01.png
+      - data/img/templates/targets/08_vo-tuong/full screen/full-screen_vt_diemtuong_demnguoc_01.png
+  thien_van:
+    banner: data/img/templates/targets/08_vo-tuong/screen/screen_vt_diemtuong_banner_thienvankituong.png
     markers:
       - data/img/templates/targets/08_vo-tuong/full screen/full-screen_vt_thienvankituong_01.png
-      - data/img/templates/targets/08_vo-tuong/full screen/full-screen_vt_nhandectutuong_conluot_01.png
-      - data/img/templates/targets/08_vo-tuong/full screen/full-screen_vt_khotuong_01.png
-      - data/img/templates/targets/08_vo-tuong/full screen/full-screen_vt_chiemtinhuocnguyen_01.png
-    close: data/img/templates/targets/08_vo-tuong/screen/screen_vt_button_dong.png
+      - data/img/templates/targets/08_vo-tuong/screen/screen_vt_thienvankituong_button_rut1lan_cuonthu.png
+    paid: data/img/templates/targets/08_vo-tuong/screen/screen_vt_thienvankituong_button_rut1lan_cuonthu.png
+  nhan_duc:
+    banner: data/img/templates/targets/08_vo-tuong/screen/screen_vt_diemtuong_banner_nhandectutuong.png
+    markers:
+      - data/img/templates/targets/08_vo-tuong/screen/screen_vt_nhandectutuong_button_rut1lan_mienphi.png
+      - data/img/templates/targets/08_vo-tuong/screen/screen_vt_nhandectutuong_button_rut1lan_tonngoc.png
+    free: data/img/templates/targets/08_vo-tuong/screen/screen_vt_nhandectutuong_button_rut1lan_mienphi.png
+    paid: data/img/templates/targets/08_vo-tuong/screen/screen_vt_nhandectutuong_button_rut1lan_tonngoc.png
+  chiem_tinh:
+    banner: data/img/templates/targets/08_vo-tuong/screen/screen_vt_diemtuong_banner_chiemtinhuocnguyen.png
+    markers:
+      - data/img/templates/targets/08_vo-tuong/screen/screen_vt_chiemtinh_soluong_5_button_cong.jpg
+      - data/img/templates/targets/08_vo-tuong/screen/screen_vt_chiemtinh_button_cong_02.jpg
+    plus:
+      - data/img/templates/targets/08_vo-tuong/screen/screen_vt_chiemtinh_button_cong_02.jpg
+      - data/img/templates/targets/08_vo-tuong/screen/screen_vt_chiemtinh_button_cong.png
+    popup:
+      - data/img/templates/targets/08_vo-tuong/screen/screen_vt_chiemtinh_popup_phucau_nguyen_doi_title.jpg
+      - data/img/templates/targets/08_vo-tuong/full screen/full-screen_vt_chiemtinh_popup_phucau_nguyen_doi.jpg
+    slider_max: data/img/templates/targets/08_vo-tuong/screen/screen_vt_chiemtinh_popup_soluong_thanhkeo_max.jpg
+    slider_start: [399, 297]
+    slider_end: [609, 297]
+    quantity_plus_point: [643, 297]
+    confirm_point: [481, 370]
+    reward:
+      - data/img/templates/targets/08_vo-tuong/screen/screen_vt_chiemtinh_ketqua_chucmungnhanduoc.jpg
+      - data/img/templates/targets/08_vo-tuong/screen/screen_vt_chiemtinh_ketqua_anvaochotrongdethoat.jpg
+    reward_dismiss_point: [759, 395]
+  close: data/img/templates/targets/08_vo-tuong/screen/screen_vt_button_dong.png
   reward:
     marker: data/img/templates/targets/08_vo-tuong/full screen/full-screen_vt_nhandectutuong_ketqua_01.png
     dismiss: data/img/templates/targets/08_vo-tuong/screen/screen_vt_button_trove.png
-  safe_actions:
-    - data/img/templates/targets/08_vo-tuong/screen/screen_vt_nhandectutuong_button_rut1lan_mienphi.png
-  forbidden_actions:
-    - data/img/templates/targets/08_vo-tuong/screen/screen_vt_nhandectutuong_button_rut1lan_tonngoc.png

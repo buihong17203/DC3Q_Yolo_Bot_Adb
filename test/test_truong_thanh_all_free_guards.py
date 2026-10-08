@@ -102,6 +102,30 @@ def test_fresh_free_gate_rejects_stale_free_when_fresh_frame_is_paid():
     assert free is None
 
 
+def test_a7_accepts_proven_free_label_despite_paid_template_frame_overlap():
+    runner = object.__new__(module.TruongThanhRunner)
+    flow = module.SubFlow(
+        "A7_chien-hon", [], ["free"], ["paid"], ["close"],
+        hub_entry=["hub"], free_threshold=.80,
+    )
+    fresh = object()
+    runner.screen_provider = lambda: fresh
+    runner._a7_has_free_label = lambda screen: screen is fresh
+    runner._first = lambda screen, templates, threshold=None: (
+        hit() if screen is fresh and templates in (["hub"], ["free"], ["paid"], ["close"]) else None
+    )
+    taps = []
+    runner._tap = lambda match: taps.append(match)
+    runner._wait_first = lambda templates, attempts=6, threshold=None: (fresh, hit())
+    runner._finish_flow = lambda flow, screen: True
+    runner._open_home_entry = lambda: None
+    runner._flow_by_name = lambda name: flow
+
+    runner._run_a7()
+
+    assert len(taps) == 2  # hub + FREE
+
+
 def test_fresh_free_gate_accepts_only_clear_free_winner():
     runner = object.__new__(module.TruongThanhRunner)
     fresh = object()

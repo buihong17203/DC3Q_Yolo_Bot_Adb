@@ -23,7 +23,8 @@ class QuanSuConfig:
 
 
 class QuanSuRunner:
-    """Quân sự reward-only runner; never starts unfinished battles."""
+    """Tranh Bá reward-only runner; never starts unfinished battles."""
+    runtime_task = "TRANH_BA"
 
     def __init__(self, screen_provider, adb_input, vision, config: QuanSuConfig,
                  sleep: Callable[[float], None] = default_sleep):

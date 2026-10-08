@@ -26,8 +26,8 @@ class AccountRuntime:
         "TT_A6_Than_Binh",
         "TT_A7_Chien_Hon",
         "Vo_Tuong",
-        "Quan_Su",
-        "Nhiem_Vu",
+        "Giao_Tranh",
+        "Tranh_Ba",
     ]
     FIELDS = [
         "id", "status", "attempts", "assigned_device", *TASK_FIELDS,
@@ -68,6 +68,9 @@ class AccountRuntime:
                         timestamp=row.get("last_run") or None,
                     )
         if reader.fieldnames != self.FIELDS:
+            for row in rows:
+                row["Tranh_Ba"] = row.get("Tranh_Ba") or row.get("Quan_Su") or "READY"
+                row["Giao_Tranh"] = row.get("Giao_Tranh") or row.get("Nhiem_Vu") or "READY"
             self._write(rows)
 
     def maybe_rollover(self, now: datetime | None = None) -> None:
