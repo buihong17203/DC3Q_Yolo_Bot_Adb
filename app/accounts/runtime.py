@@ -149,7 +149,8 @@ class AccountRuntime:
         now = datetime.now(self.TIMEZONE)
         stamp = timestamp or now.isoformat(timespec="seconds")
         day = stamp[:10] if len(stamp) >= 10 else now.date().isoformat()
-        path = self.runtime_file.parent / f"error_message_{day}.txt"
+        self.archive_dir.mkdir(parents=True, exist_ok=True)
+        path = self.archive_dir / f"error_message_{day}.txt"
         message = " ".join(str(error).splitlines()).strip()
         line = f"{stamp} | account={account_id} | task={task or '-'} | type={kind} | {message}\n"
         with self._lock:

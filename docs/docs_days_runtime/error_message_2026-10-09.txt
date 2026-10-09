@@ -1,0 +1,8 @@
+2026-10-09T17:33:30+07:00 | account=acc_001 | task=Hoat_Dong | type=TASK | home target error: Quà online: Hoạt động: Quà online bấm Nhận nhưng chưa xuất hiện thưởng
+2026-10-09T17:35:20+07:00 | account=acc_001 | task=Cua_Hang | type=TASK | home target error: Shop Danh Vọng: Cửa hàng: thấy Shop Danh Vọng nhưng bấm xong tab chưa mở
+2026-10-09T17:36:11+07:00 | account=acc_001 | task=Quan_Doan | type=TASK | home target error: Quân đoàn: đã bấm Vào quân đoàn nhưng chưa vào màn Quân đoàn thật
+2026-10-09T17:54:07+07:00 | account=acc_001 | task=Hoat_Dong | type=TASK | home target error: Quà online: Hoạt động: Quà online bấm Nhận nhưng chưa xuất hiện thưởng
+2026-10-09T17:56:00+07:00 | account=acc_001 | task=Quan_Doan | type=TASK | home target error: Quân đoàn: đã bấm Vào quân đoàn nhưng chưa vào màn Quân đoàn thật
+2026-10-09T18:01:48+07:00 | account=acc_001 | task=Tranh_Ba | type=TASK | home target error: Tranh Bá: OCR không chứng minh được nút Quân sự
+2026-10-09T18:05:36+07:00 | account=acc_002 | task=Hoat_Dong | type=TASK | home target error: Quà online: Hoạt động: Quà online bấm Nhận nhưng chưa xuất hiện thưởng
+2026-10-09T18:07:29+07:00 | account=acc_002 | task=Quan_Doan | type=TASK | home target error: Quân đoàn: đã bấm Vào quân đoàn nhưng chưa vào màn Quân đoàn thật

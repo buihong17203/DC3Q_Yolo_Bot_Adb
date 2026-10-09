@@ -14,19 +14,37 @@ from app.adb.commands import get_android_properties
 LOGGER = logging.getLogger("dc3q")
 
 
+class _VisionLogFilter(logging.Filter):
+    def __init__(self, *, vision_only: bool):
+        super().__init__()
+        self.vision_only = vision_only
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        is_vision = record.getMessage().startswith("VISION |")
+        return is_vision if self.vision_only else not is_vision
+
+
 def configure_logging(root: Path | None = None, *, day: date | None = None) -> Path:
     root = (root or Path(__file__).resolve().parents[1]).resolve()
     log_dir = root / "logs" / "logs_days_runtime"
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_path = log_dir / f"dc3q_{(day or date.today()):%Y-%m-%d}.log"
+    stamp = day or date.today()
+    log_path = log_dir / f"dc3q_log-powershell_{stamp:%Y-%m-%d}.log"
+    vision_path = log_dir / f"dc3q_vision_{stamp:%Y-%m-%d}.log"
+    formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(message)s", datefmt="%H:%M:%S",
+    )
+    console = logging.StreamHandler()
+    power_file = logging.FileHandler(log_path, encoding="utf-8")
+    vision_file = logging.FileHandler(vision_path, encoding="utf-8")
+    for handler in (console, power_file):
+        handler.addFilter(_VisionLogFilter(vision_only=False))
+        handler.setFormatter(formatter)
+    vision_file.addFilter(_VisionLogFilter(vision_only=True))
+    vision_file.setFormatter(formatter)
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s | %(levelname)s | %(message)s",
-        datefmt="%H:%M:%S",
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler(log_path, encoding="utf-8"),
-        ],
+        handlers=[console, power_file, vision_file],
         force=True,
     )
     return log_path
@@ -627,10 +645,13 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
             elif module_name == "09_quan-su":
                 c = target_config["quan_su"]
                 target = module.QuanSuRunner(controller._screen, controller.input, controller.logout_action.vision,
-                    module.QuanSuConfig(paths(c["home"]["entry"]), paths(c["home"]["menu"]), paths(c["home"]["markers"]),
-                        paths(c["panel"]["markers"]), _resolve_project_path(root, c["panel"]["close"]),
-                        _resolve_project_path(root, c["reward"]["button"]), paths(c["reward"]["claimed"]),
-                        paths(c["forbidden"]["unfinished_battle"]), float(c.get("threshold", .6)), int(c.get("max_steps", 16)), float(c.get("wait_seconds", .8))))
+                    module.QuanSuConfig(tuple(c["home"]["military_point"]),
+                        tuple(c["home"]["military_close_point"]), paths(c["home"]["tranh_ba_entry"]),
+                        paths(c["home"]["markers"]), paths(c["panel"]["main_markers"]),
+                        paths(c["panel"]["detail_markers"]), _resolve_project_path(root, c["reward"]["tab"]),
+                        _resolve_project_path(root, c["reward"]["button"]), paths(c["reward"]["unfinished"]),
+                        _resolve_project_path(root, c["panel"]["close"]), float(c.get("threshold", .6)),
+                        int(c.get("max_steps", 20)), float(c.get("wait_seconds", .8))))
             else:
                 raise ValueError(f"Home target chưa hỗ trợ: {module_name}")
             if module_name == "07_truong-thanh":

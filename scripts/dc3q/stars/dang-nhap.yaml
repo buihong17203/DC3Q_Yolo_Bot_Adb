@@ -14,6 +14,7 @@ home_targets:
   - scripts/dc3q/targets/06_xa-giao.yaml
   - scripts/dc3q/targets/07_truong-thanh.yaml
   - scripts/dc3q/targets/08_vo-tuong.yaml
+  - scripts/dc3q/targets/09_quan-su.yaml
 account_file: data/accounts/accounts.csv
 runtime_file: data/accounts/account_runtime.csv
 runtime_archive_dir: docs/docs_days_runtime
