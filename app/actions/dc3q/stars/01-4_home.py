@@ -3,6 +3,12 @@ from __future__ import annotations
 from app.adb.input import DailyCutoff
 
 
+class GameRestartRequired(RuntimeError):
+    def __init__(self, task: str, error: str):
+        super().__init__(error)
+        self.task = task
+
+
 class HomeAction:
     """Handle safe HOME popups and run the configured HOME target once."""
 
@@ -84,13 +90,22 @@ class HomeAction:
                 recover = getattr(target, "recover_home", None)
                 if recover is None:
                     raise
-                try:
-                    recovered = recover()
-                except Exception:
-                    raise exc
+                task = self.current_task
+                limit = int(getattr(self.config, "target_retry_limit", 3))
+                recovered = False
+                for attempt in range(1, limit + 1):
+                    try:
+                        recovered = bool(recover())
+                    except Exception as recovery_error:
+                        __import__("logging").getLogger("dc3q").warning(
+                            "HOME | recovery lỗi | task=%s | lần=%d/%d | lỗi=%s",
+                            task, attempt, limit, recovery_error,
+                        )
+                    if recovered:
+                        break
                 if not recovered:
-                    raise exc
-                # Recoverable module failure: record it, then continue the chain.
+                    raise GameRestartRequired(task, str(exc)) from exc
+                # Module failed but HOME is safe: record ERROR and continue.
                 self.last_task_error = str(exc)
                 self.target_index += 1
                 self.recovery_attempts = 0
@@ -99,3 +114,17 @@ class HomeAction:
             return False
         self.confirmations += 1
         return self.confirmations >= self.config.logged_in_confirmations
+
+    def resume_after_game_restart(self, task: str) -> None:
+        if task != self.current_task:
+            raise RuntimeError(f"Checkpoint restart lệch: {task} != {self.current_task}")
+        self.confirmations = 0
+
+    def continue_after_esc_home(self, task: str) -> None:
+        """ESC recovered canonical HOME: preserve ERROR and advance one module."""
+        if task != self.current_task:
+            raise RuntimeError(f"Checkpoint ESC lệch: {task} != {self.current_task}")
+        self.last_task_error = ""
+        self.target_index += 1
+        self.confirmations = 0
+        self._skip_completed()

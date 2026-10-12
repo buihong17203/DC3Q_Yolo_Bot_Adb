@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from time import sleep as default_sleep
 from typing import Callable
+
+LOGGER = logging.getLogger("dc3q")
 
 
 @dataclass(frozen=True)
@@ -20,12 +23,20 @@ class KhongGianCaNhanConfig:
     share_panel: Path
     share_button: Path
     share_after: list[Path]
+    battle_report_entry: Path
+    mail_tab_closed: Path
+    mail_tab_open: Path
+    mail_claim: Path
+    mail_claimed: Path
+    mail_delete: Path
+    mail_close: Path
     threshold: float = 0.65
     state_threshold: float = 0.80
     max_steps: int = 24
     wait_seconds: float = 0.8
     state_wait_attempts: int = 24
     info_close: Path | None = None
+    mail_max_messages: int = 30
 
 
 class KhongGianCaNhanRunner:
@@ -93,6 +104,10 @@ class KhongGianCaNhanRunner:
                     return False
                 self._tap(close)
                 continue
+            cb_close = self._match(screen, self.config.mail_close)
+            if cb_close.found:
+                self._tap(cb_close)
+                continue
             self.sleep(self.config.wait_seconds)
         return False
 
@@ -155,6 +170,212 @@ class KhongGianCaNhanRunner:
             "Không gian cá nhân: Like toàn bộ chưa tạo trạng thái đã like",
         )
 
+    @staticmethod
+    def _plain(text: str) -> str:
+        import unicodedata
+        return "".join(
+            char for char in unicodedata.normalize("NFKD", text)
+            if not unicodedata.combining(char)
+        ).lower()
+
+    def _ocr_rows(self, screen):
+        from rapidocr_onnxruntime import RapidOCR
+        import numpy as np
+        data = screen.data if hasattr(screen, "data") else screen
+        image = np.asarray(data.convert("RGB")) if hasattr(data, "convert") else np.asarray(data)
+        result, _ = RapidOCR()(image)
+        return result or []
+
+    def _ocr_text(self, screen) -> str:
+        return self._plain(" ".join(str(row[1]) for row in self._ocr_rows(screen)))
+
+    def _find_ocr_center(
+        self, screen, keywords: str | list[str],
+        y_min: int = 0, y_max: int = 9999,
+        x_min: int = 0, x_max: int = 9999,
+    ) -> tuple[int, int] | None:
+        if isinstance(keywords, str):
+            keywords = [keywords]
+        clean_keys = [self._plain(k).replace(" ", "") for k in keywords]
+        for row in self._ocr_rows(screen):
+            text = self._plain(str(row[1])).replace(" ", "")
+            if any(k in text for k in clean_keys):
+                points = row[0]
+                x = int(sum(point[0] for point in points) / len(points))
+                y = int(sum(point[1] for point in points) / len(points))
+                if x_min <= x <= x_max and y_min <= y <= y_max:
+                    return x, y
+        return None
+
+    def _mail_count(self, screen) -> int | None:
+        import re
+        text = self._ocr_text(screen)
+        match = re.search(r"(\d+)\s*/\s*30", text)
+        if match:
+            return int(match.group(1))
+        match_alt = re.search(r"(\d+)\s*/\s*\d+", text)
+        if match_alt:
+            return int(match_alt.group(1))
+        return None
+
+    def _has_claim_button(self, screen) -> tuple[bool, tuple[int, int] | None]:
+        claim = self._match(screen, self.config.mail_claim, self.config.state_threshold)
+        claimed = self._match(screen, self.config.mail_claimed, self.config.state_threshold)
+        if claim.found and claim.confidence >= (claimed.confidence if claimed.found else 0.0):
+            return True, (claim.x + claim.width // 2, claim.y + claim.height // 2)
+        ocr_pos = self._find_ocr_center(screen, "nhan", y_min=450, x_min=650)
+        if ocr_pos:
+            return True, ocr_pos
+        return False, None
+
+    def _has_delete_button(self, screen) -> tuple[bool, tuple[int, int] | None]:
+        delete = self._match(screen, self.config.mail_delete, self.config.state_threshold)
+        if delete.found:
+            return True, (delete.x + delete.width // 2, delete.y + delete.height // 2)
+        ocr_pos = self._find_ocr_center(screen, "xoa", y_min=450, x_min=350, x_max=550)
+        if ocr_pos:
+            return True, ocr_pos
+        return False, None
+
+    def _open_battle_report(self, screen):
+        if self._first(screen, self.home_templates()) is None:
+            if not self.recover_home():
+                raise RuntimeError("Không gian cá nhân: chưa ở HOME trước Chiến báo")
+            screen = self.screen_provider()
+
+        entry_match = self._match(screen, self.config.battle_report_entry)
+        if entry_match.found:
+            self._tap(entry_match)
+        else:
+            cb_pos = self._find_ocr_center(screen, "chienbao")
+            if cb_pos:
+                self.input.tap(*cb_pos)
+                self.sleep(self.config.wait_seconds)
+            else:
+                raise RuntimeError("Không gian cá nhân: HOME thiếu control Chiến báo (template & OCR)")
+
+        screen = self._prove(
+            [self.config.mail_tab_closed, self.config.mail_tab_open, self.config.mail_close],
+            "Không gian cá nhân: bấm Chiến báo nhưng chưa mở bảng",
+            self.config.state_wait_attempts,
+        )
+
+        closed = self._match(screen, self.config.mail_tab_closed, self.config.state_threshold)
+        opened = self._match(screen, self.config.mail_tab_open, self.config.state_threshold)
+        if closed.found and (not opened.found or closed.confidence > opened.confidence):
+            self._tap(closed)
+            screen = self._prove(
+                [self.config.mail_tab_open],
+                "Không gian cá nhân: mở Nhận rương nhưng chưa thấy tab mở",
+                self.config.state_wait_attempts,
+            )
+        elif not opened.found:
+            nr_pos = self._find_ocr_center(screen, ["nhenruong", "nhanruong"])
+            if nr_pos:
+                self.input.tap(*nr_pos)
+                self.sleep(self.config.wait_seconds)
+                screen = self.screen_provider()
+
+        return screen
+
+    def _dismiss_full_bag(self, screen) -> tuple[object, bool]:
+        text = self._ocr_text(screen)
+        if "khong du cho" not in text or "tui the vo tuong" not in text:
+            return screen, False
+        LOGGER.info("KGCN | Phát hiện popup kho không đủ chỗ, đang đóng nút X...")
+        # Live 960x540 popup: X=(705, 139); never Enhance/Expand bag.
+        self.input.tap(705, 139)
+        self.sleep(self.config.wait_seconds)
+        after = self.screen_provider()
+        after_text = self._ocr_text(after)
+        if "khong du cho" in after_text and "tui the vo tuong" in after_text:
+            raise RuntimeError("Không gian cá nhân: popup kho đầy chưa đóng")
+        return after, True
+
+    def _delete_current_mail(self, screen, count_before: int | None):
+        has_del, del_pos = self._has_delete_button(screen)
+        if not has_del:
+            LOGGER.info("KGCN | Không tìm thấy nút Xóa thư hiện tại")
+            return screen
+        self.input.tap(*del_pos)
+        self.sleep(self.config.wait_seconds)
+
+        # Prove the destructive popup before its right-side confirm.
+        for _ in range(3):
+            prompt = self.screen_provider()
+            prompt_text = self._ocr_text(prompt)
+            if "file dinh kem se mat" in prompt_text and "chac chan muon xoa" in prompt_text:
+                confirm_pos = self._find_ocr_center(
+                    prompt, ["xacnhan", "dongy"], y_min=300, y_max=410, x_min=500,
+                )
+                if confirm_pos:
+                    self.input.tap(*confirm_pos)
+                else:
+                    self.input.tap(590, 354)
+                self.sleep(self.config.wait_seconds)
+                break
+            self.sleep(0.3)
+
+        else:
+            raise RuntimeError("Không gian cá nhân: popup Xóa không đúng nội dung")
+
+        if count_before is None:
+            raise RuntimeError("Không gian cá nhân: không đọc được số thư trước khi Xóa")
+        # Only exact N→N-1 proves deletion; popup disappearance is insufficient.
+        for _ in range(self.config.state_wait_attempts):
+            after = self.screen_provider()
+            count_after = self._mail_count(after)
+            if count_after == count_before - 1:
+                return after
+            self.sleep(self.config.wait_seconds)
+        raise RuntimeError("Không gian cá nhân: Xóa thư nhưng số lượng không giảm đúng 1")
+
+    def _process_battle_report_mail(self, screen):
+        for index in range(self.config.mail_max_messages):
+            count_before = self._mail_count(screen)
+            if count_before == 0:
+                LOGGER.info("KGCN | Chiến báo đã xử lý hết thư (count=0)")
+                break
+
+            has_del, _ = self._has_delete_button(screen)
+            has_claim, claim_pos = self._has_claim_button(screen)
+            if not has_del and not has_claim:
+                LOGGER.info("KGCN | Không còn nút Nhận/Xóa trên màn hình -> Hết thư")
+                break
+
+            # 1. Nếu có nút nhận thưởng: bấm nhận thưởng
+            if has_claim and claim_pos:
+                LOGGER.info("KGCN | Thư %d: bấm nút Nhận tại %s", index + 1, claim_pos)
+                self.input.tap(*claim_pos)
+                self.sleep(self.config.wait_seconds)
+                screen = self.screen_provider()
+
+                # Kiểm tra popup kho không đủ chỗ
+                screen, full = self._dismiss_full_bag(screen)
+                if full:
+                    # Bấm nhận tiếp lần 2
+                    has_claim2, claim_pos2 = self._has_claim_button(screen)
+                    if has_claim2 and claim_pos2:
+                        LOGGER.info("KGCN | Thư %d: kho đầy -> bấm Nhận tiếp lần 2", index + 1)
+                        self.input.tap(*claim_pos2)
+                        self.sleep(self.config.wait_seconds)
+                        screen = self.screen_provider()
+                        screen, _ = self._dismiss_full_bag(screen)
+
+            # 2. Bấm nút xóa (sau khi nhận xong hoặc nếu không có nút nhận thưởng)
+            LOGGER.info("KGCN | Thư %d: thực hiện Xóa thư", index + 1)
+            screen = self._delete_current_mail(screen, count_before)
+
+        # Đóng cửa sổ Chiến báo
+        close = self._match(screen, self.config.mail_close, self.config.state_threshold)
+        if close.found:
+            self._tap(close)
+        else:
+            self.input.tap(876, 75)
+            self.sleep(self.config.wait_seconds)
+
+        return self._prove(self.home_templates(), "Không gian cá nhân: đóng Chiến báo nhưng chưa về HOME")
+
     def run(self) -> bool:
         screen = self.screen_provider()
         if self._first(screen, self.config.personal_markers) is None:
@@ -186,4 +407,6 @@ class KhongGianCaNhanRunner:
         self._share_once(screen)
         if not self.recover_home():
             raise RuntimeError("Không gian cá nhân: không recover_home được")
+        screen = self._open_battle_report(self.screen_provider())
+        self._process_battle_report_mail(screen)
         return True

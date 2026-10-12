@@ -1,12 +1,11 @@
 nhiem_vu:
-  # Chưa có crop nút X riêng; không vào màn nếu không thể đóng bằng ảnh xác minh.
-  enabled: false
+  enabled: true
   threshold: 0.60
-  max_steps: 24
+  state_threshold: 0.76
+  max_steps: 30
   wait_seconds: 0.8
   home:
-    menu:
-      - data/img/templates/stars/home/screen/screen_home_morong_chamthan.png
+    menu: []
     entry:
       - data/img/templates/stars/home/screen/screen_nhiem-vu_01.png
     markers:
@@ -14,10 +13,17 @@ nhiem_vu:
   panel:
     markers:
       - data/img/templates/targets/10_nhiem-vu/full screen/full-screen_nv_hangngay_01.png
-    close: null
+    close_point: [904, 81]
+  blocked_popup:
+    close_point: [696, 163]
   reward:
     claim_button: data/img/templates/targets/10_nhiem-vu/screen/screen_nv_button_nhan.png
     available:
+      - data/img/templates/targets/10_nhiem-vu/screen/image.png
+      - data/img/templates/targets/10_nhiem-vu/screen/image copy.png
+      - data/img/templates/targets/10_nhiem-vu/screen/image copy 2.png
+      - data/img/templates/targets/10_nhiem-vu/screen/image copy 3.png
+      - data/img/templates/targets/10_nhiem-vu/screen/image copy 4.png
       - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_90_cothenhan.png
     claimed:
       - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_30_danhan.png

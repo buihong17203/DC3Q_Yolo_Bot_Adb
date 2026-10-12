@@ -298,7 +298,7 @@ class HoatDongRunner:
             self.sleep(self.config.wait_seconds)
         raise RuntimeError("Hoạt động: bấm Tân thủ nhưng chưa thấy tab mở")
 
-    def _wait_newcomer_reward(self):
+    def _wait_newcomer_reward(self, claimed: Path | None = None):
         for _ in range(10):
             screen = self.screen_provider()
             if self._match(screen, self.config.newcomer_reward_marker).found:
@@ -307,8 +307,10 @@ class HoatDongRunner:
                     raise RuntimeError("Hoạt động/Tân thủ: thấy thưởng nhưng thiếu vùng đóng an toàn")
                 self._tap(dismiss)
                 return self.screen_provider()
+            if claimed is not None and self._match(screen, claimed, self.config.state_threshold).found:
+                return screen
             self.sleep(self.config.wait_seconds)
-        raise RuntimeError("Hoạt động/Tân thủ: bấm Nhận nhưng chưa thấy thưởng")
+        raise RuntimeError("Hoạt động/Tân thủ: bấm Nhận nhưng chưa thấy thưởng hoặc Đã nhận")
 
     def _claim_newcomer_vassal_rewards(self, screen):
         """Claim every visible Chư hầu chi thủy button; never tap Đến."""
@@ -338,7 +340,7 @@ class HoatDongRunner:
         if state != "claimable":
             return screen
         self._tap(winner)
-        screen = self._wait_newcomer_reward()
+        screen = self._wait_newcomer_reward(claimed)
         for _ in range(8):
             verify = self.screen_provider()
             if self._match(verify, claimed, self.config.state_threshold).found:

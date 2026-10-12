@@ -27,6 +27,7 @@ class SubFlow:
     bonus_continue: list[Path] | None = None
     bonus_tap_point: tuple[int, int] = (480, 360)
     recall: list[Path] | None = None
+    reward_popup: list[Path] | None = None
 
 
 @dataclass(frozen=True)
@@ -71,6 +72,8 @@ class TruongThanhConfig:
     a2_chest_popup_close: Path
     a2_chest_popup_close_point: tuple[int, int]
     a2_reset_2000: Path
+    a2_reset_2000_marker: Path
+    a2_reset_2000_claim_point: tuple[int, int]
     a3_right_anchor: Path
     a3_markers: list[Path]
     a3_phong_hau_open: list[Path]
@@ -100,6 +103,15 @@ class TruongThanhConfig:
     a5_gold_free_roi: tuple[int, int, int, int]
     a5_reward_dismiss_point: tuple[int, int]
     a5_max_adjustments: int
+    a5_harvest: Path
+    a5_sell_home: Path
+    a5_sell_many: Path
+    a5_sell_action: Path
+    a5_sell_popup: Path
+    a5_sell_confirm: Path
+    a5_sell_close: Path
+    a5_quality_points: list[tuple[int, int]]
+    a5_protection_points: list[tuple[int, int]]
     a7_free_label_roi: tuple[int, int, int, int]
     state_threshold: float
     state_margin: float
@@ -471,6 +483,21 @@ class TruongThanhRunner:
             self._match(screen, self.config.a2_paid, 0.0),
         )
 
+    def _claim_a2_reset_2000(self, screen):
+        """A proven 2000-reward popup authorizes one fixed Nhận tap."""
+        markers = [self.config.a2_reset_2000_marker, self.config.a2_reset_2000]
+        if self._first(screen, markers) is None:
+            return screen, False
+        self.input.tap(*self.config.a2_reset_2000_claim_point)
+        self.sleep(self.config.wait_seconds)
+        after = self.screen_provider()
+        if self._first(after, markers) is not None:
+            raise RuntimeError("Trường thành A2: bấm Nhận 2000 nhưng popup chưa đóng")
+        logging.getLogger("dc3q").info(
+            "TT | A2 nhận 2000 bằng tọa độ cố định và popup đã đóng"
+        )
+        return after, True
+
     def _close_a2_chest_popup(self, screen, attempts: int = 3):
         """A2 only: proven chest popup authorizes its fixed Close point."""
         for _ in range(attempts):
@@ -490,11 +517,8 @@ class TruongThanhRunner:
         for _ in range(24):
             if screen is None:
                 screen = self.screen_provider()
-            reset = self._match(screen, self.config.a2_reset_2000)
-            if reset.found:
-                self._tap(reset)
-                logger.info("TT | A2 nhận 2000 và reset vùng thăm dò")
-                screen = None
+            screen, claimed_reset = self._claim_a2_reset_2000(screen)
+            if claimed_reset:
                 continue
             if self._first(screen, self.config.a2_rewards) is not None:
                 # Live popup X scores 0.652; the reward marker already proves
@@ -826,6 +850,90 @@ class TruongThanhRunner:
         match = re.search(r"lu.?t\s*mien\D*(\d+)", text)
         return int(match.group(1)) if match else None
 
+    def _a5_checkbox_selected(self, screen, point: tuple[int, int]) -> bool:
+        """Green tick pixels distinguish selected from purple empty circles."""
+        import cv2
+        import numpy as np
+        image = self._screen_array(screen)
+        x, y = point
+        roi = image[max(0, y - 10):y + 11, max(0, x - 10):x + 11]
+        hsv = cv2.cvtColor(np.asarray(roi), cv2.COLOR_RGB2HSV)
+        green = (
+            (hsv[:, :, 0] >= 35) & (hsv[:, :, 0] <= 95)
+            & (hsv[:, :, 1] >= 70) & (hsv[:, :, 2] >= 70)
+        )
+        return int(green.sum()) >= 40
+
+    def _a5_collect_grass(self, screen):
+        harvest = self._match(screen, self.config.a5_harvest)
+        if not harvest.found:
+            return screen
+        self._tap(harvest)
+        for _ in range(6):
+            screen = self.screen_provider()
+            if not self._match(screen, self.config.a5_harvest).found:
+                logging.getLogger("dc3q").info("TT | A5 đã thu hoạch cỏ")
+                return screen
+            self.sleep(self.config.wait_seconds)
+        raise RuntimeError("Trường thành A5: bấm liềm nhưng trạng thái thu hoạch không đổi")
+
+    def _a5_sell_mounts(self, screen):
+        logger = logging.getLogger("dc3q")
+        sell_home = self._match(screen, self.config.a5_sell_home)
+        if not sell_home.found:
+            logger.info("TT | A5 không thấy Bán ra tại màn Trại Ngựa")
+            return screen
+        self._tap(sell_home)
+        screen, sell_many = self._wait_first([self.config.a5_sell_many], attempts=12)
+        if sell_many is None:
+            raise RuntimeError("Trường thành A5: mở Bán ra nhưng thiếu Bán nhiều")
+        self._tap(sell_many)
+        screen, sell_many_screen = self._wait_first([self.config.a5_sell_close], attempts=12)
+        if sell_many_screen is None:
+            raise RuntimeError("Trường thành A5: mở Bán nhiều nhưng thiếu màn chọn phẩm chất")
+        for point in self.config.a5_quality_points:
+            if not self._a5_checkbox_selected(screen, point):
+                self.input.tap(*point)
+                self.sleep(self.config.wait_seconds)
+                screen = self.screen_provider()
+        if not all(self._a5_checkbox_selected(screen, p) for p in self.config.a5_quality_points):
+            raise RuntimeError("Trường thành A5: chưa chọn đủ Trắng/Lục/Lam/Tím")
+        if any(self._a5_checkbox_selected(screen, p) for p in self.config.a5_protection_points):
+            raise RuntimeError("Trường thành A5: ô bảo vệ kỹ năng/nuôi dưỡng đang bị chọn; không bán")
+        sell_action = self._match(screen, self.config.a5_sell_action)
+        if not sell_action.found:
+            logger.info("TT | A5 không có thú cưỡi hợp lệ để bán")
+            return self._a5_close_sell(screen)
+        self._tap(sell_action)
+        screen, popup = self._wait_first([self.config.a5_sell_popup], attempts=12)
+        if popup is None:
+            raise RuntimeError("Trường thành A5: bấm Bán ra nhưng thiếu popup Xác nhận")
+        confirm = self._match(screen, self.config.a5_sell_confirm)
+        if not confirm.found:
+            raise RuntimeError("Trường thành A5: popup bán thiếu nút Xác nhận")
+        self._tap(confirm)
+        for _ in range(12):
+            screen = self.screen_provider()
+            if (not self._match(screen, self.config.a5_sell_popup).found
+                    and not any(self._a5_checkbox_selected(screen, p)
+                                for p in self.config.a5_quality_points)):
+                logger.info("TT | A5 bán Trắng/Lục/Lam/Tím; giữ bảo vệ kỹ năng/nuôi dưỡng")
+                return self._a5_close_sell(screen)
+            self.sleep(self.config.wait_seconds)
+        raise RuntimeError("Trường thành A5: chưa chứng minh bán hoàn tất")
+
+    def _a5_close_sell(self, screen):
+        close = self._match(screen, self.config.a5_sell_close)
+        if not close.found:
+            raise RuntimeError("Trường thành A5: màn bán thiếu nút đóng")
+        self._tap(close)
+        screen, home = self._wait_first(
+            [self.config.a5_sell_home, self.config.a5_harvest], attempts=12,
+        )
+        if home is None:
+            raise RuntimeError("Trường thành A5: đóng màn bán nhưng chưa về Trại Ngựa")
+        return screen
+
     def _a7_has_free_label(self, screen) -> bool:
         import unicodedata
         from rapidocr_onnxruntime import RapidOCR
@@ -846,7 +954,16 @@ class TruongThanhRunner:
             logger.info("TT | A5 NOT_AVAILABLE")
             return
         self._tap(hub_entry)
-        screen, entry = self._wait_first(flow.entry, attempts=12)
+        screen, home_state = self._wait_first(
+            [self.config.a5_harvest, self.config.a5_sell_home, *flow.entry], attempts=12,
+        )
+        if home_state is None:
+            raise RuntimeError("Trường thành A5: vào Trại Ngựa nhưng thiếu trạng thái")
+        screen = self._a5_collect_grass(screen)
+        screen = self._a5_sell_mounts(screen)
+        entry = self._first(screen, flow.entry)
+        if entry is None:
+            screen, entry = self._wait_first(flow.entry, attempts=12)
         if entry is None:
             raise RuntimeError("Trường thành A5: thiếu Tướng Mã Quán miễn phí")
         self._tap(entry)
@@ -937,7 +1054,7 @@ class TruongThanhRunner:
             if back is None:
                 raise RuntimeError("Trường thành A6: Tiếp tục 1 ngọc bài nhưng thiếu Trở về")
             self._tap(back)
-            screen, state = self._wait_first([flow.spent[1], *flow.entry], attempts=12)
+            screen, state = self._wait_a6_after_back(flow, attempts=12)
             if state is None:
                 raise RuntimeError("Trường thành A6: bấm Trở về nhưng chưa tới trạng thái 1 lần/màn chính")
             if self._first(screen, flow.entry) is None:
@@ -959,6 +1076,20 @@ class TruongThanhRunner:
         _, home = self._wait_first(self.config.home_markers, attempts=12)
         if home is None:
             raise RuntimeError("Trường thành A6: Hồi thành nhưng chưa về HOME")
+
+    def _wait_a6_after_back(self, flow: SubFlow, attempts: int = 12):
+        """Ignore stale reward frames until the A6 result layer is gone."""
+        screen = None
+        for _ in range(attempts):
+            screen = self.screen_provider()
+            if self._first(screen, flow.reward_popup or []) is not None:
+                self.sleep(self.config.wait_seconds)
+                continue
+            state = self._first(screen, [flow.spent[1], *flow.entry])
+            if state is not None:
+                return screen, state
+            self.sleep(self.config.wait_seconds)
+        return screen, None
 
     def _a7_fresh_free(self, flow: SubFlow):
         """A7 paid/free buttons share artwork; OCR is the independent safety gate."""

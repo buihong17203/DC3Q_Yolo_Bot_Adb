@@ -15,6 +15,7 @@ home_targets:
   - scripts/dc3q/targets/07_truong-thanh.yaml
   - scripts/dc3q/targets/08_vo-tuong.yaml
   - scripts/dc3q/targets/09_quan-su.yaml
+  - scripts/dc3q/targets/10_nhiem-vu.yaml
 account_file: data/accounts/accounts.csv
 runtime_file: data/accounts/account_runtime.csv
 runtime_archive_dir: docs/docs_days_runtime
@@ -22,6 +23,12 @@ reset_hour: 23
 cutoff_hour: 22
 cutoff_minute: 59
 persistent_daily: true
+target_retry_limit: 3
+out_game_title: data/img/templates/stars/out_game/screen/screen_out_game_title.jpg
+out_game_confirm: data/img/templates/stars/out_game/screen/screen_out_game_button_xacnhan.png
+out_game_threshold: 0.75
+out_game_confirm_threshold: 0.50
+restart_wait_attempts: 30
 
 # Tự động đăng xuất sau khi HOME được xác nhận ổn định.
 manual_logout: false
@@ -31,7 +38,7 @@ auto_logout: true
 physical_ui_only: true
 home_detection: data/img/templates/stars/home/full screen/full-screen_base_*.png
 forbid_game_data_access: true
-forbid_esc_or_back_automation: true
+forbid_esc_or_back_automation: false
 
 states:
   - wait_login_screen

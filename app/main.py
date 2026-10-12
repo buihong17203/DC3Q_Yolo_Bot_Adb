@@ -285,7 +285,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
         "06_xa-giao": ["Xa_Giao"],
         "08_vo-tuong": ["Vo_Tuong"],
         "09_quan-su": ["Tranh_Ba"],
-        "10_nhiem-vu": ["Giao_Tranh"],
+        "10_nhiem-vu": ["Nhiem_Vu"],
     }
     active_tasks = []
     for module_name, target_config in home_target_specs:
@@ -359,6 +359,22 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                 cutoff_hour=int(workflow.get("cutoff_hour", 22)),
                 cutoff_minute=int(workflow.get("cutoff_minute", 59)),
                 persistent_daily=bool(workflow.get("persistent_daily", True)),
+                target_retry_limit=int(workflow.get("target_retry_limit", 3)),
+                out_game_title=_resolve_project_path(
+                    root, workflow.get(
+                        "out_game_title",
+                        "data/img/templates/stars/out_game/screen/screen_out_game_title.jpg",
+                    ),
+                ),
+                out_game_confirm=_resolve_project_path(
+                    root, workflow.get(
+                        "out_game_confirm",
+                        "data/img/templates/stars/out_game/screen/screen_out_game_button_xacnhan.png",
+                    ),
+                ),
+                out_game_threshold=float(workflow.get("out_game_threshold", 0.75)),
+                out_game_confirm_threshold=float(workflow.get("out_game_confirm_threshold", 0.50)),
+                restart_wait_attempts=int(workflow.get("restart_wait_attempts", 30)),
             ),
             runtime,
         )
@@ -558,10 +574,18 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         _resolve_project_path(root, c["like"]["all"]),
                         _resolve_project_path(root, c["share"]["before"]), _resolve_project_path(root, c["share"]["panel"]),
                         _resolve_project_path(root, c["share"]["button"]), paths(c["share"]["after"]),
+                        _resolve_project_path(root, c["battle_report"]["entry"]),
+                        _resolve_project_path(root, c["battle_report"]["mail_tab_closed"]),
+                        _resolve_project_path(root, c["battle_report"]["mail_tab_open"]),
+                        _resolve_project_path(root, c["battle_report"]["mail_claim"]),
+                        _resolve_project_path(root, c["battle_report"]["mail_claimed"]),
+                        _resolve_project_path(root, c["battle_report"]["mail_delete"]),
+                        _resolve_project_path(root, c["battle_report"]["close"]),
                         float(c.get("threshold", .65)), float(c.get("state_threshold", .8)),
                         int(c.get("max_steps", 24)), float(c.get("wait_seconds", .8)),
                         int(c.get("state_wait_attempts", 24)),
                         info_close=_resolve_project_path(root, c["info"]["close"]),
+                        mail_max_messages=int(c["battle_report"].get("max_messages", 30)),
                     ),
                     home_entry=lambda screen: controller.logout_action._avatar_from_noi_chinh(
                         screen, logout_templates, controller.config.logout_threshold,
@@ -580,7 +604,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         float(c.get("social_control_threshold", .55))))
             elif module_name == "07_truong-thanh":
                 c = target_config["truong_thanh"]
-                flows = [module.SubFlow(x["name"], paths(x["entry"]), paths(x["free"]), paths(x["spent"]), paths(x["close"]), float(x.get("free_threshold", .90)), paths(x.get("hub_entry", [])), bool(x.get("repeat_free", False)), float(x.get("close_threshold", .70)), paths(x.get("bonus_continue", [])), tuple(x.get("bonus_tap_point", [480, 360])), paths(x.get("recall", []))) for x in c["flows"]]
+                flows = [module.SubFlow(x["name"], paths(x["entry"]), paths(x["free"]), paths(x["spent"]), paths(x["close"]), float(x.get("free_threshold", .90)), paths(x.get("hub_entry", [])), bool(x.get("repeat_free", False)), float(x.get("close_threshold", .70)), paths(x.get("bonus_continue", [])), tuple(x.get("bonus_tap_point", [480, 360])), paths(x.get("recall", [])), paths(x.get("reward_popup", []))) for x in c["flows"]]
                 target = module.TruongThanhRunner(controller._screen, controller.input, controller.logout_action.vision,
                     module.TruongThanhConfig(paths(c["home"]["entry"]), paths(c["home"]["menu"]), paths(c["home"]["markers"]),
                         paths(c["close"]), paths(c["bonus_continue"]["templates"]),
@@ -604,6 +628,8 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         _resolve_project_path(root, c["a2"]["chest_popup_close"]),
                         tuple(c["a2"]["chest_popup_close_point"]),
                         _resolve_project_path(root, c["a2"]["reset_2000"]),
+                        _resolve_project_path(root, c["a2"]["reset_2000_marker"]),
+                        tuple(c["a2"]["reset_2000_claim_point"]),
                         _resolve_project_path(root, c["a3"]["right_anchor"]), paths(c["a3"]["markers"]), paths(c["a3"]["phong_hau_open"]),
                         paths(c["a3"]["tab_closed"]), paths(c["a3"]["tab_open"]), tuple(c["a3"]["close_point"]),
                         paths(c["a3"]["raise_flag"]), paths(c["a3"]["result"]), tuple(c["a3"]["result_dismiss_point"]),
@@ -616,6 +642,15 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         tuple(c["a5"]["normal_quantity_roi"]), tuple(c["a5"]["normal_free_roi"]),
                         tuple(c["a5"]["gold_quantity_roi"]), tuple(c["a5"]["gold_free_roi"]),
                         tuple(c["a5"]["reward_dismiss_point"]), int(c["a5"].get("max_adjustments", 10)),
+                        _resolve_project_path(root, c["a5"]["harvest"]),
+                        _resolve_project_path(root, c["a5"]["sell_home"]),
+                        _resolve_project_path(root, c["a5"]["sell_many"]),
+                        _resolve_project_path(root, c["a5"]["sell_action"]),
+                        _resolve_project_path(root, c["a5"]["sell_popup"]),
+                        _resolve_project_path(root, c["a5"]["sell_confirm"]),
+                        _resolve_project_path(root, c["a5"]["sell_close"]),
+                        [tuple(point) for point in c["a5"]["quality_points"]],
+                        [tuple(point) for point in c["a5"]["protection_points"]],
                         tuple(c["a7"]["free_label_roi"]),
                         float(c.get("state_threshold", .8)), float(c.get("state_margin", .05)),
                         list(c.get("skipped_subflows", [])), flows,
@@ -652,6 +687,21 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         _resolve_project_path(root, c["reward"]["button"]), paths(c["reward"]["unfinished"]),
                         _resolve_project_path(root, c["panel"]["close"]), float(c.get("threshold", .6)),
                         int(c.get("max_steps", 20)), float(c.get("wait_seconds", .8))))
+            elif module_name == "10_nhiem-vu":
+                c = target_config["nhiem_vu"]
+                target = module.NhiemVuRunner(
+                    controller._screen, controller.input, controller.logout_action.vision,
+                    module.NhiemVuConfig(
+                        paths(c["home"]["entry"]), paths(c["home"]["menu"]),
+                        paths(c["home"]["markers"]), paths(c["panel"]["markers"]),
+                        tuple(c["panel"]["close_point"]), tuple(c["blocked_popup"]["close_point"]),
+                        _resolve_project_path(root, c["reward"]["claim_button"]),
+                        paths(c["reward"]["available"]), paths(c["reward"]["claimed"]),
+                        paths(c["reward"]["unavailable"]), float(c.get("threshold", .6)),
+                        float(c.get("state_threshold", .76)), int(c.get("max_steps", 30)),
+                        float(c.get("wait_seconds", .8)),
+                    ),
+                )
             else:
                 raise ValueError(f"Home target chưa hỗ trợ: {module_name}")
             if module_name == "07_truong-thanh":

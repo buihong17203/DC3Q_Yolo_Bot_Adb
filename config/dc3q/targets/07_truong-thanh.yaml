@@ -87,6 +87,9 @@ truong_thanh:
     # Fresh ADB frame: dedicated Đóng asset matched x=410,y=427,w=142,h=58.
     chest_popup_close_point: [481, 456]
     reset_2000: data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_phan_thuong_2000_button_nhan.png
+    reset_2000_marker: data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_popup_phan_thuong_2000_marker.jpg
+    # Raw ADB 960x540; popup marker above proves ownership before this tap.
+    reset_2000_claim_point: [481, 368]
   a3:
     right_anchor: data/img/templates/stars/home/screen/screen_ve-tuong.png
     markers:
@@ -138,6 +141,16 @@ truong_thanh:
     gold_free_roi: [588, 430, 690, 462]
     reward_dismiss_point: [480, 500]
     max_adjustments: 10
+    harvest: data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_home_liem_thuhoachco.png
+    sell_home: data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_home_button_banra.png
+    sell_many: data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_btc_button_bannhieu.png
+    sell_action: data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_btc_button_banra.png
+    sell_popup: data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_btc_popup_xacnhan.png
+    sell_confirm: data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_btc_button_xacnhan.png
+    sell_close: data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_btc_button_dong.png
+    # Raw ADB 960x540; source full-screen references include 35px LDPlayer chrome.
+    quality_points: [[65, 116], [282, 116], [65, 158], [282, 158]]
+    protection_points: [[68, 230], [68, 268]]
   a7:
     # Raw ADB 960x540; only the yellow “Miễn phí” label above Rút 1 lần.
     free_label_roi: [270, 420, 345, 447]
@@ -187,6 +200,8 @@ truong_thanh:
       close:
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_trove.png
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_dong.png
+      reward_popup:
+        - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_popup_chucmungnhanduoc.png
       recall:
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_home_button_hoithanh.png
     - name: A7_chien-hon

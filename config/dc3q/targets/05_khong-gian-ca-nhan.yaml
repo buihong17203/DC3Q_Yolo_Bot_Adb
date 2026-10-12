@@ -32,3 +32,12 @@ khong_gian_ca_nhan:
     button: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_chiase_chiase.png
     after:
       - data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_thongtincuatoi.png
+  battle_report:
+    entry: data/img/templates/stars/home/screen/screen_chien-bao_01.png
+    mail_tab_closed: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_cb_tab_nhanthuong_close_02.png
+    mail_tab_open: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_cb_tab_nhanthuong_open_02.png
+    mail_claim: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_cb_nt_tab_chiase_button_chuanhan.png
+    mail_claimed: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_cb_nt_tab_chiase_button_danhan.png
+    mail_delete: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_cb_nt_tab_chiase_button_xoathu.png
+    close: data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_cb_nt_button_dong.png
+    max_messages: 30

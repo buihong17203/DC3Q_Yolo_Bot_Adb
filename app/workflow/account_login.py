@@ -11,7 +11,7 @@ from app.accounts.manager import AccountManager, Account
 from app.accounts.runtime import AccountRuntime
 from app.actions.dc3q.stars import (
     AccountLoginAction, LoginCoordinates, AccountLogoutAction, LogoutTemplates,
-    HomeAction, classify_login_ui,
+    GameRestartRequired, HomeAction, classify_login_ui,
 )
 from app.adb import AdbClient, AdbDevice
 from app.adb.screenshot import AdbScreenshot
@@ -89,6 +89,12 @@ class AccountLoginConfig:
     cutoff_hour: int = 22
     cutoff_minute: int = 59
     persistent_daily: bool = True
+    target_retry_limit: int = 3
+    out_game_title: Path | None = None
+    out_game_confirm: Path | None = None
+    out_game_threshold: float = 0.75
+    out_game_confirm_threshold: float = 0.50
+    restart_wait_attempts: int = 30
 
 
 class AccountLoginController:
@@ -129,6 +135,80 @@ class AccountLoginController:
         if "com.daichien.mobile" not in foreground:
             self.input.shell("monkey", "-p", "com.daichien.mobile", "1")
             sleep(3)
+
+    @staticmethod
+    def _plain_ocr(screen) -> str:
+        import unicodedata
+        import numpy as np
+        from rapidocr_onnxruntime import RapidOCR
+        image = np.asarray(screen.convert("RGB")) if hasattr(screen, "convert") else np.asarray(screen)
+        result, _ = RapidOCR()(image)
+        text = " ".join(str(row[1]) for row in (result or []))
+        return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
+
+    def _exit_game_with_esc(self) -> bool:
+        """Return False if ESC itself safely recovers HOME; True after confirmed exit."""
+        if self.config.out_game_title is None or self.config.out_game_confirm is None:
+            raise RuntimeError("Thiếu asset title/Xác nhận out_game")
+        self.input.keyevent("KEYCODE_ESCAPE")
+        sleep(self.config.poll_seconds)
+        screen = self._screen()
+        detection = self.detector.detect(
+            screen, login_templates=self.config.login_templates,
+            logged_in_templates=self.config.logged_in_templates,
+            threshold=self.config.threshold,
+            logged_in_threshold=self.config.logged_in_threshold,
+        )
+        if detection.state == LoginScreenState.LOGGED_IN:
+            __import__("logging").getLogger("dc3q").info(
+                "RECOVERY | ESC đã đưa về HOME; không out game"
+            )
+            return False
+        title = self.logout_action.vision.find_template(
+            screen, "out_game_title", self.config.out_game_title,
+            self.config.out_game_threshold,
+        ).match
+        if not title.found:
+            raise RuntimeError("ESC không mở đúng popup Thoát game")
+        import numpy as np
+        image = np.asarray(screen.convert("RGB")) if hasattr(screen, "convert") else np.asarray(screen)
+        split_x = image.shape[1] // 2
+        confirm = self.logout_action.vision.find_template(
+            image[:, split_x:], "out_game_confirm", self.config.out_game_confirm,
+            self.config.out_game_confirm_threshold,
+        ).match
+        if not confirm.found:
+            raise RuntimeError("Popup Thoát game thiếu nút Xác nhận ở nửa phải")
+        self.input.tap(split_x + confirm.x + confirm.width // 2, confirm.y + confirm.height // 2)
+        sleep(self.config.poll_seconds)
+        return True
+
+    def _restart_game_to_retained_home(self) -> None:
+        logger = __import__("logging").getLogger("dc3q")
+        for launch_number in (1, 2):
+            if launch_number == 2:
+                logger.warning("RECOVERY | lần mở đầu bị treo; out game rồi mở lại lần 2")
+                if not self._exit_game_with_esc():
+                    return
+            self.input.shell("monkey", "-p", "com.daichien.mobile", "1")
+            home_hits = 0
+            for _ in range(self.config.restart_wait_attempts):
+                image = self._screen()
+                detection = self.detector.detect(
+                    image, login_templates=self.config.login_templates,
+                    logged_in_templates=self.config.logged_in_templates,
+                    threshold=self.config.threshold,
+                    logged_in_threshold=self.config.logged_in_threshold,
+                )
+                if detection.state == LoginScreenState.LOGGED_IN:
+                    home_hits += 1
+                    if home_hits >= self.config.logged_in_confirmations:
+                        logger.info("RECOVERY | game mở lại tại HOME tài khoản hiện tại")
+                        return
+                else:
+                    home_hits = 0
+                sleep(self.config.poll_seconds)
+        raise RuntimeError("Mở game lại 2 lần nhưng chưa về HOME")
 
     def reconcile_existing_home(self) -> None:
         """Return a retained session to LOGIN before allocating acc_001."""
@@ -360,6 +440,26 @@ class AccountLoginController:
                         self.runtime.mark_task_done(self.current.id, task_before)
                 self._home_target_done = self.home_action.target_done
                 self._home_hits = self.home_action.confirmations
+            except GameRestartRequired as exc:
+                LOGGER = __import__("logging").getLogger("dc3q")
+                LOGGER.warning(
+                    "RECOVERY | task=%s lỗi đủ %d lần; ESC out game và mở lại",
+                    exc.task, self.config.target_retry_limit,
+                )
+                exited = self._exit_game_with_esc()
+                if exited:
+                    self._restart_game_to_retained_home()
+                    self.home_action.resume_after_game_restart(exc.task)
+                else:
+                    self.runtime.mark_task_error(
+                        self.current.id, exc.task, f"home target error: {exc}",
+                    )
+                    self.home_action.continue_after_esc_home(exc.task)
+                self.runtime.update(
+                    self.current.id, status="LOGGED_IN", assigned_device=self.device.serial,
+                    last_run=datetime.now(TIMEZONE).isoformat(timespec="seconds"),
+                )
+                return self.phase
             except Exception as exc:
                 assert self.current
                 self.runtime.mark_error(

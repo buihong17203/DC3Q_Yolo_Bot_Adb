@@ -13,9 +13,10 @@ LogoutTemplates = _logout.LogoutTemplates
 reflected_point = _logout.reflected_point
 select_logout_state = _logout.select_logout_state
 HomeAction = _home.HomeAction
+GameRestartRequired = _home.GameRestartRequired
 
 __all__ = [
     "AccountLoginAction", "LoginCoordinates", "classify_login_ui",
     "AccountLogoutAction", "LogoutTemplates", "reflected_point",
-    "select_logout_state", "HomeAction",
+    "select_logout_state", "HomeAction", "GameRestartRequired",
 ]

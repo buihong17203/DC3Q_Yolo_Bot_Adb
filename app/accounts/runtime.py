@@ -27,6 +27,10 @@ class AccountRuntime:
         "TT_A7_Chien_Hon",
         "Vo_Tuong",
         "Giao_Tranh",
+        "Nhiem_Vu",
+        "Doan_Chien",
+        "Quoc_Chien",
+        "3vs3",
         "Tranh_Ba",
     ]
     FIELDS = [
@@ -68,9 +72,14 @@ class AccountRuntime:
                         timestamp=row.get("last_run") or None,
                     )
         if reader.fieldnames != self.FIELDS:
+            old_fields = set(reader.fieldnames or [])
             for row in rows:
                 row["Tranh_Ba"] = row.get("Tranh_Ba") or row.get("Quan_Su") or "READY"
-                row["Giao_Tranh"] = row.get("Giao_Tranh") or row.get("Nhiem_Vu") or "READY"
+                row["Giao_Tranh"] = row.get("Giao_Tranh") or "READY"
+                if "Nhiem_Vu" not in old_fields:
+                    row["Nhiem_Vu"] = "READY"
+                for field in ("Doan_Chien", "Quoc_Chien", "3vs3"):
+                    row[field] = row.get(field) or "READY"
             self._write(rows)
 
     def maybe_rollover(self, now: datetime | None = None) -> None:
