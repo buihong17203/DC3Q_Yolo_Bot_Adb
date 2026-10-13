@@ -27,10 +27,13 @@ class _VisionLogFilter(logging.Filter):
 def configure_logging(root: Path | None = None, *, day: date | None = None) -> Path:
     root = (root or Path(__file__).resolve().parents[1]).resolve()
     log_dir = root / "logs" / "logs_days_runtime"
-    log_dir.mkdir(parents=True, exist_ok=True)
+    operator_dir = log_dir / "log powershell"
+    vision_dir = log_dir / "vision"
+    operator_dir.mkdir(parents=True, exist_ok=True)
+    vision_dir.mkdir(parents=True, exist_ok=True)
     stamp = day or date.today()
-    log_path = log_dir / f"dc3q_log-powershell_{stamp:%Y-%m-%d}.log"
-    vision_path = log_dir / f"dc3q_vision_{stamp:%Y-%m-%d}.log"
+    log_path = operator_dir / f"dc3q_log-powershell_{stamp:%Y-%m-%d}.log"
+    vision_path = vision_dir / f"dc3q_vision_{stamp:%Y-%m-%d}.log"
     formatter = logging.Formatter(
         "%(asctime)s | %(levelname)s | %(message)s", datefmt="%H:%M:%S",
     )
@@ -624,6 +627,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         paths(c["a2"]["tab_closed"]), paths(c["a2"]["tab_open"]),
                         _resolve_project_path(root, c["a2"]["reward_close"]),
                         _resolve_project_path(root, c["a2"]["chest_glowing"]),
+                        _resolve_project_path(root, c["a2"]["chest_closed"]),
                         _resolve_project_path(root, c["a2"]["chest_popup"]),
                         _resolve_project_path(root, c["a2"]["chest_popup_close"]),
                         tuple(c["a2"]["chest_popup_close_point"]),
@@ -694,12 +698,18 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                     module.NhiemVuConfig(
                         paths(c["home"]["entry"]), paths(c["home"]["menu"]),
                         paths(c["home"]["markers"]), paths(c["panel"]["markers"]),
-                        tuple(c["panel"]["close_point"]), tuple(c["blocked_popup"]["close_point"]),
+                        tuple(c["panel"]["close_point"]),
+                        _resolve_project_path(root, c["panel"]["close_template"]),
+                        tuple(c["blocked_popup"]["close_point"]),
+                        _resolve_project_path(root, c["blocked_popup"]["den"]),
+                        _resolve_project_path(root, c["panel"]["daily_open"]),
+                        _resolve_project_path(root, c["panel"]["daily_closed"]),
                         _resolve_project_path(root, c["reward"]["claim_button"]),
                         paths(c["reward"]["available"]), paths(c["reward"]["claimed"]),
                         paths(c["reward"]["unavailable"]), float(c.get("threshold", .6)),
                         float(c.get("state_threshold", .76)), int(c.get("max_steps", 30)),
                         float(c.get("wait_seconds", .8)),
+                        tuple(c["reward"].get("dismiss_point", (480, 430))),
                     ),
                 )
             else:

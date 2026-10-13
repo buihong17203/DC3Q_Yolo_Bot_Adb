@@ -68,6 +68,7 @@ class TruongThanhConfig:
     a2_tab_open: list[Path]
     a2_reward_close: Path
     a2_chest_glowing: Path
+    a2_chest_closed: Path
     a2_chest_popup: Path
     a2_chest_popup_close: Path
     a2_chest_popup_close_point: tuple[int, int]
@@ -510,6 +511,19 @@ class TruongThanhRunner:
             raise RuntimeError("Trường thành A2: Rương chiến lợi phẩm vẫn còn sau 3 lần Đóng")
         return screen
 
+    def _a2_chest_state(self, screen):
+        glowing = self._match(screen, self.config.a2_chest_glowing, 0.0)
+        closed = self._match(screen, self.config.a2_chest_closed, 0.0)
+        floor = self.config.state_threshold
+        margin = self.config.state_margin
+        if glowing.confidence >= floor and glowing.confidence >= closed.confidence + margin:
+            return "glowing", glowing
+        if closed.confidence >= floor and closed.confidence >= glowing.confidence + margin:
+            return "closed", closed
+        if max(glowing.confidence, closed.confidence) < floor:
+            return "absent", None
+        return "unknown", None
+
     def _wait_a2_after_free(self, initial_screen=None):
         """Settle one free probe without ever touching the paid probe state."""
         logger = logging.getLogger("dc3q")
@@ -535,12 +549,16 @@ class TruongThanhRunner:
                 screen = self._close_a2_chest_popup(screen)
                 logger.info("TT | A2 đóng Rương chiến lợi phẩm bằng điểm cố định đã xác minh")
                 continue
-            chest = self._match(screen, self.config.a2_chest_glowing)
-            if chest.found:
+            chest_state, chest = self._a2_chest_state(screen)
+            if chest_state == "glowing":
                 self._tap(chest)
-                logger.info("TT | A2 mở rương thăm dò phát sáng")
+                logger.info("TT | A2 mở rương thăm dò phát sáng trước khi thăm dò tiếp")
                 screen = None
                 continue
+            if chest_state == "unknown":
+                raise RuntimeError("Trường thành A2: trạng thái rương phát sáng/đóng không rõ")
+            if chest_state == "closed":
+                logger.info("TT | A2 rương đang đóng; không bấm, xét lượt Thăm dò")
             free, paid = self._a2_state(screen)
             if (free.confidence >= self.config.state_threshold
                     or paid.confidence >= self.config.state_threshold):
@@ -1024,6 +1042,7 @@ class TruongThanhRunner:
             screen, state = self._wait_first([*flow.free, *flow.spent, *flow.close], attempts=12)
             if state is None:
                 raise RuntimeError("Trường thành A6: FREE thiếu hậu điều kiện")
+            screen = self._dismiss_a6_random_reward(flow, screen)
         if self._first(screen, flow.spent) is None:
             screen, _ = self._wait_first([*flow.spent, *flow.close], attempts=6)
         if self._first(screen, flow.spent) is None:
@@ -1031,6 +1050,45 @@ class TruongThanhRunner:
             return
         logger.info("TT | A6 thấy 1 ngọc bài: không bấm quay; đóng bằng X")
         self._exit_a6_paid(flow, screen)
+
+    @staticmethod
+    def _a6_reward_content_changed(before, after) -> bool:
+        """Header stays; require the popup body to change after dismissing bonus."""
+        import cv2
+        import numpy as np
+
+        def pixels(frame):
+            value = frame.data if hasattr(frame, "data") else frame
+            return np.asarray(value.convert("RGB")) if hasattr(value, "convert") else np.asarray(value)
+
+        left = pixels(before)[100:430, 160:800]
+        right = pixels(after)[100:430, 160:800]
+        return left.shape == right.shape and float(cv2.absdiff(left, right).mean()) >= 4.0
+
+    def _a6_is_random_fragment_reward(self, flow: SubFlow, screen) -> bool:
+        """Bonus fragment card has the shared header plus a `Bản đồ ...` item name."""
+        if not flow.reward_popup or self._first(screen, flow.reward_popup) is None:
+            return False
+        import unicodedata
+        from rapidocr_onnxruntime import RapidOCR
+        result, _ = RapidOCR()(self._screen_array(screen)[100:430, 160:800])
+        text = " ".join(str(row[1]) for row in (result or []))
+        plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
+        logging.getLogger("dc3q").info("TT | A6 OCR popup thưởng=%r", text)
+        return "bando" in plain.replace(" ", "")
+
+    def _dismiss_a6_random_reward(self, flow: SubFlow, screen):
+        """Dismiss bonus, then resume the same unresolved A6 draw state."""
+        if not self._a6_is_random_fragment_reward(flow, screen):
+            return screen
+        self.input.tap(*flow.bonus_tap_point)
+        for _ in range(4):
+            self.sleep(self.config.wait_seconds)
+            after = self.screen_provider()
+            if self._a6_reward_content_changed(screen, after):
+                logging.getLogger("dc3q").info("TT | A6 đóng popup thưởng mảnh ngẫu nhiên")
+                return after
+        raise RuntimeError("Trường thành A6: popup thưởng mảnh không đổi sau một lần bấm trống")
 
     def _a6_paid_kind(self, flow: SubFlow, screen) -> str | None:
         """Distinguish Continue+jade from One-draw+jade on the same frame."""

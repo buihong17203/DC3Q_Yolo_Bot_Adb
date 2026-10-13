@@ -82,6 +82,7 @@ truong_thanh:
     popup_close: data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_ttd_button_dong.png
     reward_close: data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tdld_button_dong.png
     chest_glowing: data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tdld_ruong_phatsang.png
+    chest_closed: data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tdld_ruong_dong.png
     chest_popup: data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tdld_popup_ruongchienloipham.png
     chest_popup_close: data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tdld_button_dong_ruongchienloipham.png
     # Fresh ADB frame: dedicated Đóng asset matched x=410,y=427,w=142,h=58.
@@ -202,6 +203,8 @@ truong_thanh:
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_button_dong.png
       reward_popup:
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_tambinhmichbao_popup_chucmungnhanduoc.png
+      # Điểm trống trong popup thưởng mảnh; chỉ dùng ngay sau FREE cuối.
+      bonus_tap_point: [480, 410]
       recall:
         - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_home_button_hoithanh.png
     - name: A7_chien-hon

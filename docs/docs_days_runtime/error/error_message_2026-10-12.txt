@@ -261,3 +261,32 @@
 2026-10-12T16:32:56+07:00 | account=acc_028 | task=Cua_Hang | type=TASK | home target error: Shop Danh Vọng: Shop Danh Vọng: popup Mua chưa mở
 2026-10-12T16:33:56+07:00 | account=acc_028 | task=Khong_Gian_Ca_Nhan | type=TASK | home target error: Không gian cá nhân: bấm mở nhưng chưa thấy panel
 2026-10-12T16:34:51+07:00 | account=acc_028 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-10-12T22:04:42+07:00 | account=acc_055 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: không xác định được trạng thái menu HOME
+2026-10-12T22:06:58+07:00 | account=acc_055 | task=Cua_Hang | type=TASK | home target error: Shop Danh Vọng: Shop Danh Vọng: popup Mua chưa mở
+2026-10-12T22:08:44+07:00 | account=acc_055 | task=Khong_Gian_Ca_Nhan | type=TASK | home target error: Không gian cá nhân: bấm mở nhưng chưa thấy panel
+2026-10-12T22:15:09+07:00 | account=acc_055 | task=TT_A2_Tuong_An | type=TASK | home target error: Trường thành A2: vượt giới hạn lượt miễn phí
+2026-10-12T22:15:21+07:00 | account=acc_055 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-10-12T22:21:29+07:00 | account=acc_056 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: không nhận diện được ảnh tab Phúc lợi sau khi vuốt tìm
+2026-10-12T22:22:49+07:00 | account=acc_056 | task=Cua_Hang | type=TASK | home target error: Shop Danh Vọng: Shop Danh Vọng: popup Mua chưa mở
+2026-10-12T22:24:14+07:00 | account=acc_056 | task=Khong_Gian_Ca_Nhan | type=TASK | home target error: Không gian cá nhân: bấm mở nhưng chưa thấy panel
+2026-10-12T22:29:25+07:00 | account=acc_056 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-10-12T22:35:26+07:00 | account=acc_057 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: không nhận diện được ảnh tab Phúc lợi sau khi vuốt tìm
+2026-10-12T22:36:45+07:00 | account=acc_057 | task=Cua_Hang | type=TASK | home target error: Shop Danh Vọng: Shop Danh Vọng: popup Mua chưa mở
+2026-10-12T22:38:09+07:00 | account=acc_057 | task=Khong_Gian_Ca_Nhan | type=TASK | home target error: Không gian cá nhân: bấm mở nhưng chưa thấy panel
+2026-10-12T22:40:19+07:00 | account=acc_057 | task=TT_A1_Bao_Vat | type=TASK | home target error: Trường thành A1: Cầu viện nhưng thiếu popup/Xác nhận
+2026-10-12T22:41:57+07:00 | account=acc_057 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-10-12T22:47:41+07:00 | account=acc_058 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: không nhận diện được ảnh tab Phúc lợi sau khi vuốt tìm
+2026-10-12T22:49:48+07:00 | account=acc_058 | task=Cua_Hang | type=TASK | home target error: Shop Danh Vọng: Shop Danh Vọng: popup Mua chưa mở
+2026-10-12T22:51:13+07:00 | account=acc_058 | task=Khong_Gian_Ca_Nhan | type=TASK | home target error: Không gian cá nhân: bấm mở nhưng chưa thấy panel
+2026-10-12T22:54:22+07:00 | account=acc_058 | task=TT_A1_Bao_Vat | type=TASK | home target error: Trường thành A1: đội đủ nhưng thiếu nút Chấp hành
+2026-10-12T22:56:01+07:00 | account=acc_058 | task=TT_A2_Tuong_An | type=TASK | home target error: Trường thành A2: vượt giới hạn lượt miễn phí
+2026-10-12T22:56:14+07:00 | account=acc_058 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-10-12T22:59:00+07:00 | account=acc_059 | task=ACCOUNT | type=ACCOUNT | Đã đến 22:59; dừng thao tác nghiệp vụ
+2026-10-12T23:04:17+07:00 | account=acc_001 | task=Cua_Hang | type=TASK | home target error: Shop Danh Vọng: Cửa hàng: thấy Shop Danh Vọng nhưng bấm xong tab chưa mở
+2026-10-12T23:04:55+07:00 | account=acc_001 | task=Quan_Doan | type=TASK | home target error: Quân đoàn: đã bấm Vào quân đoàn nhưng chưa vào màn Quân đoàn thật
+2026-10-12T23:06:44+07:00 | account=acc_001 | task=Khong_Gian_Ca_Nhan | type=TASK | home target error: Không gian cá nhân: popup Xóa không đúng nội dung
+2026-10-12T23:13:20+07:00 | account=acc_001 | task=TT_A2_Tuong_An | type=TASK | home target error: Trường thành A2: vượt giới hạn lượt miễn phí
+2026-10-12T23:39:20+07:00 | account=acc_001 | task=Cua_Hang | type=TASK | home target error: Shop Danh Vọng: Cửa hàng: thấy Shop Danh Vọng nhưng bấm xong tab chưa mở
+2026-10-12T23:42:39+07:00 | account=acc_001 | task=TT_A5_Trai_Ngua | type=TASK | home target error: Trường thành A5: popup bán thiếu nút Xác nhận
+2026-10-12T23:44:18+07:00 | account=acc_001 | task=TT_A7_Chien_Hon | type=TASK | home target error: Trường thành A7_chien-hon: thấy kết quả nhưng thiếu nút đóng
+2026-10-12T23:45:43+07:00 | account=acc_001 | task=Tranh_Ba | type=TASK | home target error: Tranh Bá: OCR không chứng minh được nút Quân sự

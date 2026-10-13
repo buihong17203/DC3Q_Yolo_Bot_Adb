@@ -47,6 +47,8 @@ class AccountRuntime:
         self.runtime_file = self.root / "data/accounts/account_runtime.csv"
         archive_path = Path(archive_dir)
         self.archive_dir = archive_path if archive_path.is_absolute() else self.root / archive_path
+        self.csv_archive_dir = self.archive_dir / "csv"
+        self.error_dir = self.archive_dir / "error"
         self.reset_hour = reset_hour
         self._lock = RLock()
         self._ensure_current()
@@ -91,12 +93,12 @@ class AccountRuntime:
                 return
             # Only archive a completed runtime once. If the file is from a prior
             # game day, archive it under that day and create the new day's state.
-            self.archive_dir.mkdir(parents=True, exist_ok=True)
+            self.csv_archive_dir.mkdir(parents=True, exist_ok=True)
             stamp = current_day.isoformat() if current_day else "unknown"
-            target = self.archive_dir / f"account_runtime_{stamp}.csv"
+            target = self.csv_archive_dir / f"account_runtime_{stamp}.csv"
             if self.runtime_file.exists():
                 if target.exists():
-                    target = self.archive_dir / f"account_runtime_{stamp}_{datetime.now(self.TIMEZONE):%H%M%S}.csv"
+                    target = self.csv_archive_dir / f"account_runtime_{stamp}_{datetime.now(self.TIMEZONE):%H%M%S}.csv"
                 shutil.move(str(self.runtime_file), str(target))
             self._reset_from_accounts(expected_day)
 
@@ -158,8 +160,8 @@ class AccountRuntime:
         now = datetime.now(self.TIMEZONE)
         stamp = timestamp or now.isoformat(timespec="seconds")
         day = stamp[:10] if len(stamp) >= 10 else now.date().isoformat()
-        self.archive_dir.mkdir(parents=True, exist_ok=True)
-        path = self.archive_dir / f"error_message_{day}.txt"
+        self.error_dir.mkdir(parents=True, exist_ok=True)
+        path = self.error_dir / f"error_message_{day}.txt"
         message = " ".join(str(error).splitlines()).strip()
         line = f"{stamp} | account={account_id} | task={task or '-'} | type={kind} | {message}\n"
         with self._lock:

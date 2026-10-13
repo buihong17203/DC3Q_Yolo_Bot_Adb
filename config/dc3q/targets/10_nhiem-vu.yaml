@@ -2,7 +2,7 @@ nhiem_vu:
   enabled: true
   threshold: 0.60
   state_threshold: 0.76
-  max_steps: 30
+  max_steps: 80
   wait_seconds: 0.8
   home:
     menu: []
@@ -14,22 +14,27 @@ nhiem_vu:
     markers:
       - data/img/templates/targets/10_nhiem-vu/full screen/full-screen_nv_hangngay_01.png
     close_point: [904, 81]
+    close_template: data/img/templates/targets/10_nhiem-vu/screen/screen_nv_button_dong.png
+    daily_open: data/img/templates/targets/10_nhiem-vu/screen/screen_nv_tab_hang-ngay_dangmo.png
+    daily_closed: data/img/templates/targets/10_nhiem-vu/screen/screen_nv_tab_hang-ngay_chuamo.png
   blocked_popup:
     close_point: [696, 163]
+    den: data/img/templates/targets/10_nhiem-vu/screen/screen_nv_button_den.png
   reward:
     claim_button: data/img/templates/targets/10_nhiem-vu/screen/screen_nv_button_nhan.png
+    dismiss_point: [480, 500]
     available:
-      - data/img/templates/targets/10_nhiem-vu/screen/image.png
-      - data/img/templates/targets/10_nhiem-vu/screen/image copy.png
-      - data/img/templates/targets/10_nhiem-vu/screen/image copy 2.png
-      - data/img/templates/targets/10_nhiem-vu/screen/image copy 3.png
-      - data/img/templates/targets/10_nhiem-vu/screen/image copy 4.png
-      - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_90_cothenhan.png
+      - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_30_duocnhan.png
+      - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_50_duocnhan.png
+      - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_70_duocnhan.png
+      - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_90_duocnhan.png
+      - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_120_duocnhan.png
     claimed:
       - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_30_danhan.png
       - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_50_danhan.png
       - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_70_danhan.png
       - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_90_danhan.png
+      - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_120_danhan.png
     unavailable:
       - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_30_chuamo.png
       - data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_50_chuamo.png
