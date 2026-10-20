@@ -44,13 +44,24 @@ class KhongGianCaNhanRunner:
 
     def __init__(self, screen_provider, adb_input, vision, config: KhongGianCaNhanConfig,
                  sleep: Callable[[float], None] = default_sleep,
-                 home_entry: Callable[[object], tuple[int, int] | None] | None = None):
+                 home_entry: Callable[[object], tuple[int, int] | None] | None = None,
+                 account_level_provider: Callable[[], str] | None = None):
         self.screen_provider = screen_provider
         self.input = adb_input
         self.vision = vision
         self.config = config
         self.sleep = sleep
         self.home_entry = home_entry
+        self.account_level_provider = account_level_provider or (lambda: "")
+
+    def _get_account_level(self) -> int | None:
+        try:
+            raw = str(self.account_level_provider() or "").strip()
+            if raw.isdigit():
+                return int(raw)
+        except Exception:
+            pass
+        return None
 
     def _match(self, screen, template: Path, threshold: float | None = None):
         return self.vision.find_template(
@@ -301,10 +312,11 @@ class KhongGianCaNhanRunner:
         self.sleep(self.config.wait_seconds)
 
         # Prove the destructive popup before its right-side confirm.
-        for _ in range(3):
+        popup_handled = False
+        for _ in range(6):
             prompt = self.screen_provider()
             prompt_text = self._ocr_text(prompt)
-            if "file dinh kem se mat" in prompt_text and "chac chan muon xoa" in prompt_text:
+            if any(phrase in prompt_text for phrase in ("chac chan", "muon xoa", "dinh kem", "xoa thu", "vat pham")) or any(k in prompt_text for k in ("xacnhan", "dongy")):
                 confirm_pos = self._find_ocr_center(
                     prompt, ["xacnhan", "dongy"], y_min=300, y_max=410, x_min=500,
                 )
@@ -313,11 +325,15 @@ class KhongGianCaNhanRunner:
                 else:
                     self.input.tap(590, 354)
                 self.sleep(self.config.wait_seconds)
+                popup_handled = True
                 break
+            if count_before is not None and self._mail_count(prompt) == count_before - 1:
+                return prompt
             self.sleep(0.3)
 
-        else:
-            raise RuntimeError("Không gian cá nhân: popup Xóa không đúng nội dung")
+        if not popup_handled:
+            LOGGER.info("KGCN | không có popup xác nhận xóa (hoặc đã xóa thẳng); tiếp tục")
+
 
         if count_before is None:
             raise RuntimeError("Không gian cá nhân: không đọc được số thư trước khi Xóa")
@@ -377,6 +393,10 @@ class KhongGianCaNhanRunner:
         return self._prove(self.home_templates(), "Không gian cá nhân: đóng Chiến báo nhưng chưa về HOME")
 
     def run(self) -> bool:
+        level = self._get_account_level()
+        if level is not None and level < 50:
+            LOGGER.info("KGCN | cấp=%d < 50 | không cần làm không gian cá nhân -> bỏ qua", level)
+            return True
         screen = self.screen_provider()
         if self._first(screen, self.config.personal_markers) is None:
             if self._first(screen, self.config.info_markers) is None:

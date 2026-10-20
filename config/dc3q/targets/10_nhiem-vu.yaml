@@ -20,6 +20,7 @@ nhiem_vu:
   blocked_popup:
     close_point: [696, 163]
     den: data/img/templates/targets/10_nhiem-vu/screen/screen_nv_button_den.png
+    threshold: 0.70
   reward:
     claim_button: data/img/templates/targets/10_nhiem-vu/screen/screen_nv_button_nhan.png
     dismiss_point: [480, 500]

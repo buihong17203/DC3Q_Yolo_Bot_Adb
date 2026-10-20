@@ -29,6 +29,7 @@ class NhiemVuConfig:
     max_steps: int = 24
     wait_seconds: float = 0.8
     reward_dismiss_point: tuple[int, int] = (480, 430)
+    blocked_popup_threshold: float = 0.70
 
 
 class NhiemVuRunner:
@@ -36,12 +37,14 @@ class NhiemVuRunner:
     runtime_task = "NHIEM_VU"
 
     def __init__(self, screen_provider, adb_input, vision, config: NhiemVuConfig,
-                 sleep: Callable[[float], None] = default_sleep):
+                 sleep: Callable[[float], None] = default_sleep,
+                 account_level_provider: Callable[[], str] | None = None):
         self.screen_provider = screen_provider
         self.input = adb_input
         self.vision = vision
         self.config = config
         self.sleep = sleep
+        self.account_level_provider = account_level_provider or (lambda: "")
         self._rapid_ocr = None
 
     def _match(self, screen, template: Path, threshold: float | None = None):
@@ -108,10 +111,10 @@ class NhiemVuRunner:
         return type("OcrMatch", (), {"x": x - 1, "y": y - 1, "width": 2, "height": 2})()
 
     def _is_blocking_popup(self, screen) -> bool:
-        den = self._match(screen, self.config.blocked_popup_den, self.config.state_threshold)
+        den = self._match(screen, self.config.blocked_popup_den, self.config.blocked_popup_threshold)
         if not den.found:
             return False
-        return "nhannhiemvu" in self._ocr_text(screen)
+        return "nhannhiemvu" in self._ocr_text(screen).replace(" ", "")
 
     def _daily_tab_state(self, screen) -> str:
         opened = self._match(screen, self.config.daily_open, self.config.state_threshold)
@@ -206,14 +209,22 @@ class NhiemVuRunner:
         )
 
     def _claim_task_once(self, claim):
-        """Tap once, then require that exact Claim control to change/disappear."""
+        """Tap once, then wait for Claim control to change or popup to appear."""
         self._tap(claim)
-        for _ in range(3):
+        for _ in range(6):
             screen = self.screen_provider()
+            if self._is_reward_popup(screen):
+                screen = self._dismiss_reward_popup(screen)
+                return screen
             if not self._same_claim_control_present(screen, claim):
                 return screen
-            self.sleep(0.15)
-        raise RuntimeError("Nhiệm vụ: bấm Nhận nhưng control không đổi")
+            self.sleep(0.5)
+        logger = logging.getLogger("dc3q")
+        logger.warning("NV | bấm Nhận nhưng control chưa đổi kịp (có thể do lag); tiếp tục")
+        self.input.tap(480, 270)
+        self.sleep(0.5)
+        return self.screen_provider()
+
 
     @staticmethod
     def _task_list_changed(before, after) -> bool:
@@ -325,6 +336,10 @@ class NhiemVuRunner:
 
     def run(self) -> bool:
         logger = logging.getLogger("dc3q")
+        raw_level = self.account_level_provider().strip()
+        if raw_level.isdigit() and int(raw_level) < 40:
+            logger.info("NHIEM_VU | cấp=%s < 40 | mặc định DONE, không mở Nhiệm vụ", raw_level)
+            return True
         opened = False
         destination_seen = False
         task_claims = 0
@@ -413,7 +428,7 @@ class NhiemVuRunner:
                     logger.info("NV | bấm một rương được nhận; chờ popup nhận toàn bộ")
                     continue
                 if state == "unknown":
-                    raise RuntimeError("Nhiệm vụ: trạng thái rương Sôi nổi không rõ")
+                    logger.warning("NV | rương Sôi nổi không rõ; bỏ qua rương, đóng Nhiệm vụ an toàn")
                 phase = "CLOSE"
 
             if phase == "CHEST_REWARD":

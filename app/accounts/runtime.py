@@ -73,6 +73,15 @@ class AccountRuntime:
                         row.get("id", ""), "MIGRATION", error,
                         timestamp=row.get("last_run") or None,
                     )
+        updated = False
+        for row in rows:
+            if row.get("status") == "LOGGED_IN":
+                row["status"] = "READY"
+                updated = True
+            for field in self.TASK_FIELDS:
+                if row.get(field) == "RUNNING":
+                    row[field] = "READY"
+                    updated = True
         if reader.fieldnames != self.FIELDS:
             old_fields = set(reader.fieldnames or [])
             for row in rows:
@@ -82,6 +91,8 @@ class AccountRuntime:
                     row["Nhiem_Vu"] = "READY"
                 for field in ("Doan_Chien", "Quoc_Chien", "3vs3"):
                     row[field] = row.get(field) or "READY"
+            updated = True
+        if updated:
             self._write(rows)
 
     def maybe_rollover(self, now: datetime | None = None) -> None:

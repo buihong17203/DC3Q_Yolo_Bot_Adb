@@ -14,8 +14,16 @@ class Detection:
 class VisionDetector:
     def __init__(self, matcher: TemplateMatcher | None = None):
         self.matcher = matcher or TemplateMatcher()
-    def find_template(self, screen, name: str, template, threshold: float = 0.85) -> Detection:
-        match = self.matcher.match(screen, template, threshold)
+
+    def find_template(
+        self,
+        screen,
+        name: str,
+        template,
+        threshold: float = 0.85,
+        roi: tuple[int, int, int, int] | list[int] | None = None,
+    ) -> Detection:
+        match = self.matcher.match(screen, template, threshold, roi=roi)
         template_label = str(Path(template).resolve()) if isinstance(template, (str, Path)) else "<ảnh trong bộ nhớ>"
         LOGGER.info(
             "VISION | ảnh_hiện_tại=<ADB frame mới nhất> vs mẫu=%s | mục_đích=%s | "

@@ -463,16 +463,18 @@ class CuaHangRunner:
                 return screen, True
             if (closed and closed.confidence >= prestige_threshold
                     and closed.confidence >= opened.confidence + 0.05):
-                self._tap(closed)
-                for _ in range(8):
-                    screen = self.screen_provider()
-                    opened = self._best(screen, self.config.prestige_tab_open)
-                    closed = self._best(screen, self.config.prestige_tab_closed)
-                    if (opened.confidence >= prestige_threshold
-                            and opened.confidence >= closed.confidence + 0.05):
-                        return screen, True
-                    self.sleep(self.config.wait_seconds)
-                raise RuntimeError("Cửa hàng: thấy Shop Danh Vọng nhưng bấm xong tab chưa mở")
+                for attempt in range(4):
+                    self._tap(closed)
+                    for _ in range(3):
+                        screen = self.screen_provider()
+                        opened = self._best(screen, self.config.prestige_tab_open)
+                        closed = self._best(screen, self.config.prestige_tab_closed)
+                        if (opened and opened.confidence >= prestige_threshold
+                                and opened.confidence >= closed.confidence + 0.05):
+                            return screen, True
+                        self.sleep(self.config.wait_seconds)
+                logger.warning("CH | thấy Shop Danh Vọng nhưng bấm xong tab chưa mở -> bỏ qua")
+                return screen, False
             sidebar = sidebar_pixels(screen)
             unchanged = unchanged + 1 if cv2.absdiff(sidebar, previous_sidebar).mean() < 0.5 else 0
             previous_sidebar = sidebar.copy()

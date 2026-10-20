@@ -13,7 +13,10 @@ class DeviceSnapshot:
 
     @property
     def ready(self) -> list[AdbDevice]:
-        return [d for d in self.devices if d.is_ready]
+        return sorted(
+            [d for d in self.devices if d.is_ready],
+            key=lambda d: (0 if d.is_emulator else 1, d.serial),
+        )
 
 
 class DeviceManager:
@@ -35,7 +38,10 @@ class DeviceManager:
             return list(self._devices.values())
 
     def ready(self) -> list[AdbDevice]:
-        return [d for d in self.all() if d.is_ready]
+        return sorted(
+            [d for d in self.all() if d.is_ready],
+            key=lambda d: (0 if d.is_emulator else 1, d.serial),
+        )
 
     def get(self, serial: str) -> AdbDevice | None:
         with self._lock:

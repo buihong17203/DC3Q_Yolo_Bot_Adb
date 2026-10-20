@@ -73,15 +73,19 @@ class AdbInput:
     def ui_xml(self) -> str:
         LOGGER.info("ACTION | UI_XML | device=%s | bắt đầu", self.device.serial)
         remote = "/sdcard/dc3q_window.xml"
-        self.shell("rm", "-f", remote)
-        self.shell("uiautomator", "dump", remote, timeout=15)
-        xml = self.shell("cat", remote)
-        self.shell("rm", "-f", remote)
-        if not xml.lstrip().startswith("<?xml"):
-            LOGGER.info("ACTION | UI_XML | device=%s | kết_quả=KHÔNG HỢP LỆ", self.device.serial)
-            raise RuntimeError("UI dump không hợp lệ")
-        LOGGER.info("ACTION | UI_XML | device=%s | kết_quả=HỢP LỆ | ký_tự=%d", self.device.serial, len(xml))
-        return xml
+        try:
+            self.shell("rm", "-f", remote)
+            self.shell("uiautomator", "dump", remote, timeout=8)
+            xml = self.shell("cat", remote)
+            self.shell("rm", "-f", remote)
+            if not xml.lstrip().startswith("<?xml"):
+                LOGGER.info("ACTION | UI_XML | device=%s | kết_quả=KHÔNG HỢP LỆ", self.device.serial)
+                return ""
+            LOGGER.info("ACTION | UI_XML | device=%s | kết_quả=HỢP LỆ | ký_tự=%d", self.device.serial, len(xml))
+            return xml
+        except Exception as e:
+            LOGGER.warning("ACTION | UI_XML | device=%s | lỗi dump=%s", self.device.serial, e)
+            return ""
 
     def clear_focused_text(self) -> None:
         # SDK login fields can retain the previous account after manual logout.

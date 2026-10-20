@@ -24,12 +24,24 @@ def redact_runtime_screenshot(image, *, authentication: bool):
     if not authentication:
         return image.copy()
     redacted = image.copy()
-    from PIL import ImageDraw
-    width, height = redacted.size
-    ImageDraw.Draw(redacted).rectangle(
-        (round(width * .20), round(height * .24), round(width * .80), round(height * .66)),
-        fill=(0, 0, 0),
-    )
+    pixels = redacted.data if hasattr(redacted, "data") and hasattr(redacted.data, "shape") else redacted
+    if hasattr(pixels, "shape"):
+        import cv2
+        height, width = pixels.shape[:2]
+        cv2.rectangle(
+            pixels,
+            (round(width * .20), round(height * .24)),
+            (round(width * .80), round(height * .66)),
+            (0, 0, 0),
+            -1,
+        )
+    else:
+        from PIL import ImageDraw
+        width, height = redacted.size
+        ImageDraw.Draw(redacted).rectangle(
+            (round(width * .20), round(height * .24), round(width * .80), round(height * .66)),
+            fill=(0, 0, 0),
+        )
     return redacted
 
 
@@ -72,6 +84,7 @@ class AccountLoginConfig:
     username: tuple[int, int] | None = None
     password: tuple[int, int] | None = None
     submit: tuple[int, int] | None = None
+    tiep_tuc: tuple[int, int] | None = None
     threshold: float = 0.80
     control_threshold: float = 0.75
     poll_seconds: float = 1.0
@@ -94,7 +107,8 @@ class AccountLoginConfig:
     out_game_confirm: Path | None = None
     out_game_threshold: float = 0.75
     out_game_confirm_threshold: float = 0.50
-    restart_wait_attempts: int = 30
+    restart_wait_attempts: int = 60
+    sub_screen_close_templates: list[Path] | None = None
 
 
 class AccountLoginController:
@@ -113,9 +127,24 @@ class AccountLoginController:
         self.input.set_cutoff_guard(
             lambda: in_daily_cutoff(datetime.now(TIMEZONE), config.cutoff_hour, config.cutoff_minute)
         )
-        self.login_action = AccountLoginAction(self.input, LoginCoordinates(config.username, config.password, config.submit))
+        self.login_action = AccountLoginAction(
+            self.input,
+            LoginCoordinates(config.username, config.password, config.submit, config.tiep_tuc),
+        )
         self.logout_action = AccountLogoutAction(self.input, config.logout_templates)
         self.home_action = HomeAction(self.input, self.logout_action.vision, config)
+        from app.state.scene import SceneClassifier, GameScene
+        self.scene_classifier = SceneClassifier(
+            vision=self.logout_action.vision,
+            login_templates=config.login_templates,
+            logged_in_templates=config.logged_in_templates,
+            home_events=config.home_events,
+            out_game_title=config.out_game_title,
+            out_game_confirm=config.out_game_confirm,
+            sub_screen_close_templates=config.sub_screen_close_templates,
+            threshold=config.threshold,
+            logged_in_threshold=config.logged_in_threshold,
+        )
         self.phase = AccountLoginPhase.WAIT_LOGIN_SCREEN
         self.current: Account | None = None
         self._logged_in_hits = 0
@@ -141,7 +170,9 @@ class AccountLoginController:
         import unicodedata
         import numpy as np
         from rapidocr_onnxruntime import RapidOCR
-        image = np.asarray(screen.convert("RGB")) if hasattr(screen, "convert") else np.asarray(screen)
+        image = screen.data if hasattr(screen, "data") else (
+            np.asarray(screen.convert("RGB")) if hasattr(screen, "convert") else np.asarray(screen)
+        )
         result, _ = RapidOCR()(image)
         text = " ".join(str(row[1]) for row in (result or []))
         return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
@@ -151,34 +182,53 @@ class AccountLoginController:
         if self.config.out_game_title is None or self.config.out_game_confirm is None:
             raise RuntimeError("Thiếu asset title/Xác nhận out_game")
         self.input.keyevent("KEYCODE_ESCAPE")
-        sleep(self.config.poll_seconds)
-        screen = self._screen()
-        detection = self.detector.detect(
-            screen, login_templates=self.config.login_templates,
-            logged_in_templates=self.config.logged_in_templates,
-            threshold=self.config.threshold,
-            logged_in_threshold=self.config.logged_in_threshold,
-        )
-        if detection.state == LoginScreenState.LOGGED_IN:
-            __import__("logging").getLogger("dc3q").info(
-                "RECOVERY | ESC đã đưa về HOME; không out game"
+        screen = None
+        title = None
+        for _ in range(3):
+            sleep(self.config.poll_seconds)
+            screen = self._screen()
+            detection = self.detector.detect(
+                screen, login_templates=self.config.login_templates,
+                logged_in_templates=self.config.logged_in_templates,
+                threshold=self.config.threshold,
+                logged_in_threshold=self.config.logged_in_threshold,
             )
-            return False
-        title = self.logout_action.vision.find_template(
-            screen, "out_game_title", self.config.out_game_title,
-            self.config.out_game_threshold,
-        ).match
-        if not title.found:
-            raise RuntimeError("ESC không mở đúng popup Thoát game")
+            if detection.state == LoginScreenState.LOGGED_IN:
+                __import__("logging").getLogger("dc3q").info(
+                    "RECOVERY | ESC đã đưa về HOME; không out game"
+                )
+                return False
+            title = self.logout_action.vision.find_template(
+                screen, "out_game_title", self.config.out_game_title,
+                self.config.out_game_threshold,
+            ).match
+            if title.found:
+                break
+        if title is None or not title.found:
+            logger = __import__("logging").getLogger("dc3q")
+            logger.warning(
+                "RECOVERY | ESC thất bại sau 3 frame; force-stop riêng com.daichien.mobile"
+            )
+            self.input.shell("am", "force-stop", "com.daichien.mobile")
+            sleep(self.config.poll_seconds)
+            return True
         import numpy as np
-        image = np.asarray(screen.convert("RGB")) if hasattr(screen, "convert") else np.asarray(screen)
+        image = screen.data if hasattr(screen, "data") else (
+            np.asarray(screen.convert("RGB")) if hasattr(screen, "convert") else np.asarray(screen)
+        )
         split_x = image.shape[1] // 2
         confirm = self.logout_action.vision.find_template(
             image[:, split_x:], "out_game_confirm", self.config.out_game_confirm,
             self.config.out_game_confirm_threshold,
         ).match
         if not confirm.found:
-            raise RuntimeError("Popup Thoát game thiếu nút Xác nhận ở nửa phải")
+            logger = __import__("logging").getLogger("dc3q")
+            logger.warning(
+                "RECOVERY | popup Thoát game thiếu Xác nhận; force-stop riêng com.daichien.mobile"
+            )
+            self.input.shell("am", "force-stop", "com.daichien.mobile")
+            sleep(self.config.poll_seconds)
+            return True
         self.input.tap(split_x + confirm.x + confirm.width // 2, confirm.y + confirm.height // 2)
         sleep(self.config.poll_seconds)
         return True
@@ -207,11 +257,21 @@ class AccountLoginController:
                         return
                 else:
                     home_hits = 0
+                    if self.config.home_events:
+                        for state_tpl, close_tpl, thresh in self.config.home_events:
+                            r = self.home_action.vision.find_template(image, "home_event", state_tpl, thresh).match
+                            if r.found:
+                                cr = self.home_action.vision.find_template(image, "home_event_close", close_tpl, thresh).match
+                                if cr.found:
+                                    logger.info("RECOVERY | Đóng popup sự kiện trong lúc mở game")
+                                    self.input.tap(cr.x + cr.width // 2, cr.y + cr.height // 2)
+                                    break
                 sleep(self.config.poll_seconds)
         raise RuntimeError("Mở game lại 2 lần nhưng chưa về HOME")
 
     def reconcile_existing_home(self) -> None:
         """Return a retained session to LOGIN before allocating acc_001."""
+        self.scene_classifier.ensure_home(self._screen, self.input, max_steps=4)
         self.logout_action.logout(
             self._screen,
             templates=self.config.logout_templates,
@@ -224,14 +284,19 @@ class AccountLoginController:
 
     def _screen(self):
         from app.vision.image import load_image
-        image = load_image(self.screenshot.png_bytes()).data
+        image = load_image(self.screenshot.png_bytes())
         self._rolling_screenshot.parent.mkdir(parents=True, exist_ok=True)
         authentication = self.phase in {
             AccountLoginPhase.WAIT_LOGIN_SCREEN,
             AccountLoginPhase.LOGGING_IN,
         }
         temporary = self._rolling_screenshot.with_suffix(".tmp.png")
-        redact_runtime_screenshot(image, authentication=authentication).save(temporary)
+        redacted = redact_runtime_screenshot(image, authentication=authentication)
+        if hasattr(redacted, "save"):
+            redacted.save(temporary)
+        else:
+            import cv2
+            cv2.imwrite(str(temporary), redacted)
         temporary.replace(self._rolling_screenshot)
         return image
 
@@ -246,9 +311,17 @@ class AccountLoginController:
                                  threshold=self.config.threshold,
                                  logged_in_threshold=self.config.logged_in_threshold)
         LOGGER = __import__("logging").getLogger("dc3q")
-        LOGGER.info("SCREEN | device=%s | state=%s | confidence=%.3f | evidence=%s",
-                    self.device.serial, d.state.value, d.confidence, d.evidence or "-")
-        return image, d
+        if d.state == LoginScreenState.LOGGED_IN:
+            from app.state.scene import GameScene, SceneResult
+            scene_res = SceneResult(GameScene.HOME, "Màn hình chính HOME (Nội chính)", d.confidence)
+        elif d.state == LoginScreenState.LOGIN_SCREEN:
+            from app.state.scene import GameScene, SceneResult
+            scene_res = SceneResult(GameScene.LOGIN_SCREEN, "Màn hình Đăng nhập", d.confidence)
+        else:
+            scene_res = self.scene_classifier.classify(image, self.input)
+        LOGGER.info("SCREEN | device=%s | scene=%s (%s) | login_state=%s (conf=%.3f)",
+                    self.device.serial, scene_res.scene.value, scene_res.detail, d.state.value, d.confidence)
+        return image, d, scene_res
 
     def _retry_submit_if_stuck(self, state, now: float) -> bool:
         """Retry only an unchanged login form; bounded, never during another state."""
@@ -322,11 +395,51 @@ class AccountLoginController:
 
     def poll_once(self) -> AccountLoginPhase:
         self.runtime.maybe_rollover()
-        image, d = self._detect()
+        detected = self._detect()
+        if len(detected) == 3:
+            image, d, scene_res = detected
+        else:
+            image, d = detected
+            scene_res = self.scene_classifier.classify(image, self.input)
 
+        from app.state.scene import GameScene
         if self.phase == AccountLoginPhase.WAIT_LOGIN_SCREEN:
+            if scene_res.scene == GameScene.DESKTOP:
+                LOGGER = __import__("logging").getLogger("dc3q")
+                LOGGER.info("WAIT_LOGIN_SCREEN | Game không ở foreground; tự động mở lại com.daichien.mobile")
+                self.input.shell("monkey", "-p", "com.daichien.mobile", "1")
+                sleep(2.0)
+                return self.phase
+
+            if scene_res.scene == GameScene.POPUP and scene_res.action_point is not None:
+                LOGGER = __import__("logging").getLogger("dc3q")
+                LOGGER.info("WAIT_LOGIN_SCREEN | Tự động đóng popup %s tại %s", scene_res.detail, scene_res.action_point)
+                self.input.tap(*scene_res.action_point)
+                sleep(1.0)
+                return self.phase
+
+            if scene_res.scene == GameScene.SUB_SCREEN and scene_res.action_point is not None:
+                LOGGER = __import__("logging").getLogger("dc3q")
+                LOGGER.info("WAIT_LOGIN_SCREEN | Tự động đóng màn hình con %s tại %s", scene_res.detail, scene_res.action_point)
+                self.input.tap(*scene_res.action_point)
+                sleep(1.0)
+                return self.phase
+
+            if self._handle_known_home_event(image):
+                LOGGER = __import__("logging").getLogger("dc3q")
+                LOGGER.info("WAIT_LOGIN_SCREEN | Đã đóng popup sự kiện ngẫu nhiên che khuất màn hình")
+                sleep(1.0)
+                return self.phase
+
             if d.state == LoginScreenState.LOGGED_IN:
-                self.reconcile_existing_home()
+                try:
+                    self.reconcile_existing_home()
+                except Exception as exc:
+                    LOGGER = __import__("logging").getLogger("dc3q")
+                    LOGGER.warning("WAIT_LOGIN_SCREEN | reconcile_existing_home thất bại: %s -> thử out game bằng ESC/force-stop", exc)
+                    self._exit_game_with_esc()
+                    sleep(2.0)
+                    self.input.shell("monkey", "-p", "com.daichien.mobile", "1")
                 return self.phase
             if d.state == LoginScreenState.LOGIN_SCREEN:
                 account = self.accounts.claim_next()
@@ -352,11 +465,47 @@ class AccountLoginController:
                     self._last_submit_at = monotonic()
                     self._submit_transitioning = False
                 except Exception as exc:
+                    LOGGER = __import__("logging").getLogger("dc3q")
+                    LOGGER.error("LOGIN | Không thể điền thông tin đăng nhập tài khoản %s: %s", account.id, exc)
                     self.runtime.mark_error(account.id, self.device.serial, str(exc))
-                    raise
+                    try:
+                        self.accounts.skip_current(account.id)
+                    except Exception:
+                        pass
+                    self.current = None
+                    self.phase = AccountLoginPhase.WAIT_LOGIN_SCREEN
+                    self._logged_in_hits = 0
+                    return self.phase
             return self.phase
 
         if self.phase == AccountLoginPhase.LOGGING_IN:
+            if d.state == LoginScreenState.LOGGED_IN:
+                # HOME is proven only by the configured Chính vụ crop.
+                self._logged_in_hits += 1
+                if self._logged_in_hits >= self.config.logged_in_confirmations:
+                    assert self.current
+                    self.accounts.commit_logged_in(self.current.id)
+                    self.runtime.mark_logged_in(self.current.id, self.device.serial)
+                    row = self.runtime.statuses().get(self.current.id, {})
+                    completed = set()
+                    for target in self.config.home_targets or []:
+                        task = getattr(target, "runtime_task", "")
+                        field = self.runtime._normalize_task(task)
+                        if field and row.get(field) in {"DONE", "ERROR"}:
+                            completed.add(task)
+                    self.home_action.set_completed_tasks(completed)
+                    if self.home_action.target_done:
+                        self.phase = (
+                            AccountLoginPhase.LOGGING_OUT
+                            if self.config.auto_logout
+                            else AccountLoginPhase.WAIT_MANUAL_LOGOUT
+                        )
+                    else:
+                        self.phase = AccountLoginPhase.PROCESS_HOME_EVENTS
+                    return self.poll_once()
+
+                return self.phase
+
             # Ưu tiên cặp title + nút đóng đã xác minh. UI XML thường thấy
             # title nhưng không expose nút X, không được kết luận bị chặn sớm.
             if self._handle_known_home_event(image):
@@ -364,7 +513,7 @@ class AccountLoginController:
                 return self.phase
             try:
                 unexpected, point = classify_login_ui(self.input.ui_xml())
-            except RuntimeError:
+            except Exception:
                 unexpected, point = "unknown", None
             if unexpected == "credential_rejected":
                 assert self.current
@@ -383,13 +532,29 @@ class AccountLoginController:
                 raise RuntimeError(message)
             if unexpected in {"operator_required", "profile_update_blocked"}:
                 assert self.current
+                LOGGER = __import__("logging").getLogger("dc3q")
+                LOGGER.warning("LOGIN | Tài khoản %s yêu cầu can thiệp (%s) -> ghi nhận lỗi và chuyển tài khoản tiếp theo", self.current.id, unexpected)
                 message = f"Cần người vận hành: {unexpected}"
                 self.runtime.mark_error(self.current.id, self.device.serial, message)
-                raise RuntimeError(message)
+                self.accounts.skip_current(self.current.id)
+                self.current = None
+                self.phase = AccountLoginPhase.WAIT_LOGIN_SCREEN
+                self._logged_in_hits = 0
+                return self.phase
             if unexpected == "profile_update_close" and point is not None:
-                if self._profile_update_closed >= 1:
-                    raise RuntimeError("Popup cập nhật thông tin xuất hiện lại sau khi đã đóng")
+                if self._profile_update_closed >= 3:
+                    LOGGER = __import__("logging").getLogger("dc3q")
+                    LOGGER.warning("LOGIN | Tài khoản %s popup cập nhật thông tin xuất hiện lại sau 3 lần đóng -> bỏ qua sang acc tiếp theo", self.current.id)
+                    self.runtime.mark_error(self.current.id, self.device.serial, "Popup cập nhật thông tin xuất hiện lại")
+                    self.accounts.skip_current(self.current.id)
+                    self.current = None
+                    self.phase = AccountLoginPhase.WAIT_LOGIN_SCREEN
+                    self._logged_in_hits = 0
+                    return self.phase
+                LOGGER = __import__("logging").getLogger("dc3q")
+                LOGGER.info("LOGIN | Đóng popup Cập nhật thông tin cá nhân lần %d tại %s", self._profile_update_closed + 1, point)
                 self.input.tap(*point)
+                sleep(1.0)
                 self._profile_update_closed += 1
                 self._logged_in_hits = 0
                 return self.phase
@@ -400,23 +565,6 @@ class AccountLoginController:
                 self._retry_submit_if_stuck(d.state, monotonic())
                 self._logged_in_hits = 0
                 return self.phase
-            if d.state == LoginScreenState.LOGGED_IN:
-                # HOME is proven only by the configured Chính vụ crop.
-                self._logged_in_hits += 1
-                if self._logged_in_hits >= self.config.logged_in_confirmations:
-                    assert self.current
-                    self.accounts.commit_logged_in(self.current.id)
-                    self.runtime.mark_logged_in(self.current.id, self.device.serial)
-                    row = self.runtime.statuses().get(self.current.id, {})
-                    completed = set()
-                    for target in self.config.home_targets or []:
-                        task = getattr(target, "runtime_task", "")
-                        field = self.runtime._normalize_task(task)
-                        if field and row.get(field) == "DONE":
-                            completed.add(task)
-                    self.home_action.set_completed_tasks(completed)
-                    self.phase = AccountLoginPhase.PROCESS_HOME_EVENTS
-                    return self.poll_once()
             else:
                 self._logged_in_hits = 0
             return self.phase
@@ -443,18 +591,52 @@ class AccountLoginController:
             except GameRestartRequired as exc:
                 LOGGER = __import__("logging").getLogger("dc3q")
                 LOGGER.warning(
-                    "RECOVERY | task=%s lỗi đủ %d lần; ESC out game và mở lại",
+                    "RECOVERY | task=%s lỗi đủ %d lần; xử lý phục hồi HOME để chạy tiếp các task còn lại",
                     exc.task, self.config.target_retry_limit,
                 )
-                exited = self._exit_game_with_esc()
-                if exited:
-                    self._restart_game_to_retained_home()
-                    self.home_action.resume_after_game_restart(exc.task)
-                else:
-                    self.runtime.mark_task_error(
-                        self.current.id, exc.task, f"home target error: {exc}",
+                self.runtime.mark_task_error(
+                    self.current.id, exc.task, f"home target error: {exc}",
+                )
+                # 1. Thử dùng ensure_home trước để đóng popup / sub-screen
+                at_home = False
+                try:
+                    at_home = self.scene_classifier.ensure_home(self._screen, self.input, max_steps=4)
+                except Exception as ensure_err:
+                    LOGGER.warning("RECOVERY | ensure_home gặp lỗi: %s", ensure_err)
+
+                # 2. Nếu ensure_home không về được HOME thì mới ESC / restart game về HOME
+                if not at_home:
+                    exited = self._exit_game_with_esc()
+                    if exited:
+                        try:
+                            self._restart_game_to_retained_home()
+                            at_home = True
+                        except Exception as restart_exc:
+                            LOGGER.error("RECOVERY | không thể restart về HOME tài khoản %s: %s -> chuyển sang acc tiếp theo", self.current.id, restart_exc)
+                            self.runtime.mark_error(self.current.id, self.device.serial, f"restart error: {restart_exc}", task=exc.task)
+                            try:
+                                self.reconcile_existing_home()
+                            except Exception as recon_exc:
+                                LOGGER.warning("RECOVERY | reconcile thất bại: %s", recon_exc)
+                                try:
+                                    self.input.shell("am", "force-stop", "com.daichien.mobile")
+                                    sleep(1.0)
+                                    self.input.shell("monkey", "-p", "com.daichien.mobile", "1")
+                                except Exception:
+                                    pass
+                            self.current = None
+                            self.phase = AccountLoginPhase.WAIT_LOGIN_SCREEN
+                            self.home_action.reset()
+                            return self.phase
+
+                # 3. Bỏ qua task lỗi hiện tại và chuyển sang task tiếp theo của tài khoản này
+                self.home_action.continue_after_esc_home(exc.task)
+                if self.home_action.target_done:
+                    self.phase = (
+                        AccountLoginPhase.LOGGING_OUT
+                        if self.config.auto_logout
+                        else AccountLoginPhase.WAIT_MANUAL_LOGOUT
                     )
-                    self.home_action.continue_after_esc_home(exc.task)
                 self.runtime.update(
                     self.current.id, status="LOGGED_IN", assigned_device=self.device.serial,
                     last_run=datetime.now(TIMEZONE).isoformat(timespec="seconds"),
@@ -462,18 +644,39 @@ class AccountLoginController:
                 return self.phase
             except Exception as exc:
                 assert self.current
-                self.runtime.mark_error(
-                    self.current.id, self.device.serial, f"home target error: {exc}",
-                    task=self.home_action.current_task,
+                LOGGER = __import__("logging").getLogger("dc3q")
+                LOGGER.error("HOME | task=%s lỗi: %s -> ghi nhận và bỏ qua để chạy task tiếp theo", self.home_action.current_task, exc)
+                task_failed = self.home_action.current_task
+                self.runtime.mark_task_error(
+                    self.current.id, task_failed, f"home target error: {exc}",
                 )
-                raise
-            if home_done:
+                try:
+                    self.scene_classifier.ensure_home(self._screen, self.input, max_steps=4)
+                except Exception as ensure_err:
+                    LOGGER.warning("HOME | ensure_home gặp lỗi: %s", ensure_err)
+                self.home_action.last_task_error = ""
+                self.home_action.target_index += 1
+                self.home_action.recovery_attempts = 0
+                self.home_action._skip_completed()
+                if self.home_action.target_done:
+                    self.phase = (
+                        AccountLoginPhase.LOGGING_OUT
+                        if self.config.auto_logout
+                        else AccountLoginPhase.WAIT_MANUAL_LOGOUT
+                    )
+                self.runtime.update(
+                    self.current.id, status="LOGGED_IN", assigned_device=self.device.serial,
+                    last_run=datetime.now(TIMEZONE).isoformat(timespec="seconds"),
+                )
+                return self.phase
+            if home_done or self.home_action.target_done:
                 self.phase = (
                     AccountLoginPhase.LOGGING_OUT
                     if self.config.auto_logout
                     else AccountLoginPhase.WAIT_MANUAL_LOGOUT
                 )
             return self.phase
+
 
         if self.phase == AccountLoginPhase.LOGGING_OUT:
             assert self.current
@@ -506,9 +709,26 @@ class AccountLoginController:
                 self._home_target_done = False
                 self.home_action.reset()
             except Exception as exc:
-                LOGGER.error("Lỗi khi đăng xuất tài khoản %s: %s", self.current.id, exc)
+                LOGGER.error("Lỗi khi đăng xuất tài khoản %s: %s -> force restart game để chuyển tài khoản tiếp theo", self.current.id, exc)
                 self.runtime.mark_error(self.current.id, self.device.serial, f"logout error: {exc}")
-                raise
+                try:
+                    self.accounts.skip_current(self.current.id)
+                except Exception:
+                    pass
+                try:
+                    self.input.shell("am", "force-stop", "com.daichien.mobile")
+                    sleep(2.0)
+                    self.input.shell("monkey", "-p", "com.daichien.mobile", "1")
+                    sleep(3.0)
+                except Exception as recovery_err:
+                    LOGGER.warning("Lỗi khi force restart sau logout: %s", recovery_err)
+                self.current = None
+                self.phase = AccountLoginPhase.WAIT_LOGIN_SCREEN
+                self._profile_update_closed = 0
+                self._home_hits = 0
+                self._home_target_done = False
+                self.home_action.reset()
+                return self.phase
             return self.phase
 
         if self.phase == AccountLoginPhase.WAIT_MANUAL_LOGOUT:
@@ -534,6 +754,31 @@ class AccountLoginController:
             except DailyCutoff:
                 self._drain_daily_cutoff()
                 continue
+            except Exception as fatal_poll_exc:
+                LOGGER = __import__("logging").getLogger("dc3q")
+                LOGGER.error("CỰC KỲ QUAN TRỌNG: Lỗi không mong muốn trong poll_once: %s", fatal_poll_exc, exc_info=True)
+                if self.current:
+                    self.runtime.mark_error(self.current.id, self.device.serial, f"fatal poll error: {fatal_poll_exc}")
+                    try:
+                        self.accounts.skip_current(self.current.id)
+                    except Exception:
+                        pass
+                try:
+                    self.input.shell("am", "force-stop", "com.daichien.mobile")
+                    sleep(2.0)
+                    self.input.shell("monkey", "-p", "com.daichien.mobile", "1")
+                    sleep(3.0)
+                except Exception as r_err:
+                    LOGGER.warning("Lỗi phục hồi app sau crash: %s", r_err)
+                self.current = None
+                self.phase = AccountLoginPhase.WAIT_LOGIN_SCREEN
+                self._profile_update_closed = 0
+                self._home_hits = 0
+                self._home_target_done = False
+                self.home_action.reset()
+                deadline = monotonic() + self.config.login_timeout_seconds
+                sleep(self.config.poll_seconds)
+                continue
             if self.phase == AccountLoginPhase.EXHAUSTED:
                 if not self.config.persistent_daily:
                     return
@@ -548,9 +793,30 @@ class AccountLoginController:
                         self.phase = AccountLoginPhase.WAIT_LOGIN_SCREEN
                 continue
             if before == AccountLoginPhase.LOGGING_IN and self.phase == AccountLoginPhase.LOGGING_IN and monotonic() > deadline:
+                LOGGER = __import__("logging").getLogger("dc3q")
+                LOGGER.error("Hết thời gian chờ đăng nhập tài khoản: %s -> Bỏ qua và chuyển tài khoản tiếp theo", self.current.id if self.current else "None")
                 if self.current:
                     self.runtime.mark_error(self.current.id, self.device.serial, "login timeout")
-                raise TimeoutError(f"Login timeout: {self.device.serial}")
+                    try:
+                        self.accounts.skip_current(self.current.id)
+                    except Exception:
+                        pass
+                try:
+                    self.input.shell("am", "force-stop", "com.daichien.mobile")
+                    sleep(2.0)
+                    self.input.shell("monkey", "-p", "com.daichien.mobile", "1")
+                    sleep(3.0)
+                except Exception as r_err:
+                    LOGGER.warning("Lỗi phục hồi app sau login timeout: %s", r_err)
+                self.current = None
+                self.phase = AccountLoginPhase.WAIT_LOGIN_SCREEN
+                self._profile_update_closed = 0
+                self._home_hits = 0
+                self._home_target_done = False
+                self.home_action.reset()
+                deadline = monotonic() + self.config.login_timeout_seconds
+                sleep(self.config.poll_seconds)
+                continue
             if self.phase not in (AccountLoginPhase.LOGGING_IN, AccountLoginPhase.LOGGING_OUT):
                 deadline = monotonic() + self.config.login_timeout_seconds
                 self._logged_in_hits = 0

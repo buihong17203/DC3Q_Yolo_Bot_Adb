@@ -1,13 +1,17 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import logging
 from pathlib import Path
 import re
 import time
+import unicodedata
 import xml.etree.ElementTree as ET
 from app.accounts.manager import Account
 from app.adb.input import AdbInput
 from app.vision import VisionDetector
 from app.state.login import LoginScreenState
+
+LOGGER = logging.getLogger("dc3q")
 
 
 def classify_login_ui(xml: str) -> tuple[str, tuple[int, int] | None]:
@@ -45,18 +49,24 @@ class LoginCoordinates:
     username: tuple[int, int] | None = None
     password: tuple[int, int] | None = None
     submit: tuple[int, int] | None = None
+    tiep_tuc: tuple[int, int] | None = None
+
 
 class AccountLoginAction:
-    """Physical UI login only: screenshot -> locate -> tap -> type.
+    """Physical UI login: emulator direct input or physical phone with soft keyboard next/continue flow."""
 
-    No game data, database, shared preference, memory, package internals, ESC,
-    BACK or automated logout is used by this action.
-    """
     def __init__(self, adb_input: AdbInput, coordinates: LoginCoordinates | None = None,
                  vision: VisionDetector | None = None):
         self.input = adb_input
         self.coordinates = coordinates or LoginCoordinates()
         self.vision = vision or VisionDetector()
+
+    @staticmethod
+    def _plain(text: str) -> str:
+        return "".join(
+            char for char in unicodedata.normalize("NFKD", text)
+            if not unicodedata.combining(char)
+        ).lower()
 
     def _find_and_tap(self, screen, template: str | Path, threshold: float) -> bool:
         r = self.vision.find_template(screen, "login_control", template, threshold).match
@@ -78,6 +88,75 @@ class AccountLoginAction:
             return False
         x1, y1, x2, y2 = values
         self.input.tap((x1 + x2) // 2, (y1 + y2) // 2)
+        return True
+
+    def _tap_accessibility_by_keywords(self, keywords: list[str]) -> bool:
+        try:
+            xml = self.input.ui_xml()
+            if not xml:
+                return False
+            root = ET.fromstring(xml)
+        except (RuntimeError, ET.ParseError):
+            return False
+
+        clean_keys = [self._plain(k).replace(" ", "") for k in keywords]
+        for node in root.iter("node"):
+            combined = f"{node.attrib.get('text', '')} {node.attrib.get('content-desc', '')} {node.attrib.get('resource-id', '')}"
+            text = self._plain(combined).replace(" ", "")
+            if any(k in text for k in clean_keys):
+                bounds = node.attrib.get("bounds", "")
+                values = [int(v) for v in re.findall(r"\d+", bounds)]
+                if len(values) == 4:
+                    x1, y1, x2, y2 = values
+                    self.input.tap((x1 + x2) // 2, (y1 + y2) // 2)
+                    return True
+        return False
+
+    def _find_ocr_center(self, screen, keywords: list[str]) -> tuple[int, int] | None:
+        try:
+            from rapidocr_onnxruntime import RapidOCR
+            import numpy as np
+
+            data = screen.data if hasattr(screen, "data") else screen
+            image = np.asarray(data.convert("RGB")) if hasattr(data, "convert") else np.asarray(data)
+            result, _ = RapidOCR()(image)
+            if not result:
+                return None
+
+            clean_keys = [self._plain(k).replace(" ", "") for k in keywords]
+            for row in result:
+                text = self._plain(str(row[1])).replace(" ", "")
+                if any(k in text for k in clean_keys):
+                    points = row[0]
+                    cx = int(sum(pt[0] for pt in points) / len(points))
+                    cy = int(sum(pt[1] for pt in points) / len(points))
+                    return cx, cy
+            return None
+        except Exception as exc:
+            LOGGER.warning("ACTION | TIEP_TUC | Lỗi OCR: %s", exc)
+            return None
+
+    def _tap_next_or_continue(self, screen_provider) -> bool:
+        """Nhấn nút Tiếp tục (hoặc gửi IME Action Next/Done) trên bảng bàn phím điện thoại."""
+        if self.coordinates.tiep_tuc:
+            LOGGER.info("ACTION | TIEP_TUC | Dùng tọa độ cấu hình: %s", self.coordinates.tiep_tuc)
+            self.input.tap(*self.coordinates.tiep_tuc)
+            return True
+
+        keywords = ["tieptuc", "tieptheo", "tiep", "next", "continue", "done", "xong", "hoantat"]
+        if self._tap_accessibility_by_keywords(keywords):
+            LOGGER.info("ACTION | TIEP_TUC | Tìm thấy và bấm nút qua Accessibility UI")
+            return True
+
+        screen = screen_provider()
+        ocr_pos = self._find_ocr_center(screen, keywords)
+        if ocr_pos:
+            LOGGER.info("ACTION | TIEP_TUC | Tìm thấy và bấm nút qua OCR tại: %s", ocr_pos)
+            self.input.tap(*ocr_pos)
+            return True
+
+        LOGGER.info("ACTION | TIEP_TUC | Fallback gửi KEYCODE_ENTER (66)")
+        self.input.keyevent("KEYCODE_ENTER")
         return True
 
     def clear_login_form(self) -> None:
@@ -120,40 +199,98 @@ class AccountLoginAction:
         if detector is None or login_templates is None:
             raise RuntimeError("Login action bắt buộc phải có screen detector")
 
-        # Username: confirm screen -> locate -> physical tap -> physical typing.
-        self._require_login_screen(screen_provider, detector, login_templates, threshold_screen)
-        screen = screen_provider()
-        if self.coordinates.username:
-            self.input.tap(*self.coordinates.username)
-        elif self._tap_accessibility("com.daichien.mobile:id/edt_username"):
-            pass
-        elif not self._find_and_tap(screen, username_template, threshold):
-            raise RuntimeError("Không tìm thấy ô tài khoản trên màn hình login")
-        time.sleep(0.3)
-        self.input.clear_focused_text()
-        time.sleep(0.1)
-        self.input.text(account.username)
-        time.sleep(0.3)
+        device = getattr(self.input, "device", None)
+        is_emulator = getattr(device, "is_emulator", True) if device else True
 
-        # Password: confirm screen again before physical interaction.
-        self._require_login_screen(screen_provider, detector, login_templates, threshold_screen)
-        screen = screen_provider()
-        if self.coordinates.password:
-            self.input.tap(*self.coordinates.password)
-        elif self._tap_accessibility("com.daichien.mobile:id/edt_password"):
-            pass
-        else:
-            if not any(self._find_and_tap(screen, tpl, threshold) for tpl in password_templates):
-                raise RuntimeError("Không tìm thấy ô mật khẩu trên màn hình login")
-        time.sleep(0.3)
-        self.input.clear_focused_text()
-        time.sleep(0.1)
-        self.input.text(account.password)
-        time.sleep(0.3)
+        if is_emulator:
+            LOGGER.info("LOGIN | Chế độ: GIẢ LẬP PC (tìm nút & nhập trực tiếp)")
+            # 1. Username: confirm screen -> locate -> physical tap -> physical typing.
+            self._require_login_screen(screen_provider, detector, login_templates, threshold_screen)
+            screen = screen_provider()
+            if self.coordinates.username:
+                self.input.tap(*self.coordinates.username)
+            elif self._tap_accessibility("com.daichien.mobile:id/edt_username"):
+                pass
+            elif not self._find_and_tap(screen, username_template, threshold):
+                raise RuntimeError("Không tìm thấy ô tài khoản trên màn hình login")
+            time.sleep(0.3)
+            self.input.clear_focused_text()
+            time.sleep(0.1)
+            self.input.text(account.username)
+            time.sleep(0.3)
 
-        # Submit exactly once. Slow/loading/maintenance states are handled by the controller.
-        self._require_login_screen(screen_provider, detector, login_templates, threshold_screen)
-        if self.coordinates.submit:
-            self.input.tap(*self.coordinates.submit)
+            # 2. Password: confirm screen again before physical interaction.
+            self._require_login_screen(screen_provider, detector, login_templates, threshold_screen)
+            screen = screen_provider()
+            if self.coordinates.password:
+                self.input.tap(*self.coordinates.password)
+            elif self._tap_accessibility("com.daichien.mobile:id/edt_password"):
+                pass
+            else:
+                if not any(self._find_and_tap(screen, tpl, threshold) for tpl in password_templates):
+                    raise RuntimeError("Không tìm thấy ô mật khẩu trên màn hình login")
+            time.sleep(0.3)
+            self.input.clear_focused_text()
+            time.sleep(0.1)
+            self.input.text(account.password)
+            time.sleep(0.3)
+
+            # 3. Submit
+            self._require_login_screen(screen_provider, detector, login_templates, threshold_screen)
+            if self.coordinates.submit:
+                self.input.tap(*self.coordinates.submit)
+            else:
+                self._submit_once(screen_provider, submit_template, threshold)
         else:
-            self._submit_once(screen_provider, submit_template, threshold)
+            LOGGER.info("LOGIN | Chế độ: ĐIỆN THOẠI (sử dụng bảng bàn phím & nút Tiếp tục)")
+            # 1. Bấm ô tài khoản để bật bàn phím
+            self._require_login_screen(screen_provider, detector, login_templates, threshold_screen)
+            screen = screen_provider()
+            if self.coordinates.username:
+                self.input.tap(*self.coordinates.username)
+            elif self._tap_accessibility("com.daichien.mobile:id/edt_username"):
+                pass
+            elif not self._find_and_tap(screen, username_template, threshold):
+                raise RuntimeError("Không tìm thấy ô tài khoản trên màn hình login")
+            time.sleep(0.8)  # Đợi bảng bàn phím hiện lên
+
+            # 2. Nhập username
+            self.input.clear_focused_text()
+            time.sleep(0.2)
+            self.input.text(account.username)
+            time.sleep(0.5)
+
+            # 3. Bấm nút Tiếp tục để chuyển sang ô nhập mật khẩu
+            LOGGER.info("LOGIN | Bấm nút Tiếp tục để chuyển sang ô mật khẩu")
+            self._tap_next_or_continue(screen_provider)
+            time.sleep(0.8)  # Chờ chuyển focus sang ô mật khẩu
+
+            # 4. Nhập password
+            self.input.clear_focused_text()
+            time.sleep(0.2)
+            self.input.text(account.password)
+            time.sleep(0.5)
+
+            # 5. Bấm nút Tiếp tục để đóng bàn phím & quay về màn đăng nhập chính
+            LOGGER.info("LOGIN | Bấm nút Tiếp tục để đóng bàn phím & quay về màn đăng nhập chính")
+            self._tap_next_or_continue(screen_provider)
+            time.sleep(0.8)
+
+            # 6. Đợi và kiểm tra đã quay về màn đăng nhập chính
+            for _ in range(5):
+                screen = screen_provider()
+                d = detector.detect(screen, login_templates=login_templates, logged_in_templates=[], threshold=threshold_screen)
+                if d.state == LoginScreenState.LOGIN_SCREEN:
+                    break
+                # Nếu bàn phím ảo chưa hạ che mất màn hình, bấm BACK nhẹ để ẩn bàn phím
+                self.input.keyevent("KEYCODE_BACK")
+                time.sleep(0.5)
+
+            self._require_login_screen(screen_provider, detector, login_templates, threshold_screen)
+
+            # 7. Bấm nút đăng nhập trên màn hình chính
+            LOGGER.info("LOGIN | Đã ở màn hình chính -> Bấm nút Đăng nhập")
+            if self.coordinates.submit:
+                self.input.tap(*self.coordinates.submit)
+            else:
+                self._submit_once(screen_provider, submit_template, threshold)

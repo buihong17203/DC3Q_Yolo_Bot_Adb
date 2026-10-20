@@ -6,6 +6,8 @@ logout:
   home_anchor_template: data/img/templates/stars/home/screen/screen_noi-chinh_01.png
   home_anchor_roi: [840, 480, 1000, 575]
   avatar_mirror_offset: [-8, 21]
+  # Tâm avatar theo tỷ lệ raw ADB; chỉ dùng sau 3 lần điểm neo không đổi màn.
+  avatar_fallback_normalized: [0.03125, 0.064815]
   templates:
     open_tuychon: data/img/templates/stars/dang-xuat/screen/screen_dx_ttct_button_open_tuychon.png
     open_cdnd: data/img/templates/stars/dang-xuat/screen/screen_dx_ttct_tc_button_open_cdnd.png

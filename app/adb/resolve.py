@@ -19,9 +19,12 @@ class AdbResolver:
     def ensure_server(self) -> None:
         self.client.start_server()
 
-    def list_devices(self) -> list[AdbDevice]:
+    def list_devices(self, prioritize_emulator: bool = True) -> list[AdbDevice]:
         raw = self.client.devices_raw()
-        return list(self.parse_devices(raw))
+        devices = list(self.parse_devices(raw))
+        if prioritize_emulator:
+            devices.sort(key=lambda d: (0 if d.is_emulator else 1, d.serial))
+        return devices
 
     @classmethod
     def parse_devices(cls, raw: str) -> Iterable[AdbDevice]:
@@ -50,8 +53,12 @@ class AdbResolver:
                 transport_id=props.get("transport_id"),
             )
 
-    def find_ready(self) -> list[AdbDevice]:
-        return [device for device in self.list_devices() if device.is_ready]
+    def find_ready(self, prioritize_emulator: bool = True) -> list[AdbDevice]:
+        return [
+            device
+            for device in self.list_devices(prioritize_emulator=prioritize_emulator)
+            if device.is_ready
+        ]
 
     @staticmethod
     def to_dict(device: AdbDevice) -> dict:

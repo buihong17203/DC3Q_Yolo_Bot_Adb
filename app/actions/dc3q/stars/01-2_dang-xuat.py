@@ -20,6 +20,13 @@ def reflected_point(anchor: tuple[int, int], size: tuple[int, int],
     return width - x + dx, height - y + dy
 
 
+def scaled_normalized_point(point: tuple[float, float],
+                            size: tuple[int, int]) -> tuple[int, int]:
+    """Scale a reference-independent point to the current ADB frame."""
+    width, height = size
+    return round(point[0] * width), round(point[1] * height)
+
+
 def select_logout_state(found: dict[str, bool]) -> str:
     """Resume forward from the deepest positively recognized logout layer."""
     for state in ("login", "confirm", "switch", "settings", "options", "home"):
@@ -35,8 +42,9 @@ class LogoutTemplates:
     open_dtk: Path
     confirm_dtk: Path
     home_anchor_template: Path
-    home_anchor_roi: tuple[int, int, int, int] = (840, 490, 980, 575)
+    home_anchor_roi: tuple[int, int, int, int] = (840, 470, 1000, 575)
     avatar_mirror_offset: tuple[int, int] = (-8, 21)
+    avatar_fallback_normalized: tuple[float, float] = (0.03125, 0.064815)
 
 
 class AccountLogoutAction:
@@ -103,9 +111,8 @@ class AccountLogoutAction:
         result = cv2.matchTemplate(search, scaled, cv2.TM_CCOEFF_NORMED)
         _, score, _, location = cv2.minMaxLoc(result)
         # Small edge HUD crops vary slightly with animation/compression. The
-        # configured threshold remains strict elsewhere; this anchor has a
-        # narrow ROI and only authorizes opening the profile.
-        anchor_threshold = max(0.0, threshold - 0.02)
+        # configured threshold (default 0.60) in dang-xuat.yaml applies here.
+        anchor_threshold = max(0.55, threshold)
         LOGGER.info(
             "VISION | ảnh_hiện_tại=<ADB frame mới nhất> vs mẫu=%s | mục_đích=logout_home_anchor | "
             "độ_khớp=%.3f | ngưỡng=%.3f | nhận_diện=%s | kết_luận=%s | vị_trí=(%d,%d,%d,%d)",
@@ -131,6 +138,8 @@ class AccountLogoutAction:
             raise RuntimeError("AccountLogoutAction cần cấu hình templates")
 
         unknown_hits = 0
+        anchor_home_hits = 0
+        confirmed_dtk = False
         for _ in range(max_attempts * 6):
             screen = screen_provider()
             at_login = False
@@ -150,27 +159,56 @@ class AccountLogoutAction:
                 "options": self._match(screen, tpls.open_tuychon, threshold).found,
             }
             avatar = self._avatar_from_noi_chinh(screen, tpls, threshold)
-            matches["home"] = avatar is not None
+            has_subdialog = any(matches[k] for k in ("confirm", "switch", "settings", "options"))
+            matches["home"] = (avatar is not None) and not has_subdialog
             state = select_logout_state(matches)
             LOGGER.info("DECISION | logout | trạng_thái=%s | nhận_diện=%s", state, matches)
 
             if state == "login":
                 return True
             if state == "confirm":
+                anchor_home_hits = 0
                 self._find_and_tap(screen, tpls.confirm_dtk, threshold)
+                confirmed_dtk = True
+                time.sleep(1.5)
             elif state == "switch":
+                anchor_home_hits = 0
                 self._find_and_tap(screen, tpls.open_dtk, threshold)
             elif state == "settings":
+                anchor_home_hits = 0
                 self._find_and_tap(screen, tpls.open_cdnd, threshold)
             elif state == "options":
+                anchor_home_hits = 0
                 self._find_and_tap(screen, tpls.open_tuychon, threshold)
             elif state == "home" and avatar is not None:
-                self.input.tap(*avatar)
+                anchor_home_hits += 1
+                if anchor_home_hits <= 3:
+                    self.input.tap(*avatar)
+                else:
+                    data = screen.data if hasattr(screen, "data") else screen
+                    if hasattr(data, "shape"):
+                        height, width = data.shape[:2]
+                        size = (width, height)
+                    else:
+                        size = data.size
+                    point = scaled_normalized_point(tpls.avatar_fallback_normalized, size)
+                    LOGGER.warning(
+                        "LOGOUT | điểm neo không mở hồ sơ sau 3 lần; dùng tọa độ tỷ lệ=%s | frame=%sx%s",
+                        point, size[0], size[1],
+                    )
+                    self.input.tap(*point)
             else:
+                anchor_home_hits = 0
                 # Game can show loading/transition frames for several seconds
                 # after Confirm. Keep polling to the controller's full bounded
                 # budget; never mistake a temporary UNKNOWN frame for failure.
                 unknown_hits += 1
+                if not confirmed_dtk and unknown_hits % 6 == 0 and unknown_hits < max_attempts * 6:
+                    LOGGER.info("LOGOUT | Chưa nhận diện được lớp đăng xuất sau %d tick; thử bấm BACK để đóng popup che khuất", unknown_hits)
+                    try:
+                        self.input.keyevent("KEYCODE_BACK")
+                    except Exception:
+                        pass
                 if unknown_hits >= max_attempts * 6:
                     raise RuntimeError("Không nhận diện được HOME hoặc lớp đăng xuất hiện tại")
                 time.sleep(0.8)
@@ -179,4 +217,15 @@ class AccountLogoutAction:
             unknown_hits = 0
             time.sleep(0.8)
 
+        # Transition to LOGIN can finish on the polling boundary. Always inspect
+        # one final fresh frame before declaring logout failure.
+        final_screen = screen_provider()
+        if login_detector is not None and login_detector.detect(
+            final_screen,
+            login_templates=login_templates,
+            logged_in_templates=[],
+            threshold=login_threshold,
+        ).state == LoginScreenState.LOGIN_SCREEN:
+            LOGGER.info("LOGOUT | LOGIN xuất hiện tại kiểm tra frame cuối")
+            return True
         raise RuntimeError("Đăng xuất quá số bước cho phép; chưa về màn hình đăng nhập")

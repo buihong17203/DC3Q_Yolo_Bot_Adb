@@ -28,7 +28,7 @@ out_game_title: data/img/templates/stars/out_game/screen/screen_out_game_title.j
 out_game_confirm: data/img/templates/stars/out_game/screen/screen_out_game_button_xacnhan.png
 out_game_threshold: 0.75
 out_game_confirm_threshold: 0.50
-restart_wait_attempts: 30
+restart_wait_attempts: 60
 
 # Tự động đăng xuất sau khi HOME được xác nhận ổn định.
 manual_logout: false

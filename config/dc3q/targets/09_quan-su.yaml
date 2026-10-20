@@ -1,13 +1,17 @@
 quan_su:
   enabled: true
   threshold: 0.60
-  max_steps: 20
+  max_steps: 60
   wait_seconds: 0.8
+  battles: 5
+
   home:
     military_point: [51, 491]
     military_close_point: [51, 491]
     tranh_ba_entry:
       - data/img/templates/stars/home/screen/screen_tranh-ba.png
+    giao_tranh_entry:
+      - data/img/templates/stars/home/screen/screen_giao-tranh.png
     markers:
       - data/img/templates/stars/home/screen/screen_noi-chinh_01.png
   panel:
@@ -21,3 +25,52 @@ quan_su:
     button: data/img/templates/targets/09_quan-su/tranh-ba/screen/screen_qs_tb_button_nhanthuong.png
     unfinished:
       - data/img/templates/targets/09_quan-su/tranh-ba/screen/screen_qs_tb_button_chuaketthuc.png
+  tui_gam:
+    threshold: 0.68
+    items:
+      - name: cam-lam
+        chua_tha: data/img/templates/targets/09_quan-su/tranh-ba/screen/screen_tui-gam_cam-lam_chua-tha.png
+        da_tha: data/img/templates/targets/09_quan-su/tranh-ba/screen/screen_tui-gam_cam-lam_da-tha.png
+      - name: loi-kich
+        chua_tha: data/img/templates/targets/09_quan-su/tranh-ba/screen/screen_tui-gam_loi-kich_chua-tha.png
+        da_tha: data/img/templates/targets/09_quan-su/tranh-ba/screen/screen_tui-gam_loi-kich_da-tha.png
+      - name: thiet-bich
+        chua_tha: data/img/templates/targets/09_quan-su/tranh-ba/screen/screen_tui-gam_thiet-bich_chua-tha.png
+        da_tha: data/img/templates/targets/09_quan-su/tranh-ba/screen/screen_tui-gam_thiet-bich_da-tha.png
+      - name: thien-hoa
+        chua_tha: data/img/templates/targets/09_quan-su/tranh-ba/screen/screen_tui-gam_thien-hoa_chua-tha.png
+        da_tha: data/img/templates/targets/09_quan-su/tranh-ba/screen/screen_tui-gam_thien-hoa_da-tha.png
+      - name: duong-uy
+        chua_tha: data/img/templates/targets/09_quan-su/tranh-ba/screen/screen_tui-gam_duong-uy_chua-tha.png
+        da_tha: data/img/templates/targets/09_quan-su/tranh-ba/screen/screen_tui-gam_duong-uy_da-tha.png
+
+  giao_tranh:
+    enabled: true
+    threshold: 0.60
+    max_steps: 60
+    battles: 5
+    find_opponent: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_qs_gt_button_tim-doi-thu.png
+    result_continue: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_qs_gt_button_tran-sau.png
+    result_banner: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_qs_gt_banner_bai.png
+    main_markers:
+      - data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_qs_gt_button_tim-doi-thu.png
+    tui_gam:
+      threshold: 0.68
+      items:
+        - name: cam-lam
+          chua_tha: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_tui-gam_cam-lam_chua-tha.png
+          da_tha: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_tui-gam_cam-lam_da-tha.png
+        - name: loi-kich
+          chua_tha: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_tui-gam_loi-kich_chua-tha.png
+          da_tha: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_tui-gam_loi-kich_da-tha.png
+        - name: thiet-bich
+          chua_tha: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_tui-gam_thiet-bich_chua-tha.png
+          da_tha: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_tui-gam_thiet-bich_da-tha.png
+        - name: thien-hoa
+          chua_tha: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_tui-gam_thien-hoa_chua-tha.png
+          da_tha: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_tui-gam_thien-hoa_da-tha.png
+        - name: duong-uy
+          chua_tha: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_tui-gam_duong-uy_chua-tha.png
+          da_tha: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_tui-gam_duong-uy_da-tha.png
+
+

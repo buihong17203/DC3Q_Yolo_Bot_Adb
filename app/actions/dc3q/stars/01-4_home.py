@@ -104,6 +104,15 @@ class HomeAction:
                     if recovered:
                         break
                 if not recovered:
+                    # Emergency recovery: thử bấm Back để đóng popup lạ rồi recover lại
+                    try:
+                        self.input.keyevent("KEYCODE_BACK")
+                        import time
+                        time.sleep(1.0)
+                        recovered = bool(recover())
+                    except Exception:
+                        pass
+                if not recovered:
                     raise GameRestartRequired(task, str(exc)) from exc
                 # Module failed but HOME is safe: record ERROR and continue.
                 self.last_task_error = str(exc)
@@ -122,9 +131,10 @@ class HomeAction:
 
     def continue_after_esc_home(self, task: str) -> None:
         """ESC recovered canonical HOME: preserve ERROR and advance one module."""
-        if task != self.current_task:
-            raise RuntimeError(f"Checkpoint ESC lệch: {task} != {self.current_task}")
         self.last_task_error = ""
-        self.target_index += 1
+        targets = self.config.home_targets or []
+        if self.target_index < len(targets):
+            self.target_index += 1
         self.confirmations = 0
         self._skip_completed()
+

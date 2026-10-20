@@ -253,11 +253,21 @@ class QuanDoanRunner:
         )
         if entrance is None:
             raise RuntimeError("Quân đoàn: đã mở đường dẫn nhưng thiếu nút Vào quân đoàn")
-        self._tap(entrance)
-        screen, panel = self._wait_for(self.config.panel_markers)
-        if panel is None:
-            raise RuntimeError("Quân đoàn: đã bấm Vào quân đoàn nhưng chưa vào màn Quân đoàn thật")
-        return screen
+        for attempt in range(3):
+            self._tap(entrance)
+            screen, panel = self._wait_for(
+                self.config.panel_markers, self.config.entrance_wait_attempts,
+            )
+            if panel is not None:
+                return screen
+            screen, entrance_match = self._wait_for(
+                self.config.entrance_templates, attempts=2,
+            )
+            if entrance_match is not None:
+                entrance = entrance_match
+            else:
+                break
+        raise RuntimeError("Quân đoàn: đã bấm Vào quân đoàn nhưng chưa vào màn Quân đoàn thật")
 
     def run(self) -> bool:
         logger = logging.getLogger("dc3q")

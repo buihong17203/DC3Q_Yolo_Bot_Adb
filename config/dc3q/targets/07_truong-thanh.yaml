@@ -22,6 +22,8 @@ truong_thanh:
   a4_return:
     - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/full-screen_vt_tcc_cmnd_trove.png
   close:
+    - data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_ttd_button_dong.png
+    - data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_tdld_button_dong.png
     - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/screen_vt_vethanh.png
     - data/img/templates/targets/07_truong-thanh/A5_trai-ngua/screen/screen_tn_home_button_hoithanh.png
     - data/img/templates/targets/07_truong-thanh/A6_than-binh/screen/screen_tb_home_button_hoithanh.png

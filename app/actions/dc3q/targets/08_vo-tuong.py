@@ -124,6 +124,8 @@ class VoTuongRunner:
     def _screen_array(screen):
         import cv2
         import numpy as np
+        if hasattr(screen, "data") and isinstance(screen.data, np.ndarray):
+            return screen.data
         if isinstance(screen, np.ndarray):
             return screen
         if isinstance(screen, (bytes, bytearray)):

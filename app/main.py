@@ -83,6 +83,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Đọc thêm thông tin Android từ thiết bị ready.",
     )
+    parser.add_argument(
+        "--device",
+        default=None,
+        help="Chỉ định serial thiết bị ADB cụ thể (mặc định tự động ưu tiên giả lập PC).",
+    )
     return parser
 
 
@@ -114,12 +119,13 @@ def run(args: argparse.Namespace) -> int:
         LOGGER.info("Hãy kiểm tra bằng: adb devices -l")
         return 0
 
-    LOGGER.info("Tìm thấy %d thiết bị:", len(devices))
+    LOGGER.info("Tìm thấy %d thiết bị (ưu tiên giả lập PC):", len(devices))
     for index, device in enumerate(devices, start=1):
         status = "READY" if device.is_ready else device.state.upper()
+        device_type = "EMULATOR" if device.is_emulator else "PHYSICAL"
         LOGGER.info(
-            "  [%d] %s | state=%s | model=%s | product=%s",
-            index, device.serial, status, device.model or "-", device.product or "-",
+            "  [%d] %s [%s] | state=%s | model=%s | product=%s",
+            index, device.serial, device_type, status, device.model or "-", device.product or "-",
         )
         if args.inspect and device.is_ready:
             try:
@@ -133,7 +139,17 @@ def run(args: argparse.Namespace) -> int:
                 LOGGER.warning("      Không đọc được properties: %s", exc)
 
     ready = resolver.find_ready()
+    if args.device:
+        ready = [d for d in ready if d.serial == args.device]
+        if not ready:
+            LOGGER.error("Không tìm thấy thiết bị READY với serial chỉ định: %s", args.device)
+            return 1
+        LOGGER.info("Thiết bị được chỉ định (--device): %s", args.device)
+
     LOGGER.info("Thiết bị READY: %d/%d", len(ready), len(devices))
+    if ready:
+        order_desc = ", ".join(f"{d.serial} ({'EMULATOR' if d.is_emulator else 'PHYSICAL'})" for d in ready)
+        LOGGER.info("Thứ tự ưu tiên chạy thiết bị: %s", order_desc)
 
     if not args.run:
         LOGGER.info("ADB bootstrap hoàn tất. Chưa chạy workflow.")
@@ -287,7 +303,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
         "05_khong-gian-ca-nhan": ["Khong_Gian_Ca_Nhan"],
         "06_xa-giao": ["Xa_Giao"],
         "08_vo-tuong": ["Vo_Tuong"],
-        "09_quan-su": ["Tranh_Ba"],
+        "09_quan-su": ["Tranh_Ba", "Giao_Tranh"],
         "10_nhiem-vu": ["Nhiem_Vu"],
     }
     active_tasks = []
@@ -330,6 +346,9 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
         home_anchor_template=_resolve_project_path(root, logout_cfg["home_anchor_template"]),
         home_anchor_roi=tuple(logout_cfg.get("home_anchor_roi", (840, 480, 1000, 575))),
         avatar_mirror_offset=tuple(logout_cfg.get("avatar_mirror_offset", (-8, 21))),
+        avatar_fallback_normalized=tuple(
+            logout_cfg.get("avatar_fallback_normalized", (0.03125, 0.064815))
+        ),
     )
 
     def make(device):
@@ -341,6 +360,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                 password_templates=[_resolve_project_path(root, x) for x in controls.get("password", [])],
                 submit_template=_resolve_project_path(root, controls["submit"]),
                 username=coord("username"), password=coord("password"), submit=coord("submit"),
+                tiep_tuc=coord("tiep_tuc"),
                 threshold=float(login.get("threshold", 0.80)),
                 control_threshold=float(login.get("control_threshold", 0.72)),
                 poll_seconds=float(login.get("poll_seconds", 1.0)),
@@ -377,7 +397,19 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                 ),
                 out_game_threshold=float(workflow.get("out_game_threshold", 0.75)),
                 out_game_confirm_threshold=float(workflow.get("out_game_confirm_threshold", 0.50)),
-                restart_wait_attempts=int(workflow.get("restart_wait_attempts", 30)),
+                restart_wait_attempts=int(workflow.get("restart_wait_attempts", 60)),
+                sub_screen_close_templates=[
+                    _resolve_project_path(root, "data/img/templates/targets/02_hoat-dong/screen_button_dong_02hoatdong.png"),
+                    _resolve_project_path(root, "data/img/templates/targets/03_cua-hang/screen_button_dong_03cuahang.png"),
+                    _resolve_project_path(root, "data/img/templates/targets/04_quan-doan/screen_button_dong_04quandoan.png"),
+                    _resolve_project_path(root, "data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_cb_nt_button_dong.png"),
+                    _resolve_project_path(root, "data/img/templates/targets/05_khong-gian-ca-nhan/screen/screen_kgcn_button_dong.png"),
+                    _resolve_project_path(root, "data/img/templates/targets/06_xa-giao/screen/screen_xg_bb_button_dong_banbe.png"),
+                    _resolve_project_path(root, "data/img/templates/targets/07_truong-thanh/A2_tuong-an/screen/screen_ta_ttd_button_dong.png"),
+                    _resolve_project_path(root, "data/img/templates/targets/08_vo-tuong/screen/screen_vt_button_dong.png"),
+                    _resolve_project_path(root, "data/img/templates/targets/09_quan-su/tranh-ba/screen/screen_qs_tb_button_dong.png"),
+                    _resolve_project_path(root, "data/img/templates/targets/10_nhiem-vu/screen/screen_nv_button_dong.png"),
+                ],
             ),
             runtime,
         )
@@ -505,6 +537,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         write_attendance_day(path, ctl.current.id, day)
                         if ctl.current else (_ for _ in ()).throw(RuntimeError("Thiếu account hiện tại"))
                     ),
+                    account_id=lambda ctl=controller: ctl.current.id if ctl.current else None,
                 )
             elif module_name == "03_cua-hang":
                 c = target_config["cua_hang"]
@@ -592,6 +625,10 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                     ),
                     home_entry=lambda screen: controller.logout_action._avatar_from_noi_chinh(
                         screen, logout_templates, controller.config.logout_threshold,
+                    ),
+                    account_level_provider=lambda: (
+                        controller.current.data.get("account_lv", "")
+                        if controller.current else ""
                     ),
                 )
             elif module_name == "06_xa-giao":
@@ -683,6 +720,25 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         float(c.get("wait_seconds", .8))))
             elif module_name == "09_quan-su":
                 c = target_config["quan_su"]
+                tg_cfg = c.get("tui_gam", {})
+                tg_specs = [
+                    module.TuiGamSpec(
+                        name=item["name"],
+                        chua_tha=_resolve_project_path(root, item["chua_tha"]),
+                        da_tha=_resolve_project_path(root, item["da_tha"]),
+                    )
+                    for item in tg_cfg.get("items", [])
+                ]
+                gt_cfg = c.get("giao_tranh", {})
+                gt_tg_cfg = gt_cfg.get("tui_gam", {})
+                gt_tg_specs = [
+                    module.TuiGamSpec(
+                        name=item["name"],
+                        chua_tha=_resolve_project_path(root, item["chua_tha"]),
+                        da_tha=_resolve_project_path(root, item["da_tha"]),
+                    )
+                    for item in gt_tg_cfg.get("items", [])
+                ]
                 target = module.QuanSuRunner(controller._screen, controller.input, controller.logout_action.vision,
                     module.QuanSuConfig(tuple(c["home"]["military_point"]),
                         tuple(c["home"]["military_close_point"]), paths(c["home"]["tranh_ba_entry"]),
@@ -690,7 +746,24 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         paths(c["panel"]["detail_markers"]), _resolve_project_path(root, c["reward"]["tab"]),
                         _resolve_project_path(root, c["reward"]["button"]), paths(c["reward"]["unfinished"]),
                         _resolve_project_path(root, c["panel"]["close"]), float(c.get("threshold", .6)),
-                        int(c.get("max_steps", 20)), float(c.get("wait_seconds", .8))))
+                        int(c.get("max_steps", 60)), float(c.get("wait_seconds", .8)),
+                        battles=int(c.get("battles", 5)),
+                        tui_gam_specs=tg_specs,
+                        tui_gam_threshold=float(tg_cfg.get("threshold", 0.68)),
+                        giao_tranh_entry=paths(c["home"].get("giao_tranh_entry", [])),
+                        gt_battles=int(gt_cfg.get("battles", 5)),
+                        gt_tui_gam_specs=gt_tg_specs,
+                        gt_tui_gam_threshold=float(gt_tg_cfg.get("threshold", 0.68)),
+                        gt_find_opponent=_resolve_project_path(root, gt_cfg.get("find_opponent")) if gt_cfg.get("find_opponent") else None,
+                        gt_result_continue=_resolve_project_path(root, gt_cfg.get("result_continue")) if gt_cfg.get("result_continue") else None,
+                        gt_result_banner=_resolve_project_path(root, gt_cfg.get("result_banner")) if gt_cfg.get("result_banner") else None,
+                        gt_main_markers=paths(gt_cfg.get("main_markers", [])),
+                    ),
+                    account_level_provider=lambda: (
+                        controller.current.data.get("account_lv", "")
+                        if controller.current else ""
+                    ),
+                )
             elif module_name == "10_nhiem-vu":
                 c = target_config["nhiem_vu"]
                 target = module.NhiemVuRunner(
@@ -710,6 +783,11 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         float(c.get("state_threshold", .76)), int(c.get("max_steps", 30)),
                         float(c.get("wait_seconds", .8)),
                         tuple(c["reward"].get("dismiss_point", (480, 430))),
+                        float(c["blocked_popup"].get("threshold", .70)),
+                    ),
+                    account_level_provider=lambda: (
+                        controller.current.data.get("account_lv", "")
+                        if controller.current else ""
                     ),
                 )
             else:
@@ -730,6 +808,10 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                 ):
                     if flow_name not in skipped:
                         targets.append(module.TruongThanhRuntimeStep(target, task, "_run_" + flow_name[:2].lower()))
+            elif module_name == "09_quan-su":
+                targets.append(module.QuanSuRuntimeStep(target, "Tranh_Ba", "run_tranh_ba"))
+                if bool(target_config.get("quan_su", {}).get("giao_tranh", {}).get("enabled", True)):
+                    targets.append(module.QuanSuRuntimeStep(target, "Giao_Tranh", "run_giao_tranh"))
             else:
                 targets.append(target)
         controller.config.home_targets = targets

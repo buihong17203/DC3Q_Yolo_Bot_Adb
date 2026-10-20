@@ -42,9 +42,22 @@ class AccountManager:
         # Cap the requested row range before filtering completed runtime rows.
         def unfinished(account_id: str) -> bool:
             state = runtime_status.get(account_id, {})
+            # 1. Bỏ qua tài khoản đã hoàn thành tất cả nghiệp vụ trong ngày
+            if state.get("status") == "DONE":
+                return False
+            # 2. Bỏ qua tài khoản đã thử tối đa (>= 3 lần) hoặc gặp lỗi đăng nhập
+            try:
+                if int(state.get("attempts", 0)) >= 3:
+                    return False
+            except (ValueError, TypeError):
+                pass
+            if state.get("status") == "ERROR":
+                return False
+            # 3. Nếu có danh sách active_tasks, chỉ chạy tiếp nếu còn ít nhất 1 task ở trạng thái READY
             if active_tasks is not None:
-                return any(state.get(task, "READY") != "DONE" for task in active_tasks)
-            return state.get("status") not in {"DONE", "ERROR"}
+                return any(state.get(task, "READY") == "READY" for task in active_tasks)
+            return True
+
 
         self._accounts = [
             Account(r.get("id", str(i)), r)

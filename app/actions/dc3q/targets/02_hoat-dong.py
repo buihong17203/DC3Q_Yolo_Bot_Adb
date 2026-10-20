@@ -77,7 +77,8 @@ class HoatDongRunner:
                  sleep: Callable[[float], None] = default_sleep,
                  now: Callable[[], datetime] = datetime.now,
                  attendance_day: Callable[[], int | None] | None = None,
-                 save_attendance_day: Callable[[int], None] | None = None):
+                 save_attendance_day: Callable[[int], None] | None = None,
+                 account_id: Callable[[], str | None] | None = None):
         self.screen_provider = screen_provider
         self.input = adb_input
         self.vision = vision
@@ -86,6 +87,15 @@ class HoatDongRunner:
         self.now = now
         self.attendance_day = attendance_day or (lambda: None)
         self.save_attendance_day = save_attendance_day or (lambda day: None)
+        self.account_id = account_id or (lambda: None)
+
+    def _is_old_account(self) -> bool:
+        account = self.account_id() if callable(self.account_id) else self.account_id
+        if account:
+            norm = str(account).strip().lower()
+            if norm in ("acc_001", "acc_002", "acc_003", "acc_1", "acc_2", "acc_3", "1", "2", "3", "01", "02", "03"):
+                return True
+        return False
 
     @staticmethod
     def next_attendance_index(states: list[str]) -> int | None:
@@ -136,9 +146,27 @@ class HoatDongRunner:
             return False
         dismiss = self._match(screen, self.config.reward_dismiss)
         if not dismiss.found:
-            raise RuntimeError("Hoạt động: thấy thưởng nhưng thiếu vùng đóng an toàn")
-        self._tap(dismiss)
+            for _ in range(3):
+                self.sleep(0.3)
+                verify = self.screen_provider()
+                dismiss = self._match(verify, self.config.reward_dismiss)
+                if dismiss.found:
+                    break
+        if dismiss.found:
+            self._tap(dismiss)
+        else:
+            logging.getLogger("dc3q").info("HD | thấy thưởng nhưng dismiss chưa render; fallback tap vùng an toàn (480, 500)")
+            self.input.tap(480, 500)
+            self.sleep(self.config.wait_seconds)
         return True
+
+    def _drain_rewards(self, max_popups: int = 5) -> None:
+        """Dismiss any active reward popups until the underlying panel is clear."""
+        for _ in range(max_popups):
+            screen = self.screen_provider()
+            if not self._reward(screen):
+                break
+            self.sleep(self.config.wait_seconds)
 
     def _settle_claim(self, settled: list[Path], attempts: int = 10):
         """Wait for delayed reward, dismiss it, then prove claimed state."""
@@ -283,10 +311,13 @@ class HoatDongRunner:
 
     def _open_newcomer_if_present(self, screen):
         """Open optional Tân thủ only when its supplied state image is proven."""
+        if self._is_old_account():
+            logging.getLogger("dc3q").info("HD | acc_001 đến acc_003 không có Tân thủ; bỏ qua")
+            return None
         state, _, closed_match = self._tab_state(screen, self.config.newcomer_tabs, self.config.newcomer_open)
         if state == "open":
             return screen
-        if state != "closed":
+        if state != "closed" or closed_match is None or closed_match.confidence < 0.78:
             logging.getLogger("dc3q").info("HD | tài khoản không có tab Tân thủ; bỏ qua")
             return None
         self._tap(closed_match)
@@ -296,7 +327,8 @@ class HoatDongRunner:
             if verified == "open":
                 return verify
             self.sleep(self.config.wait_seconds)
-        raise RuntimeError("Hoạt động: bấm Tân thủ nhưng chưa thấy tab mở")
+        logging.getLogger("dc3q").info("HD | bấm Tân thủ nhưng chưa thấy tab mở; bỏ qua an toàn")
+        return None
 
     def _wait_newcomer_reward(self, claimed: Path | None = None):
         for _ in range(10):
@@ -349,17 +381,21 @@ class HoatDongRunner:
         raise RuntimeError(f"Hoạt động/Tân thủ/{kind}: nhận xong nhưng chưa thấy Đã nhận")
 
     def _process_newcomer(self, screen):
-        screen = self._open_tab(screen, self.config.newcomer_vassal_tabs,
-                                self.config.newcomer_vassal_open, "Chư hầu chi thủy")
-        screen = self._claim_newcomer_vassal_rewards(screen)
+        logger = logging.getLogger("dc3q")
         for kind, name, tabs, opened in (
             ("offer", "Ưu đãi tân thủ", self.config.newcomer_offer_tabs, self.config.newcomer_offer_open),
             ("seven_day", "Quà 7 ngày", self.config.newcomer_seven_day_tabs, self.config.newcomer_seven_day_open),
             ("login", "Đăng nhập tích lũy", self.config.newcomer_login_tabs, self.config.newcomer_login_open),
         ):
-            screen = self._open_tab(screen, tabs, opened, name, scroll_if_missing=True)
-            screen = self._claim_newcomer_single_reward(screen, kind)
-        return self._open_tab(screen, self.config.welfare_tabs, self.config.welfare_open, "Phúc lợi")
+            try:
+                screen = self._open_tab(screen, tabs, opened, name, scroll_if_missing=True)
+                screen = self._claim_newcomer_single_reward(screen, kind)
+            except Exception as exc:
+                logger.warning("HD | Tân thủ/%s không khả dụng hoặc hoàn tất: %s", name, exc)
+        try:
+            return self._open_tab(screen, self.config.welfare_tabs, self.config.welfare_open, "Phúc lợi")
+        except Exception:
+            return screen
 
     def _wait_for(self, templates: list[Path], attempts: int = 8):
         """Poll transitions; Activity panel can render after the entry tap."""
@@ -385,8 +421,12 @@ class HoatDongRunner:
                 break
             if scroll_if_missing and attempt in {1, 3, 5}:
                 # Swipe only reveals the list; the previously opened tab may be off-screen.
-                logging.getLogger("dc3q").info("HD | vuốt tìm tab %s | lần=%d", name, attempt)
-                self.input.swipe(170, 450, 170, 220, 400)
+                if attempt == 5:
+                    logging.getLogger("dc3q").info("HD | vuốt ngược lên đầu tìm tab %s", name)
+                    self.input.swipe(170, 220, 170, 450, 400)
+                else:
+                    logging.getLogger("dc3q").info("HD | vuốt tìm tab %s | lần=%d", name, attempt)
+                    self.input.swipe(170, 450, 170, 220, 400)
                 self.sleep(self.config.wait_seconds)
             screen = self.screen_provider()
         if tab is None:
@@ -403,13 +443,15 @@ class HoatDongRunner:
 
     @staticmethod
     def _tick_pixels(cell) -> int:
-        """Count the invariant dark-green tick color; ignore reward artwork."""
+        """Count the invariant dark-green tick color in the central check area; ignore reward artwork."""
         import cv2
         import numpy as np
 
         if hasattr(cell, "convert") and not hasattr(cell, "shape"):
             cell = np.asarray(cell.convert("RGB"))
-        hsv = cv2.cvtColor(cell, cv2.COLOR_RGB2HSV)
+        ch, cw = cell.shape[:2]
+        center = cell[int(ch * 0.2):int(ch * 0.8), int(cw * 0.2):int(cw * 0.8)]
+        hsv = cv2.cvtColor(center, cv2.COLOR_RGB2HSV)
         mask = cv2.inRange(hsv, (31, 103, 121), (40, 255, 146))
         return int(cv2.countNonZero(mask))
 
@@ -454,10 +496,8 @@ class HoatDongRunner:
             )
             if makeup and makeup.found:
                 states.append("makeup")
-            elif self._tick_pixels(cell) >= 180:
+            elif self._tick_pixels(cell) >= 150:
                 states.append("tick")
-            elif self._makeup_pixels(cell)[0] >= 120 and self._makeup_pixels(cell)[1] >= 200:
-                states.append("makeup")
             else:
                 states.append("blank")
         return states
@@ -467,8 +507,11 @@ class HoatDongRunner:
         return self.next_attendance_index(states)
 
     def _attendance_reset(self, screen) -> bool:
-        """A new cycle is proven when none of the 30 corrected day cells has a tick."""
-        return all(self._tick_pixels(cell) < 180 for cell in self._attendance_cells(screen))
+        """A new cycle is proven when the first day cell has no tick."""
+        cells = self._attendance_cells(screen)
+        if not cells:
+            return False
+        return self._tick_pixels(cells[0]) < 150
 
     def _saved_attendance_candidate(self, screen) -> int | None:
         saved = self.attendance_day()
@@ -478,6 +521,29 @@ class HoatDongRunner:
         if saved < 30:
             return saved  # zero-based index of saved day + 1
         return 0 if self._attendance_reset(screen) else None
+
+    def _resolve_attendance_candidate(self, screen, states: list[str]) -> int | None:
+        """Hybrid candidate resolution: reconcile screen ground truth with saved CSV day."""
+        logger = logging.getLogger("dc3q")
+        visual_candidate = self.next_attendance_index(states)
+        saved = self.attendance_day()
+
+        if visual_candidate is not None:
+            if saved is not None and saved != visual_candidate:
+                logger.info(
+                    "HD | Dữ liệu CSV lưu=%d khác màn hình (ô %d chưa tick); ưu tiên thực tế màn hình",
+                    saved, visual_candidate + 1,
+                )
+            return visual_candidate
+
+        # When all 30 days are visually ticked, check if cycle has reset
+        if self._attendance_reset(screen):
+            logger.info("HD | Phát hiện chu kỳ 30 ngày mới (ô 1 chưa tick); bắt đầu từ ô 1")
+            return 0
+
+        # All 30 days completed
+        logger.info("HD | Đã hoàn tất đủ 30 ngày điểm danh của chu kỳ")
+        return None
 
     def _attendance_changed(self, before, after, index: int) -> bool:
         """Prove the exact tapped cell changed, independent of tick artwork."""
@@ -514,14 +580,16 @@ class HoatDongRunner:
         ]
         state, match = max(states, key=lambda pair: pair[1].confidence)
         runner_up = max(item.confidence for name, item in states if name != state)
-        minimum = 0.95 if state == "claimable" else self.config.state_threshold
-        if match.confidence < minimum or match.confidence < runner_up + 0.05:
+        minimum = 0.85 if state == "claimable" else 0.70
+        if match.confidence < minimum or match.confidence < runner_up + 0.02:
             return "unknown", match, runner_up
         return state, match, runner_up
 
     def _claim_attendance_milestones(self, screen):
         """Claim only proven 10/20/30-day rewards, then verify each one."""
         logger = logging.getLogger("dc3q")
+        self._drain_rewards()
+        screen = self.screen_provider()
         for day, roi in zip((10, 20, 30), self.config.attendance_milestone_rois):
             state, match, runner_up = self._milestone_state(screen, roi)
             logger.info(
@@ -546,6 +614,7 @@ class HoatDongRunner:
                 self.sleep(self.config.wait_seconds)
             else:
                 raise RuntimeError(f"Hoạt động: nhận quà tích lũy {day} ngày nhưng chưa thấy Đã nhận")
+        self._drain_rewards()
         return screen
 
     def _tax_window_open(self) -> bool:
@@ -589,11 +658,7 @@ class HoatDongRunner:
         logger = logging.getLogger("dc3q")
         for _ in range(12):
             screen = self.screen_provider()
-            if self._match(screen, self.config.reward_marker).found:
-                dismiss = self._match(screen, self.config.reward_dismiss)
-                if not dismiss.found:
-                    return False
-                self._tap(dismiss)
+            if self._reward(screen):
                 logger.info("HD | recovery đóng thưởng")
                 continue
             if self._first(screen, self.config.panel_markers) is not None:
@@ -669,7 +734,7 @@ class HoatDongRunner:
         screen = self._open_attendance_tab(screen)
         logger.info("HD | đã mở Điểm danh trực tiếp sau Quà online")
         states = self._attendance_states(screen)
-        candidate = self._saved_attendance_candidate(screen)
+        candidate = self._resolve_attendance_candidate(screen, states)
         logger.info(
             "HD | Điểm danh đã_lưu=%s | marked=%s | candidate=%s",
             self.attendance_day(),
@@ -684,11 +749,21 @@ class HoatDongRunner:
             for _ in range(10):
                 verify = self.screen_provider()
                 if self._reward(verify):
+                    changed = True
                     verify = self.screen_provider()
+                    break
                 if self._attendance_changed(before, verify, candidate):
                     changed = True
+                    self.sleep(0.5)
+                    post = self.screen_provider()
+                    if self._reward(post):
+                        verify = self.screen_provider()
+                    else:
+                        verify = post
                     break
                 self.sleep(self.config.wait_seconds)
+            self._drain_rewards()
+            verify = self.screen_provider()
             if changed:
                 self.save_attendance_day(candidate + 1)
                 logger.info("HD | điểm danh ô %d thành công", candidate + 1)
@@ -718,15 +793,23 @@ class HoatDongRunner:
             screen = self._process_newcomer(newcomer)
             logger.info("HD | Tân thủ hoàn tất; trở lại Phúc lợi")
 
+        self._drain_rewards()
         screen = self.screen_provider()
         close = self._match(screen, self.config.close_template)
         if not close.found:
             raise RuntimeError("Hoạt động: thiếu nút đóng")
         self._tap(close)
         logger.info("HD | đóng Hoạt động")
-        for _ in range(5):
+        for attempt in range(8):
             screen = self.screen_provider()
             if self._first(screen, self.config.home_markers) and self._first(screen, self.config.panel_markers) is None:
                 return True
+            if attempt in (2, 4):
+                if self._reward(screen):
+                    screen = self.screen_provider()
+                retry_close = self._match(screen, self.config.close_template)
+                if retry_close.found:
+                    logger.info("HD | panel Hoạt động vẫn mở sau %d nhịp, tap lại nút đóng", attempt + 1)
+                    self._tap(retry_close)
             self.sleep(self.config.wait_seconds)
         raise RuntimeError("Hoạt động: đóng xong nhưng chưa về HOME")
