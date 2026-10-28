@@ -1,0 +1,5 @@
+homecoming_event:
+  state: data/img/templates/random-events/pop-up_random/homecoming_event/screen/screen_vgql_title.png
+  close: data/img/templates/random-events/pop-up_random/homecoming_event/screen/screen_vgql_button_dong.png
+  claim_free: data/img/templates/random-events/pop-up_random/homecoming_event/screen/screen_vgql_button_mienphi.png
+  threshold: 0.70

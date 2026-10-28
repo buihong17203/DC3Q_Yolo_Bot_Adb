@@ -1,4 +1,8 @@
-# DC3Q YOLOv8 Detection Classes
+# DC3Q Auto-Annotated YOLOv11 Dataset
+path: D:/Antigravity_Data/DC3Q_Yolo_Bot_Adb - 01/data/img/templates/trainning_yolo
+train: images/train
+val: images/val
+
 names:
   0: monster
   1: reward

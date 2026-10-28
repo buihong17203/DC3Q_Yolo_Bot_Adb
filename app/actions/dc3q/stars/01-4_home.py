@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from app.adb.input import DailyCutoff
 
 
@@ -49,6 +50,16 @@ class HomeAction:
         return getattr(targets[self.target_index], "runtime_task", type(targets[self.target_index]).__name__.upper())
 
     def handle_known_event(self, image) -> bool:
+        # 1. Kiểm tra quà Miễn Phí của sự kiện Vương Giả Quy Lai (Welcome popup)
+        vgql_free = Path("data/img/templates/random-events/pop-up_random/homecoming_event/screen/screen_vgql_button_mienphi.png")
+        if vgql_free.exists():
+            r_free = self.vision.find_template(image, "vgql_free", vgql_free, 0.70).match
+            if getattr(r_free, "found", False):
+                pt = (r_free.x + r_free.width // 2, r_free.y + r_free.height // 2)
+                __import__("logging").getLogger("dc3q").info("Sự kiện Vương Giả Quy Lai: Bấm nhận quà Miễn Phí tại %s", pt)
+                self.input.tap(*pt)
+                return True
+
         for state_template, close_template, threshold in self.config.home_events or []:
             state = self.vision.find_template(
                 image, "random_event_state", state_template, threshold,
@@ -59,9 +70,25 @@ class HomeAction:
                 image, "random_event_close", close_template, threshold,
             ).match
             if not close.found:
-                raise RuntimeError(
-                    f"Sự kiện ngẫu nhiên đã nhận diện nhưng thiếu nút đóng: {state_template}"
-                )
+                close_retry = self.vision.find_template(
+                    image, "random_event_close", close_template, 0.50,
+                ).match
+                if close_retry.found:
+                    close = close_retry
+                else:
+                    logger = __import__("logging").getLogger("dc3q")
+                    logger.warning(
+                        "Sự kiện ngẫu nhiên '%s' đã nhận diện nhưng thiếu nút đóng; thử tap fallback",
+                        state_template,
+                    )
+                    if "dichquantapkich" in str(state_template):
+                        self.input.tap(794, 106)
+                        return True
+                    if "homecoming" in str(state_template) or "vgql" in str(state_template):
+                        self.input.tap(890, 62)
+                        return True
+                    self.input.tap(880, 80)
+                    return True
             self.input.tap(close.x + close.width // 2, close.y + close.height // 2)
             return True
         return False

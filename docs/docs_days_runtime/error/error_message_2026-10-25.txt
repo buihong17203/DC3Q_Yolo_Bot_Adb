@@ -1,0 +1,47 @@
+2026-10-25T01:07:38+07:00 | account=acc_002 | task=TT_A4_Ve_Tuong | type=TASK | home target error: Trường thành A4: chưa chứng minh trạng thái 1 khóa
+2026-10-25T01:49:54+07:00 | account=acc_003 | task=TT_A3_Chua_Cong | type=TASK | home target error: TT_A3_CHUA_CONG: không recover được HOME
+2026-10-25T02:00:27+07:00 | account=acc_003 | task=TT_A4_Ve_Tuong | type=TASK | home target error: name 'LOGGER' is not defined
+2026-10-25T02:02:42+07:00 | account=acc_003 | task=TT_A5_Trai_Ngua | type=TASK | home target error: Trường thành A5: đóng màn bán nhưng chưa về Trại Ngựa
+2026-10-25T02:06:40+07:00 | account=acc_003 | task=TT_A7_Chien_Hon | type=TASK | home target error: TT_A7_CHIEN_HON: không recover được HOME
+2026-10-25T02:10:36+07:00 | account=acc_003 | task=TT_A7_Chien_Hon | type=ACCOUNT | restart error: Mở game lại 2 lần nhưng chưa về HOME
+2026-10-25T02:29:38+07:00 | account=acc_003 | task=Hoat_Dong | type=TASK | home target error: Quà online: Hoạt động: Quà online bấm Nhận nhưng chưa xuất hiện thưởng
+2026-10-25T02:34:06+07:00 | account=acc_003 | task=TT_A7_Chien_Hon | type=TASK | home target error: Trường thành: menu đã mở nhưng thiếu icon Trường thành
+2026-10-25T02:35:43+07:00 | account=acc_003 | task=Vo_Tuong | type=TASK | home target error: Võ tướng: chưa mở Điểm tướng
+2026-10-25T02:35:43+07:00 | account=acc_003 | task=Vo_Tuong | type=TASK | home target error: Võ tướng: chưa mở Điểm tướng
+2026-10-25T02:37:25+07:00 | account=acc_003 | task=Tranh_Ba | type=TASK | home target error: 'function' object is not iterable
+2026-10-25T02:38:46+07:00 | account=acc_003 | task=Giao_Tranh | type=TASK | home target error: Giao Tranh: HOME/menu Quân sự thiếu control Giao Tranh
+2026-10-25T02:45:45+07:00 | account=acc_003 | task=Giao_Tranh | type=TASK | home target error: Giao Tranh: vượt quá 60 bước tại BATTLE, trận=0
+2026-10-25T02:47:13+07:00 | account=acc_003 | task=ACCOUNT | type=ACCOUNT | logout error: Đăng xuất quá số bước cho phép; chưa về màn hình đăng nhập
+2026-10-25T02:50:33+07:00 | account=acc_004 | task=ACCOUNT | type=ACCOUNT | Không thao tác: màn hình hiện tại không phải LOGIN_SCREEN (unknown)
+2026-10-25T02:52:23+07:00 | account=acc_004 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: bấm Quẻ bói nhưng tab chưa mở sau khi chờ
+2026-10-25T02:54:20+07:00 | account=acc_004 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: bấm icon nhưng panel chưa mở sau khi chờ
+2026-10-25T02:55:15+07:00 | account=acc_004 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: bấm icon nhưng panel chưa mở sau khi chờ
+2026-10-25T02:55:43+07:00 | account=acc_004 | task=ACCOUNT | type=ACCOUNT | Không thao tác: màn hình hiện tại không phải LOGIN_SCREEN (unknown)
+2026-10-25T02:57:03+07:00 | account=acc_005 | task=ACCOUNT | type=ACCOUNT | Không thao tác: màn hình hiện tại không phải LOGIN_SCREEN (unknown)
+2026-10-25T02:58:11+07:00 | account=acc_004 | task=Cua_Hang | type=ACCOUNT | restart error: Mở game lại 2 lần nhưng chưa về HOME
+2026-10-25T02:58:45+07:00 | account=acc_005 | task=ACCOUNT | type=ACCOUNT | Không tìm thấy nút đăng nhập trên màn hình login
+2026-10-25T03:01:14+07:00 | account=acc_006 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: vượt quá số bước cho phép
+2026-10-25T03:02:40+07:00 | account=acc_006 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: không nhận diện được nút Điểm danh
+2026-10-25T03:04:37+07:00 | account=acc_006 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: bấm icon nhưng panel chưa mở sau khi chờ
+2026-10-25T03:06:39+07:00 | account=acc_006 | task=Quan_Doan | type=TASK | home target error: Quân đoàn: không đóng được đường dẫn bằng screen_quan-doan_01
+2026-10-25T03:06:40+07:00 | account=acc_006 | task=Quan_Doan | type=TASK | home target error: Quân đoàn: không đóng được đường dẫn bằng screen_quan-doan_01
+2026-10-25T03:33:25+07:00 | account=acc_006 | task=Khong_Gian_Ca_Nhan | type=TASK | home target error: ADB timeout sau 15.0s: adb -s emulator-5554 exec-out screencap -p
+2026-10-25T03:33:25+07:00 | account=acc_006 | task=Khong_Gian_Ca_Nhan | type=TASK | home target error: ADB timeout sau 15.0s: adb -s emulator-5554 exec-out screencap -p
+2026-10-25T03:33:43+07:00 | account=acc_006 | task=Xa_Giao | type=TASK | home target error: Xã giao: mở menu nhưng không thấy nút Bạn bè
+2026-10-25T03:33:44+07:00 | account=acc_006 | task=Xa_Giao | type=TASK | home target error: Xã giao: mở menu nhưng không thấy nút Bạn bè
+2026-10-25T03:35:03+07:00 | account=acc_006 | task=TT_A5_Trai_Ngua | type=TASK | home target error: Trường thành A5: chưa chọn đủ Trắng/Lục/Lam/Tím
+2026-10-25T03:35:04+07:00 | account=acc_006 | task=TT_A4_Ve_Tuong | type=TASK | home target error: Trường thành A4: vào Vệ Tướng nhưng thiếu Thiên Cơ Các
+2026-10-25T03:35:42+07:00 | account=acc_006 | task=TT_A5_Trai_Ngua | type=TASK | home target error: Trường thành A5: vào Trại Ngựa nhưng thiếu trạng thái
+2026-10-25T03:36:20+07:00 | account=acc_006 | task=TT_A7_Chien_Hon | type=TASK | home target error: Trường thành A7: vào Chiến Hồn nhưng thiếu trạng thái
+2026-10-25T03:39:02+07:00 | account=acc_006 | task=Tranh_Ba | type=TASK | home target error: Tranh Bá: menu Quân sự thiếu icon Tranh Bá
+2026-10-25T03:39:04+07:00 | account=acc_006 | task=Tranh_Ba | type=TASK | home target error: Tranh Bá: menu Quân sự thiếu icon Tranh Bá
+2026-10-25T03:45:51+07:00 | account=acc_006 | task=Giao_Tranh | type=TASK | home target error: name 'items' is not defined
+2026-10-25T03:53:14+07:00 | account=acc_004 | task=Khong_Gian_Ca_Nhan | type=TASK | home target error: Không gian cá nhân: không đọc được số thư trước khi Xóa
+2026-10-25T04:11:40+07:00 | account=acc_005 | task=Tam_Quoc_Lenh | type=TASK | home target error: Không thấy icon số dư: item_nguyenlinhngoc.png (0.370)
+2026-10-25T04:29:43+07:00 | account=acc_005 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: state trong popup không xác định
+2026-10-25T04:46:13+07:00 | account=acc_005 | task=Giao_Tranh | type=TASK | home target error: cannot access local variable 'items' where it is not associated with a value
+2026-10-25T05:44:23+07:00 | account=acc_007 | task=Quan_Doan | type=TASK | home target error: Quân đoàn: trạng thái Cầu vận không xác định
+2026-10-25T05:58:17+07:00 | account=acc_007 | task=Giao_Tranh | type=TASK | home target error: cannot access local variable 'items' where it is not associated with a value
+2026-10-25T06:16:32+07:00 | account=acc_008 | task=Giao_Tranh | type=TASK | home target error: cannot access local variable 'items' where it is not associated with a value
+2026-10-25T11:05:06+07:00 | account=acc_009 | task=Khong_Gian_Ca_Nhan | type=TASK | home target error: ADB timeout sau 5.0s: adb -s emulator-5554 exec-out screencap -p
+2026-10-25T11:20:12+07:00 | account=acc_009 | task=Vo_Tuong | type=TASK | home target error: Võ tướng: Thiên Vận Trở về nhưng chưa thấy Điểm tướng

@@ -14,10 +14,10 @@ login:
     submit: data/img/templates/stars/dang-nhap/screen/screen_button_dang-nhap.png
   threshold: 0.80
   control_threshold: 0.72
-  poll_seconds: 1.0
+  poll_seconds: 0.4
   timeout_seconds: 600
   logged_in_threshold: 0.55
-  logged_in_confirmations: 3
+  logged_in_confirmations: 2
   coordinates: {}
   unexpected:
     event_configs:
@@ -39,3 +39,8 @@ login:
       state: data/img/templates/random-events/pop-up_random/enemy-raid/screen/screen_dqtk_banner_dichquantapkich.png
       close: data/img/templates/random-events/pop-up_random/enemy-raid/screen/screen_dqtk_button_dong.png
       threshold: 0.75
+    homecoming_event:
+      state: data/img/templates/random-events/pop-up_random/homecoming_event/screen/screen_vgql_title.png
+      close: data/img/templates/random-events/pop-up_random/homecoming_event/screen/screen_vgql_button_dong.png
+      claim_free: data/img/templates/random-events/pop-up_random/homecoming_event/screen/screen_vgql_button_mienphi.png
+      threshold: 0.70

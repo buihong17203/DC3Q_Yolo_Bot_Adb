@@ -47,7 +47,7 @@ class SceneClassifier:
         sub_screen_close_templates: list[Path] | None = None,
         threshold: float = 0.75,
         logged_in_threshold: float = 0.55,
-        enable_ocr: bool = False,
+        enable_ocr: bool = True,
     ):
         self.vision = vision or VisionDetector()
         self.login_templates = login_templates or []
@@ -60,7 +60,7 @@ class SceneClassifier:
         self.logged_in_threshold = logged_in_threshold
         self.enable_ocr = enable_ocr
 
-    def classify(self, screen, input_device=None) -> SceneResult:
+    def classify(self, screen, input_device=None, check_ui_xml: bool = False) -> SceneResult:
         """Classify current screen with priority:
         1. Fast in-memory template matching: Event Popups -> OutGame -> Home -> Login -> SubScreen (<5ms)
         2. Fallback tier (only if visual templates return unknown): Desktop -> Native UI Popup -> Loading/SubScreen OCR -> Unknown
@@ -73,7 +73,12 @@ class SceneClassifier:
             r_state = self.vision.find_template(screen, "event_state", state_tpl, thresh).match
             if getattr(r_state, "found", False) is True:
                 r_close = self.vision.find_template(screen, "event_close", close_tpl, thresh).match
-                point = (r_close.x + r_close.width // 2, r_close.y + r_close.height // 2) if getattr(r_close, "found", False) is True else None
+                if not getattr(r_close, "found", False):
+                    r_close = self.vision.find_template(screen, "event_close", close_tpl, 0.50).match
+                if getattr(r_close, "found", False):
+                    point = (r_close.x + r_close.width // 2, r_close.y + r_close.height // 2)
+                else:
+                    point = (794, 106) if "dichquantapkich" in str(state_tpl) else (880, 80)
                 return SceneResult(
                     GameScene.POPUP,
                     f"Sự kiện: {state_tpl.stem}",
@@ -85,7 +90,12 @@ class SceneClassifier:
         if self.out_game_title is not None and self.out_game_confirm is not None:
             r_out = self.vision.find_template(screen, "out_game_title", self.out_game_title, self.threshold).match
             if getattr(r_out, "found", False) is True:
-                return SceneResult(GameScene.OUT_GAME, "Hộp thoại Thoát Game", r_out.confidence)
+                return SceneResult(
+                    GameScene.OUT_GAME,
+                    "Hộp thoại Thoát Game",
+                    r_out.confidence,
+                    action_point=(370, 354),
+                )
 
         # 3. HOME screen (Nội chính)
         for tpl in self.logged_in_templates:
@@ -114,17 +124,19 @@ class SceneClassifier:
         # =========================================================================
         # TIER 2: SLOW FALLBACK (Only executed if visual templates did not match)
         # =========================================================================
-        # 6. Desktop check
+        # 6. Desktop check (inspect focused window/app lines)
         if input_device is not None:
             try:
                 foreground = input_device.shell("dumpsys", "window", "windows")
-                if isinstance(foreground, str) and "com.daichien.mobile" not in foreground:
-                    return SceneResult(GameScene.DESKTOP, "Ứng dụng không ở foreground", 1.0)
+                if isinstance(foreground, str):
+                    focus_lines = [l for l in foreground.splitlines() if "mCurrentFocus" in l or "mFocusedApp" in l]
+                    if focus_lines and not any("com.daichien.mobile" in l for l in focus_lines):
+                        return SceneResult(GameScene.DESKTOP, "Ứng dụng không ở foreground", 1.0)
             except Exception:
                 pass
 
-        # 7. Native UI popup check (UI XML)
-        if input_device is not None:
+        # 7. Native UI popup check (UI XML, only when explicitly requested e.g. login dialogs)
+        if check_ui_xml and input_device is not None:
             try:
                 unexpected, point = classify_login_ui(input_device.ui_xml())
                 if unexpected == "profile_update_close" and point is not None:
@@ -151,10 +163,19 @@ class SceneClassifier:
                     if "noi chinh" not in header_text and "quan su" not in header_text:
                         return SceneResult(GameScene.LOADING, f"Màn hình nạp dữ liệu ({header_text[:30]})", 0.85)
 
+                # Check if this is actually HOME screen (multiple features, chat bar, stamina, bottom bar)
+                home_markers_count = sum(1 for k in (
+                    "truong thanh", "quan su", "vo tuong", "nhiem vu", "cua hang",
+                    "hoat dong", "quandoan", "quocchien", "chien tranh", "bai mien chien",
+                    "ngan phieu", "xay dung", "dur tru", "du tru", "dy tru"
+                ) if k in header_text)
+                if "noi chinh" in header_text or "cong chung" in header_text or home_markers_count >= 2:
+                    return SceneResult(GameScene.HOME, "Màn hình chính HOME (OCR)", 0.85)
+
                 # 9. Sub-screen via OCR header if title recognized
                 for sub_name in ("truong thanh", "quan su", "cua hang", "quan doan", "vo tuong", "nhiem vu", "xa giao", "tam quoc lenh", "hoat dong", "tuong tinh dai"):
                     if sub_name in header_text:
-                        return SceneResult(GameScene.SUB_SCREEN, f"Màn hình {sub_name}", 0.80)
+                        return SceneResult(GameScene.SUB_SCREEN, f"Màn hình {sub_name}", 0.80, action_point=(928, 36))
 
         return SceneResult(GameScene.UNKNOWN, "Màn hình chưa xác định", 0.0)
 
@@ -181,23 +202,22 @@ class SceneClassifier:
                 continue
 
             if res.scene == GameScene.SUB_SCREEN:
-                if res.action_point is not None:
-                    LOGGER.info("SCENE_RECOVERY | Đóng màn hình con tại %s", res.action_point)
-                    input_device.tap(*res.action_point)
-                else:
-                    LOGGER.info("SCENE_RECOVERY | Bấm KEYCODE_BACK để lùi khỏi màn hình con")
-                    input_device.keyevent("KEYCODE_BACK")
+                close_pt = res.action_point or (932, 28)
+                LOGGER.info("SCENE_RECOVERY | Đóng màn hình con tại %s", close_pt)
+                input_device.tap(*close_pt)
                 sleep(1.0)
                 continue
 
             if res.scene == GameScene.OUT_GAME:
-                LOGGER.info("SCENE_RECOVERY | Hủy popup Thoát game bằng KEYCODE_BACK")
-                input_device.keyevent("KEYCODE_BACK")
+                cancel_pt = res.action_point or (370, 354)
+                LOGGER.info("SCENE_RECOVERY | Hủy popup Thoát game tại %s", cancel_pt)
+                input_device.tap(*cancel_pt)
                 sleep(1.0)
                 continue
 
             if res.scene == GameScene.LOADING:
-                LOGGER.info("SCENE_RECOVERY | Game đang tải dữ liệu; chờ 2 giây...")
+                LOGGER.info("SCENE_RECOVERY | Màn hình bắt đầu/nạp dữ liệu -> chạm (480, 360) để vào game")
+                input_device.tap(480, 360)
                 sleep(2.0)
                 continue
 
@@ -206,6 +226,10 @@ class SceneClassifier:
                 input_device.shell("monkey", "-p", "com.daichien.mobile", "1")
                 sleep(3.0)
                 continue
+
+            if res.scene == GameScene.LOGIN_SCREEN:
+                LOGGER.info("SCENE_RECOVERY | Đang ở màn hình Đăng nhập; không thể về HOME trực tiếp")
+                return False
 
             # Fallback for UNKNOWN / stubborn popup
             LOGGER.info("SCENE_RECOVERY | Màn hình %s; thử bấm KEYCODE_BACK để đóng", res.scene.value)
@@ -219,19 +243,15 @@ class SceneClassifier:
 
     @staticmethod
     def _ocr_header_or_screen(screen) -> str:
-        """Fast OCR on header band (y: 0 -> 180) and bottom bar."""
-        import unicodedata
-        import numpy as np
+        """Fast OCR on header and bottom navigation bands using shared singleton RapidOCR."""
         try:
-            from rapidocr_onnxruntime import RapidOCR
-            image = screen.data if hasattr(screen, "data") else (
-                np.asarray(screen.convert("RGB")) if hasattr(screen, "convert") else np.asarray(screen)
-            )
-            # Crop header (y: 0 -> 200) for fast execution
+            import numpy as np
+            from app.vision.ocr import ocr_extract_text, to_numpy_image
+            image = to_numpy_image(screen)
             h = image.shape[0]
             header = image[:min(h, 200), :]
-            result, _ = RapidOCR()(header)
-            text = " ".join(str(row[1]) for row in (result or []))
-            return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
+            bottom = image[max(0, h - 90):, :]
+            combined = np.vstack([header, bottom])
+            return ocr_extract_text(combined)
         except Exception:
             return ""

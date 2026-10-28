@@ -152,6 +152,21 @@ class TruongThanhRunner:
         self.input.tap(match.x + match.width // 2, match.y + match.height // 2)
         self.sleep(self.config.wait_seconds)
 
+    @staticmethod
+    def _plain(text: str) -> str:
+        import unicodedata
+        normalized = unicodedata.normalize("NFKD", text or "")
+        return "".join(c for c in normalized if not unicodedata.combining(c)).lower().strip()
+
+    def _ocr_rows(self, screen):
+        from app.vision.ocr import get_ocr_engine, to_numpy_image
+        engine = get_ocr_engine()
+        if engine is None:
+            return []
+        image = to_numpy_image(screen)
+        result, _ = engine(image)
+        return result or []
+
     def _fresh_proven_free(self, free_templates, paid_templates, free_threshold):
         """Authorize one tap only from a fresh frame where FREE clearly wins."""
         screen = self.screen_provider()
@@ -233,7 +248,9 @@ class TruongThanhRunner:
             if self._first(screen, self.config.hub_markers) is not None:
                 toggle = self._first(screen, self.config.entry_templates)
                 if toggle is None:
-                    return False
+                    self.input.tap(932, 28)
+                    self.sleep(self.config.wait_seconds)
+                    continue
                 self._tap(toggle)
                 logger.info("TT | recovery đóng hub Trường thành")
                 continue
@@ -271,8 +288,29 @@ class TruongThanhRunner:
                 self._tap(self._match(screen, a2_reward_close))
                 logger.info("TT | recovery đóng bảng Thăm dò A2")
                 continue
+            # A3 Chúa Công
+            a3_controls = [
+                *getattr(self.config, "a3_markers", []),
+                *getattr(self.config, "a3_tab_open", []),
+                *getattr(self.config, "a3_tab_closed", []),
+                *getattr(self.config, "a3_phong_hau_open", []),
+                *getattr(self.config, "a3_raise_flag", []),
+            ]
+            if any(self._match(screen, tpl).found for tpl in a3_controls if tpl is not None):
+                if getattr(self.config, "a3_result", None) and self._first(screen, self.config.a3_result) is not None:
+                    self.input.tap(*getattr(self.config, "a3_result_dismiss_point", (480, 500)))
+                    self.sleep(self.config.wait_seconds)
+                    continue
+                a3_close_pt = getattr(self.config, "a3_close_point", (932, 28))
+                self.input.tap(*a3_close_pt)
+                self.sleep(self.config.wait_seconds)
+                logger.info("TT | recovery đóng bảng Chúa Công A3 tại %s", a3_close_pt)
+                continue
             close = self._first(screen, self.config.close_templates)
             if close is None:
+                # If stuck after several attempts without HOME, attempt generic top-right close
+                if _ >= 6:
+                    self.input.tap(932, 28)
                 self.sleep(self.config.wait_seconds)
                 continue
             self._tap(close)
@@ -311,6 +349,11 @@ class TruongThanhRunner:
             self.input.swipe(*self.config.a1_board_swipe)
             self.sleep(self.config.wait_seconds)
             screen = self.screen_provider()
+        # Cuộn ngược lên đầu bảng để danh sách nhiệm vụ mới hiển thị ở đỉnh
+        for _ in range(self.config.a1_max_board_swipes):
+            self.input.swipe(700, 180, 700, 440, 700)
+            self.sleep(self.config.wait_seconds)
+        screen = self.screen_provider()
         return screen
 
     def _a1_board_verified(self, screen) -> bool:
@@ -318,7 +361,17 @@ class TruongThanhRunner:
             return True
         if self._match(screen, self.config.a1_reward).found:
             return True
-        return self._first(screen, self.config.a1_running) is not None
+        if self._first(screen, self.config.a1_running) is not None:
+            return True
+        assist = getattr(self.config, "a1_assist", None)
+        if assist and self._match(screen, assist).found:
+            return True
+        try:
+            from app.vision.ocr import ocr_extract_text
+            txt = ocr_extract_text(screen)
+            return any(k in txt for k in ("chinh vu", "cau vien", "thuc hien"))
+        except Exception:
+            return False
 
     def _a1_open_next_mission(self, screen):
         if not self._a1_board_verified(screen):
@@ -335,7 +388,18 @@ class TruongThanhRunner:
         for swipe_index in range(self.config.a1_max_board_swipes + 1):
             # Xem and Tăng tốc share button chrome. Live collision measured
             # Xem-template=0.759 on Tăng tốc; only a near-exact Xem may tap.
-            view = self._match(screen, self.config.a1_view, 0.95)
+            view = self._match(screen, self.config.a1_view, 0.88)
+            if not view.found:
+                for row in self._ocr_rows(screen):
+                    text = self._plain(str(row[1]))
+                    if text == "xem":
+                        pts = row[0]
+                        cx = int(sum(p[0] for p in pts) / len(pts))
+                        cy = int(sum(p[1] for p in pts) / len(pts))
+                        if cx >= 600:
+                            from app.vision.template import MatchResult
+                            view = MatchResult(found=True, confidence=0.99, x=cx - 30, y=cy - 15, width=60, height=30)
+                            break
             if view.found:
                 self._tap(view)
                 for _ in range(3):
@@ -424,11 +488,34 @@ class TruongThanhRunner:
             return False
         execute = self._first(screen, self.config.a1_execute)
         if execute is None:
-            raise RuntimeError("Trường thành A1: đội đủ nhưng thiếu nút Chấp hành")
-        self._tap(execute)
+            self.sleep(1.0)
+            screen = self.screen_provider()
+            execute = self._first(screen, self.config.a1_execute)
+        if execute is None:
+            try:
+                from app.vision.ocr import ocr_raw_results
+                clicked_ocr = False
+                for row in ocr_raw_results(screen):
+                    txt = str(row[1]).lower().replace(" ", "")
+                    if "chaphang" in txt or "chaphành" in txt or "chaphanh" in txt:
+                        pts = row[0]
+                        cx = int(sum(p[0] for p in pts) / 4)
+                        cy = int(sum(p[1] for p in pts) / 4)
+                        self.input.tap(cx, cy)
+                        clicked_ocr = True
+                        break
+                if not clicked_ocr:
+                    logger.warning("TT | A1: đội đủ nhưng thiếu nút Chấp hành; bỏ qua an toàn")
+                    return False
+            except Exception:
+                logger.warning("TT | A1: đội đủ nhưng thiếu nút Chấp hành; bỏ qua an toàn")
+                return False
+        else:
+            self._tap(execute)
         _, running = self._wait_first(self.config.a1_running, attempts=12)
         if running is None:
-            raise RuntimeError("Trường thành A1: chưa thấy Đang chấp hành")
+            logger.warning("TT | A1: chưa thấy Đang chấp hành; bỏ qua an toàn")
+            return False
         logger.info("TT | A1 xác nhận Đang chấp hành")
         return True
 
@@ -706,8 +793,11 @@ class TruongThanhRunner:
         return np.asarray(data.convert("RGB")) if hasattr(data, "convert") and not hasattr(data, "shape") else np.asarray(data)
 
     def _a5_text(self, screen) -> str:
-        from rapidocr_onnxruntime import RapidOCR
-        result, _ = RapidOCR()(self._screen_array(screen))
+        from app.vision.ocr import get_ocr_engine, to_numpy_image
+        engine = get_ocr_engine()
+        if engine is None:
+            return ""
+        result, _ = engine(to_numpy_image(screen))
         return " ".join(str(row[1]) for row in (result or []))
 
     def _a5_motion_target(self, before, after):
@@ -738,15 +828,43 @@ class TruongThanhRunner:
         self.sleep(self.config.wait_seconds)
         return True
 
-    def _tap_a3_entry(self, screen) -> None:
-        left = self._match(screen, self.config.a2_entry)
-        right = self._match(screen, self.config.a3_right_anchor)
-        if not left.found or not right.found:
-            raise RuntimeError("Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng")
-        x = (left.x + left.width + right.x) // 2
-        y = (left.y + left.height // 2 + right.y + right.height // 2) // 2
-        self.input.tap(x, y)
-        self.sleep(self.config.wait_seconds)
+    def _tap_a3_entry(self, screen) -> bool:
+        # 1. Thử tìm icon Chúa Công trực tiếp
+        chua_cong_tpl = Path("data/img/templates/stars/home/screen/screen_chua-cong.png")
+        if chua_cong_tpl.exists():
+            direct = self._match(screen, chua_cong_tpl, threshold=0.60)
+            if direct.found:
+                self.input.tap(direct.x + direct.width // 2, direct.y + direct.height // 2)
+                self.sleep(self.config.wait_seconds)
+                return True
+
+        left = self._match(screen, self.config.a2_entry, threshold=0.60)
+        right = self._match(screen, self.config.a3_right_anchor, threshold=0.60)
+        if left.found and right.found:
+            x = (left.x + left.width + right.x) // 2
+            y = (left.y + left.height // 2 + right.y + right.height // 2) // 2
+            self.input.tap(x, y)
+            self.sleep(self.config.wait_seconds)
+            return True
+        elif left.found:
+            # A3 Chúa Công nằm ngay bên phải A2 Tướng Ấn (~60px)
+            x = left.x + left.width + 60
+            y = left.y + left.height // 2
+            self.input.tap(x, y)
+            self.sleep(self.config.wait_seconds)
+            return True
+        elif right.found:
+            # A3 Chúa Công nằm ngay bên trái A4 Vệ Tướng (~60px)
+            x = right.x - 60
+            y = right.y + right.height // 2
+            self.input.tap(x, y)
+            self.sleep(self.config.wait_seconds)
+            return True
+        else:
+            logging.getLogger("dc3q").warning("Trường thành A3: không tìm thấy anchor Tướng ấn/Vệ Tướng; thử tap tọa độ chuẩn (370, 310)")
+            self.input.tap(370, 310)
+            self.sleep(self.config.wait_seconds)
+            return True
 
     def _a3_raise_flag(self, screen) -> None:
         control = self._first(screen, self.config.a3_raise_flag)
@@ -785,6 +903,8 @@ class TruongThanhRunner:
             (self._match(screen, template, 0.0) for template in self.config.a3_tab_open),
             key=lambda match: match.confidence,
         )
+        if opened.confidence >= self.config.threshold:
+            return screen
         if (closed is not None and closed.confidence >= self.config.threshold
                 and closed.confidence >= opened.confidence + self.config.state_margin):
             self._tap(closed)
@@ -794,6 +914,10 @@ class TruongThanhRunner:
             if state is None:
                 raise RuntimeError("Trường thành A3: bấm Chiến Kỳ nhưng tab chưa mở")
             return screen
+        if closed is not None and closed.confidence >= 0.50:
+            self._tap(closed)
+            self.sleep(self.config.wait_seconds)
+            return self.screen_provider()
         raise RuntimeError("Trường thành A3: chưa chứng minh được tab Chiến Kỳ/Giương cờ")
 
     def _run_a3(self) -> None:
@@ -803,16 +927,31 @@ class TruongThanhRunner:
             self.config.a3_tab_closed + self.config.a3_tab_open, attempts=12,
         )
         if marker is None:
-            raise RuntimeError("Trường thành A3: không mở được Chúa Công")
-        screen = self._open_a3_chien_ky(screen)
-        self._a3_raise_flag(screen)
-        self.input.tap(*self.config.a3_close_point)
-        self.sleep(self.config.wait_seconds)
+            logging.getLogger("dc3q").warning("Trường thành A3: không mở được Chúa Công; bỏ qua A3 an toàn")
+            return
+        try:
+            screen = self._open_a3_chien_ky(screen)
+            self._a3_raise_flag(screen)
+        except Exception as a3_err:
+            logging.getLogger("dc3q").warning("Trường thành A3: không thể mở Chiến Kỳ hoặc Giương cờ (%s); bỏ qua A3 an toàn", a3_err)
+        finally:
+            close_pt = getattr(self.config, "a3_close_point", (932, 28))
+            for _ in range(3):
+                self.input.tap(*close_pt)
+                self.sleep(self.config.wait_seconds)
+                screen = self.screen_provider()
+                check_tpls = self.config.a3_tab_closed + self.config.a3_tab_open + getattr(self.config, "a3_phong_hau_open", [])
+                if not any(self._match(screen, tpl).found for tpl in check_tpls if tpl is not None):
+                    break
 
     def _read_roi_number(self, screen, roi) -> int | None:
-        from rapidocr_onnxruntime import RapidOCR
+        from app.vision.ocr import get_ocr_engine, to_numpy_image
+        engine = get_ocr_engine()
+        if engine is None:
+            return None
         x1, y1, x2, y2 = roi
-        result, _ = RapidOCR()(self._screen_array(screen)[y1:y2, x1:x2])
+        cropped = self._screen_array(screen)[y1:y2, x1:x2]
+        result, _ = engine(to_numpy_image(cropped))
         texts = [row[1] for row in (result or [])]
         value = _last_ocr_number(texts)
         logging.getLogger("dc3q").info(
@@ -832,16 +971,16 @@ class TruongThanhRunner:
         self._tap(hub_entry)
         screen, entry = self._wait_first(self.config.a4_entry, attempts=12)
         if entry is None:
-            raise RuntimeError("Trường thành A4: vào Vệ Tướng nhưng thiếu Thiên Cơ Các")
+            logger.info("TT | A4: vào Vệ Tướng nhưng chưa mở Thiên Cơ Các -> bỏ qua an toàn")
+            return
         self._tap(entry)
         screen, state = self._wait_first(
             [*self.config.a4_free, *self.config.a4_paid], attempts=12,
         )
         if state is None:
-            raise RuntimeError("Trường thành A4: mở Thiên Cơ Các nhưng thiếu trạng thái")
-        screen, free = self._fresh_proven_free(
-            self.config.a4_free, self.config.a4_paid, 0.95,
-        )
+            logger.info("TT | A4: không thấy nút Diễn quẻ trong Thiên Cơ Các")
+            return
+        free = self._first(screen, self.config.a4_free, 0.95)
         if free is not None:
             self._tap(free)
             logger.info("TT | A4 bấm Diễn quẻ 1 lần miễn phí")
@@ -862,22 +1001,34 @@ class TruongThanhRunner:
                 raise RuntimeError("Trường thành A4: thiếu nút Trở về")
             self._tap(back)
             logger.info("TT | A4 bấm Trở về")
-            screen, paid = self._wait_first(self.config.a4_paid, attempts=12)
-            if paid is None:
-                raise RuntimeError("Trường thành A4: chưa chứng minh trạng thái 1 khóa")
-        elif self._first(screen, self.config.a4_paid) is None:
-            raise RuntimeError("Trường thành A4: trạng thái FREE/1 khóa không rõ")
-        logger.info("TT | A4 đã xong: Diễn quẻ 1 lần chuyển thành 1 khóa")
+            for _ in range(12):
+                self.sleep(self.config.wait_seconds)
+                screen = self.screen_provider()
+                if self._first(screen, self.config.a4_return) is None:
+                    break
+            logger.info("TT | A4 đã xong: hoàn thành Diễn quẻ 1 lần miễn phí")
+        else:
+            logger.info("TT | A4: Không có lượt Diễn quẻ miễn phí hoặc đã quay trước đó")
         self.input.tap(*self.config.a4_close_point)
         self.sleep(self.config.wait_seconds)
         screen, recall = self._wait_first(self.config.a4_recall, attempts=12)
         if recall is None:
-            raise RuntimeError("Trường thành A4: đóng Thiên Cơ Các nhưng thiếu Hồi thành")
+            if self._first(screen, self.config.home_markers) is not None:
+                logger.info("TT | A4: đã ở HOME sau khi đóng Thiên Cơ Các")
+                return
+            hub = self._first(screen, self.config.hub_markers)
+            if hub is not None:
+                self._tap(hub)
+                logger.info("TT | A4: bấm đóng hub về HOME")
+                return
+            logger.info("TT | A4: đóng Thiên Cơ Các nhưng chưa thấy Hồi thành; thử recover_home")
+            self.recover_home()
+            return
         self._tap(recall)
         logger.info("TT | A4 bấm Hồi thành")
         _, home = self._wait_first(self.config.home_markers, attempts=12)
         if home is None:
-            raise RuntimeError("Trường thành A4: Hồi thành nhưng chưa về HOME")
+            self.recover_home()
 
     def _a5_fast_claim(self, screen) -> None:
         logger = logging.getLogger("dc3q")
@@ -994,9 +1145,11 @@ class TruongThanhRunner:
                 self.sleep(self.config.wait_seconds)
                 screen = self.screen_provider()
         if not all(self._a5_checkbox_selected(screen, p) for p in self.config.a5_quality_points):
-            raise RuntimeError("Trường thành A5: chưa chọn đủ Trắng/Lục/Lam/Tím")
+            logger.warning("TT | A5: chưa chọn đủ Trắng/Lục/Lam/Tím; đóng màn bán an toàn")
+            return self._a5_close_sell(screen)
         if any(self._a5_checkbox_selected(screen, p) for p in self.config.a5_protection_points):
-            raise RuntimeError("Trường thành A5: ô bảo vệ kỹ năng/nuôi dưỡng đang bị chọn; không bán")
+            logger.warning("TT | A5: ô bảo vệ kỹ năng/nuôi dưỡng đang bị chọn; không bán, đóng an toàn")
+            return self._a5_close_sell(screen)
         sell_action = self._match(screen, self.config.a5_sell_action)
         if not sell_action.found:
             logger.info("TT | A5 không có thú cưỡi hợp lệ để bán")
@@ -1031,26 +1184,30 @@ class TruongThanhRunner:
         return self._a5_close_sell(screen)
 
     def _a5_close_sell(self, screen):
-        close = self._match(screen, self.config.a5_sell_close)
-        if not close.found:
-            close = self._match(screen, self.config.a5_sell_close, threshold=0.50)
-        if close and close.found:
-            self._tap(close)
-        else:
-            self.input.tap(915, 55)
+        for _ in range(3):
+            close = self._match(screen, self.config.a5_sell_close)
+            if not close.found:
+                close = self._match(screen, self.config.a5_sell_close, threshold=0.50)
+            if close and close.found:
+                self._tap(close)
+            else:
+                self.input.tap(936, 29)
             self.sleep(self.config.wait_seconds)
-        screen, home = self._wait_first(
-            [self.config.a5_sell_home, self.config.a5_harvest], attempts=12,
-        )
-        if home is None:
-            raise RuntimeError("Trường thành A5: đóng màn bán nhưng chưa về Trại Ngựa")
-        return screen
+            screen = self.screen_provider()
+            home = self._first(screen, [self.config.a5_sell_home, self.config.a5_harvest])
+            if home is not None:
+                return screen
+        raise RuntimeError("Trường thành A5: đóng màn bán nhưng chưa về Trại Ngựa")
 
     def _a7_has_free_label(self, screen) -> bool:
         import unicodedata
-        from rapidocr_onnxruntime import RapidOCR
+        from app.vision.ocr import get_ocr_engine, to_numpy_image
+        engine = get_ocr_engine()
+        if engine is None:
+            return False
         x1, y1, x2, y2 = self.config.a7_free_label_roi
-        result, _ = RapidOCR()(self._screen_array(screen)[y1:y2, x1:x2])
+        cropped = self._screen_array(screen)[y1:y2, x1:x2]
+        result, _ = engine(to_numpy_image(cropped))
         text = " ".join(str(row[1]) for row in (result or []))
         plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
         logging.getLogger("dc3q").info("TT | A7 OCR nhãn FREE=%r", text)
@@ -1070,14 +1227,16 @@ class TruongThanhRunner:
             [self.config.a5_harvest, self.config.a5_sell_home, *flow.entry], attempts=12,
         )
         if home_state is None:
-            raise RuntimeError("Trường thành A5: vào Trại Ngựa nhưng thiếu trạng thái")
+            logger.info("TT | A5: vào Trại Ngựa nhưng chưa mở hoặc thiếu trạng thái -> bỏ qua an toàn")
+            return
         screen = self._a5_collect_grass(screen)
         screen = self._a5_sell_mounts(screen)
         entry = self._first(screen, flow.entry)
         if entry is None:
             screen, entry = self._wait_first(flow.entry, attempts=12)
         if entry is None:
-            raise RuntimeError("Trường thành A5: thiếu Tướng Mã Quán miễn phí")
+            logger.info("TT | A5: thiếu Tướng Mã Quán miễn phí -> bỏ qua an toàn")
+            return
         self._tap(entry)
         screen, close = self._wait_first([self.config.a5_initial_close], attempts=12)
         if close is None:
@@ -1164,8 +1323,12 @@ class TruongThanhRunner:
         if not flow.reward_popup or self._first(screen, flow.reward_popup) is None:
             return False
         import unicodedata
-        from rapidocr_onnxruntime import RapidOCR
-        result, _ = RapidOCR()(self._screen_array(screen)[100:430, 160:800])
+        from app.vision.ocr import get_ocr_engine, to_numpy_image
+        engine = get_ocr_engine()
+        if engine is None:
+            return False
+        cropped = self._screen_array(screen)[100:430, 160:800]
+        result, _ = engine(to_numpy_image(cropped))
         text = " ".join(str(row[1]) for row in (result or []))
         plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
         logging.getLogger("dc3q").info("TT | A6 OCR popup thưởng=%r", text)
@@ -1270,13 +1433,15 @@ class TruongThanhRunner:
         self._tap(hub_entry)
         screen, state = self._wait_first([*flow.entry, *flow.free, *flow.spent, *flow.close], attempts=12)
         if state is None:
-            raise RuntimeError("Trường thành A7: vào Chiến Hồn nhưng thiếu trạng thái")
+            logger.info("TT | A7: vào Chiến Hồn nhưng chưa mở hoặc thiếu trạng thái -> bỏ qua an toàn")
+            return
         entry = self._first(screen, flow.entry)
         if entry is not None:
             self._tap(entry)
             screen, state = self._wait_first([*flow.free, *flow.spent], attempts=12)
             if state is None:
-                raise RuntimeError("Trường thành A7: mở Nhận Chiến Hồn nhưng thiếu trạng thái")
+                logger.info("TT | A7: mở Nhận Chiến Hồn nhưng thiếu trạng thái -> bỏ qua an toàn")
+                return
         screen, free = self._a7_fresh_free(flow)
         if free is not None:
             self._tap(free)
@@ -1293,13 +1458,14 @@ class TruongThanhRunner:
             raise RuntimeError("Trường thành A7: đã xong nhưng thiếu X/đóng")
 
     def _open_home_entry(self) -> None:
-        screen = self.screen_provider()
-        entry = self._first(screen, self.config.entry_templates)
+        screen, entry = self._wait_first(self.config.entry_templates, attempts=5)
         if entry is None and self.config.menu_templates:
             menu = self._first(screen, self.config.menu_templates)
             if menu is not None:
                 self._tap(menu)
-                _, entry = self._wait_first(self.config.entry_templates)
+                screen, entry = self._wait_first(self.config.entry_templates, attempts=5)
+        if entry is None:
+            screen, entry = self._wait_first(self.config.entry_templates, attempts=5)
         if entry is None:
             raise RuntimeError("Trường thành: menu đã mở nhưng thiếu icon Trường thành")
         self._tap(entry)

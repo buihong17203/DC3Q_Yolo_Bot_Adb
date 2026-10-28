@@ -3,7 +3,7 @@ xa_giao:
   threshold: 0.80
   state_threshold: 0.80
   max_steps: 24
-  wait_seconds: 0.8
+  wait_seconds: 0.35
   home_threshold: 0.65
   # Icon Xã giao khi menu mở có frame thật khoảng 0.590.
   social_control_threshold: 0.55

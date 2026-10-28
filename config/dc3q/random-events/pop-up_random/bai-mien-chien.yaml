@@ -1,0 +1,16 @@
+rules:
+  - Chỉ xử lý khi nhận diện đúng title Bạn có Bài Miễn Chiến.
+  - Bấm nút Xác nhận để tiếp tục tiến công/giao tranh.
+  - Sau khi xác nhận, tiếp tục luồng chiến đấu.
+
+scenario:
+  - Tìm title Bạn có Bài Miễn Chiến.
+  - Tìm nút Xác nhận trong cùng popup.
+  - Bấm tâm nút Xác nhận một lần.
+
+SET_BAI_MIEN_CHIEN:
+  state: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_qs_gt_title_bai-mien-chien.png
+  confirm: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_qs_gt_button_xac-nhan.png
+  threshold: 0.75
+  timeout_seconds: 10
+  max_attempts: 1

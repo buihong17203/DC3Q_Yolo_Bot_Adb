@@ -1,0 +1,9 @@
+2026-10-26T10:28:24+07:00 | account=acc_007 | task=TT_A5_Trai_Ngua | type=TASK | home target error: Trường thành A5: mở Bán ra nhưng thiếu Bán nhiều
+2026-10-26T11:09:33+07:00 | account=acc_009 | task=Vo_Tuong | type=TASK | home target error: Võ tướng: Thiên Vận Trở về nhưng chưa thấy Điểm tướng
+2026-10-26T11:28:22+07:00 | account=acc_010 | task=Vo_Tuong | type=TASK | home target error: Võ tướng: Thiên Vận Trở về nhưng chưa thấy Điểm tướng
+2026-10-26T12:06:34+07:00 | account=acc_012 | task=TT_A2_Tuong_An | type=TASK | home target error: TT_A2_TUONG_AN: không recover được HOME
+2026-10-26T13:08:19+07:00 | account=acc_015 | task=TT_A5_Trai_Ngua | type=TASK | home target error: Trường thành A5: thiếu nút Bắt ngựa nhanh
+2026-10-26T23:19:39+07:00 | account=acc_001 | task=ACCOUNT | type=ACCOUNT | Không tìm thấy nút đăng nhập trên màn hình login
+2026-10-26T23:50:17+07:00 | account=acc_003 | task=Quan_Doan | type=TASK | home target error: Quân đoàn: hết thời gian chờ trạng thái Báo danh
+2026-10-26T23:51:00+07:00 | account=acc_003 | task=Khong_Gian_Ca_Nhan | type=TASK | home target error: Không gian cá nhân: không recover_home được
+2026-10-26T23:58:37+07:00 | account=acc_003 | task=TT_A4_Ve_Tuong | type=TASK | home target error: Trường thành A4: đóng Thiên Cơ Các nhưng thiếu Hồi thành

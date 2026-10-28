@@ -1,0 +1,11 @@
+2026-10-23T13:07:33+07:00 | account=acc_001 | task=Tranh_Ba | type=TASK | home target error: Tranh Bá: vượt quá 60 bước tại RESULT, trận=3
+2026-10-23T13:51:08+07:00 | account=acc_002 | task=TT_A6_Than_Binh | type=TASK | home target error: TT_A6_THAN_BINH: không recover được HOME
+2026-10-23T14:25:24+07:00 | account=acc_003 | task=Quan_Doan | type=TASK | home target error: Quân đoàn: trạng thái Cầu vận không xác định
+2026-10-23T14:27:42+07:00 | account=acc_003 | task=Khong_Gian_Ca_Nhan | type=TASK | home target error: Không gian cá nhân: không đọc được số thư trước khi Xóa
+2026-10-23T14:44:11+07:00 | account=acc_003 | task=TT_A5_Trai_Ngua | type=TASK | home target error: TT_A5_TRAI_NGUA: không recover được HOME
+2026-10-23T15:16:59+07:00 | account=acc_004 | task=Khong_Gian_Ca_Nhan | type=TASK | home target error: Không gian cá nhân: không đọc được số thư trước khi Xóa
+2026-10-23T16:10:05+07:00 | account=acc_005 | task=Cua_Hang | type=TASK | home target error: Shop Danh Vọng: Shop Danh Vọng: thiếu CTA tổng giá chính xác 2500
+2026-10-23T16:21:50+07:00 | account=acc_005 | task=Vo_Tuong | type=TASK | home target error: Võ tướng: Thiên Vận Trở về nhưng chưa thấy Điểm tướng
+2026-10-23T18:29:16+07:00 | account=acc_008 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: trạng thái Trưng thu thuế xung đột hoặc chưa ổn định
+2026-10-23T21:59:56+07:00 | account=acc_012 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: đã bấm Quà hằng ngày nhưng chưa thấy Đã mua ổn định sau popup
+2026-10-23T22:59:08+07:00 | account=acc_013 | task=Khong_Gian_Ca_Nhan | type=TASK | home target error: Đã đến 22:59; dừng thao tác nghiệp vụ

@@ -2,7 +2,7 @@ quan_su:
   enabled: true
   threshold: 0.60
   max_steps: 60
-  wait_seconds: 0.8
+  wait_seconds: 0.35
   battles: 5
 
   home:
@@ -52,6 +52,8 @@ quan_su:
     find_opponent: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_qs_gt_button_tim-doi-thu.png
     result_continue: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_qs_gt_button_tran-sau.png
     result_banner: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_qs_gt_banner_bai.png
+    bai_mien_chien_title: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_qs_gt_title_bai-mien-chien.png
+    bai_mien_chien_confirm: data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_qs_gt_button_xac-nhan.png
     main_markers:
       - data/img/templates/targets/09_quan-su/giao-tranh/screen/screen_qs_gt_button_tim-doi-thu.png
     tui_gam:

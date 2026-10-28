@@ -3,7 +3,7 @@ hoat_dong:
   threshold: 0.65
   state_threshold: 0.76
   max_steps: 50
-  wait_seconds: 0.8
+  wait_seconds: 0.35
   home:
     menu:
       - data/img/templates/stars/home/screen/screen_home_menu_sukien_dangdong.png
@@ -84,13 +84,50 @@ hoat_dong:
     claimed: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_quaonline_danhan.png
   attendance:
     tabs:
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_diemdanh_close_01.png
       - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_diemdanh_close_02.png
     open:
+      - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_diemdanh_open_01.png
       - data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_diemdanh_open_02.png
 
     # ADB viewport 960x540; coordinates exclude LDPlayer's 35px title bar.
     # 30 ngày = 9 + 9 + 9 + 3; thưởng tích lũy nằm phía trên, không phải cột trái.
     grid: [238, 199, 913, 500]
+    boxes:
+      # Hàng 1: Ngày 1 - 9 (y: 201 -> 271)
+      - [240, 201, 310, 271] # Ngày 1
+      - [315, 201, 385, 271] # Ngày 2
+      - [390, 201, 460, 271] # Ngày 3
+      - [465, 201, 535, 271] # Ngày 4
+      - [540, 201, 610, 271] # Ngày 5
+      - [615, 201, 685, 271] # Ngày 6
+      - [690, 201, 760, 271] # Ngày 7
+      - [765, 201, 835, 271] # Ngày 8
+      - [840, 201, 910, 271] # Ngày 9
+      # Hàng 2: Ngày 10 - 18 (y: 276 -> 346)
+      - [240, 276, 310, 346] # Ngày 10
+      - [315, 276, 385, 346] # Ngày 11
+      - [390, 276, 460, 346] # Ngày 12
+      - [465, 276, 535, 346] # Ngày 13
+      - [540, 276, 610, 346] # Ngày 14
+      - [615, 276, 685, 346] # Ngày 15
+      - [690, 276, 760, 346] # Ngày 16
+      - [765, 276, 835, 346] # Ngày 17
+      - [840, 276, 910, 346] # Ngày 18
+      # Hàng 3: Ngày 19 - 27 (y: 352 -> 422)
+      - [240, 352, 310, 422] # Ngày 19
+      - [315, 352, 385, 422] # Ngày 20
+      - [390, 352, 460, 422] # Ngày 21
+      - [465, 352, 535, 422] # Ngày 22
+      - [540, 352, 610, 422] # Ngày 23
+      - [615, 352, 685, 422] # Ngày 24
+      - [690, 352, 760, 422] # Ngày 25
+      - [765, 352, 835, 422] # Ngày 26
+      - [840, 352, 910, 422] # Ngày 27
+      # Hàng 4: Ngày 28 - 30 (y: 427 -> 497)
+      - [240, 427, 310, 497] # Ngày 28
+      - [315, 427, 385, 497] # Ngày 29
+      - [390, 427, 460, 497] # Ngày 30
     milestone:
       claimable: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_diemdanh_tichluy_10-20-30_01.png
       locked: data/img/templates/targets/02_hoat-dong/phuc-loi/screen/screen_hd_pl_tab_diemdanh_tichluy_10-20-30_02.png

@@ -102,6 +102,11 @@ def install_ctrl_c_handler() -> None:
 def run(args: argparse.Namespace) -> int:
     from app.workflow.script_loader import ScriptLoader
 
+    if args.adb_path == "adb":
+        ld_adb = Path("D:/LDPlayer/LDPlayer9/adb.exe")
+        if ld_adb.exists():
+            args.adb_path = str(ld_adb)
+
     adb = AdbClient(args.adb_path)
     resolver = AdbResolver(adb)
 
@@ -409,6 +414,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                     _resolve_project_path(root, "data/img/templates/targets/08_vo-tuong/screen/screen_vt_button_dong.png"),
                     _resolve_project_path(root, "data/img/templates/targets/09_quan-su/tranh-ba/screen/screen_qs_tb_button_dong.png"),
                     _resolve_project_path(root, "data/img/templates/targets/10_nhiem-vu/screen/screen_nv_button_dong.png"),
+                    _resolve_project_path(root, "data/img/templates/random-events/pop-up_random/homecoming_event/screen/screen_vgql_button_dong.png"),
                 ],
             ),
             runtime,
@@ -514,6 +520,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                             if target_cfg["attendance"].get("makeup") else None
                         ),
                         attendance_grid=tuple(target_cfg["attendance"]["grid"]),
+                        attendance_boxes=[tuple(box) for box in target_cfg["attendance"]["boxes"]] if target_cfg["attendance"].get("boxes") else None,
                         attendance_milestone_claimable=_resolve_project_path(root, target_cfg["attendance"]["milestone"]["claimable"]),
                         attendance_milestone_locked=_resolve_project_path(root, target_cfg["attendance"]["milestone"]["locked"]),
                         attendance_milestone_claimed=_resolve_project_path(root, target_cfg["attendance"]["milestone"]["claimed"]),
@@ -529,6 +536,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         state_threshold=float(target_cfg.get("state_threshold", 0.76)),
                         max_steps=int(target_cfg.get("max_steps", 50)),
                         wait_seconds=float(target_cfg.get("wait_seconds", 0.8)),
+                        only_attendance=bool(target_cfg.get("only_attendance", False)),
                     ),
                     attendance_day=lambda ctl=controller, path=accounts_path: (
                         read_attendance_day(path, ctl.current.id) if ctl.current else None
@@ -757,6 +765,8 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                         gt_find_opponent=_resolve_project_path(root, gt_cfg.get("find_opponent")) if gt_cfg.get("find_opponent") else None,
                         gt_result_continue=_resolve_project_path(root, gt_cfg.get("result_continue")) if gt_cfg.get("result_continue") else None,
                         gt_result_banner=_resolve_project_path(root, gt_cfg.get("result_banner")) if gt_cfg.get("result_banner") else None,
+                        gt_bai_mien_chien_title=_resolve_project_path(root, gt_cfg.get("bai_mien_chien_title")) if gt_cfg.get("bai_mien_chien_title") else None,
+                        gt_bai_mien_chien_confirm=_resolve_project_path(root, gt_cfg.get("bai_mien_chien_confirm")) if gt_cfg.get("bai_mien_chien_confirm") else None,
                         gt_main_markers=paths(gt_cfg.get("main_markers", [])),
                     ),
                     account_level_provider=lambda: (
@@ -830,6 +840,16 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
     return 0
 
 def main() -> int:
+    if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+    if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+        try:
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     configure_logging()
     install_ctrl_c_handler()
     parser = build_parser()

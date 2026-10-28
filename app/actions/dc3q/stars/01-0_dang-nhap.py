@@ -114,12 +114,12 @@ class AccountLoginAction:
 
     def _find_ocr_center(self, screen, keywords: list[str]) -> tuple[int, int] | None:
         try:
-            from rapidocr_onnxruntime import RapidOCR
-            import numpy as np
-
-            data = screen.data if hasattr(screen, "data") else screen
-            image = np.asarray(data.convert("RGB")) if hasattr(data, "convert") else np.asarray(data)
-            result, _ = RapidOCR()(image)
+            from app.vision.ocr import get_ocr_engine, to_numpy_image
+            engine = get_ocr_engine()
+            if engine is None:
+                return None
+            image = to_numpy_image(screen)
+            result, _ = engine(image)
             if not result:
                 return None
 
@@ -161,19 +161,31 @@ class AccountLoginAction:
 
     def clear_login_form(self) -> None:
         """Clear both rejected fields physically; never expose their values."""
-        for resource_id in (
-            "com.daichien.mobile:id/edt_username",
-            "com.daichien.mobile:id/edt_password",
+        for field, resource_id in (
+            ("username", "com.daichien.mobile:id/edt_username"),
+            ("password", "com.daichien.mobile:id/edt_password"),
         ):
-            if not self._tap_accessibility(resource_id):
-                raise RuntimeError(f"Không tìm thấy input cần xóa: {resource_id}")
-            self.input.clear_focused_text()
+            coord = getattr(self.coordinates, field, None)
+            if coord:
+                self.input.tap(*coord)
+                time.sleep(0.2)
+                self.input.clear_focused_text()
+            elif self._tap_accessibility(resource_id):
+                time.sleep(0.2)
+                self.input.clear_focused_text()
+            else:
+                LOGGER.warning("LOGIN | Không tìm thấy input qua accessibility để xóa: %s; sẽ xóa khi nhập tài khoản tiếp theo", resource_id)
 
-    def _require_login_screen(self, screen_provider, detector, login_templates, threshold_screen: float) -> None:
-        screen = screen_provider()
-        d = detector.detect(screen, login_templates=login_templates, logged_in_templates=[], threshold=threshold_screen)
-        if d.state != LoginScreenState.LOGIN_SCREEN:
-            raise RuntimeError(f"Không thao tác: màn hình hiện tại không phải LOGIN_SCREEN ({d.state.value})")
+    def _require_login_screen(self, screen_provider, detector, login_templates, threshold_screen: float, max_attempts: int = 6) -> None:
+        last_state = "unknown"
+        for attempt in range(max_attempts):
+            screen = screen_provider()
+            d = detector.detect(screen, login_templates=login_templates, logged_in_templates=[], threshold=threshold_screen)
+            if d.state == LoginScreenState.LOGIN_SCREEN:
+                return
+            last_state = d.state.value
+            time.sleep(0.5)
+        raise RuntimeError(f"Không thao tác: màn hình hiện tại không phải LOGIN_SCREEN ({last_state})")
 
     def _submit_once(self, screen_provider, submit_template, threshold: float,
                      *, missing_is_transition: bool = False) -> bool:

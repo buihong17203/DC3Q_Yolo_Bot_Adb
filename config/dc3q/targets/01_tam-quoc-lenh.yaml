@@ -1,9 +1,9 @@
 tam_quoc_lenh:
   enabled: true
   threshold: 0.60
-  action_threshold: 0.85
+  action_threshold: 0.65
   max_steps: 30
-  wait_seconds: 0.8
+  wait_seconds: 0.35
   advance_popup:
     marker: data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_title_tiengiailenh.png
     close: data/img/templates/targets/01_tam-quoc-lenh/screen/screen_tql_button_dong_tiengiailenh.png
@@ -24,6 +24,7 @@ tam_quoc_lenh:
     markers:
       - data/img/templates/stars/home/screen/screen_chien-tranh_01.png
       - data/img/templates/stars/home/screen/screen_chien-tranh_02.png
+      - data/img/templates/stars/home/screen/screen_noi-chinh_01.png
   panel:
     markers:
       - data/img/templates/targets/01_tam-quoc-lenh/screen_button_dong_01tamquoclenh.png

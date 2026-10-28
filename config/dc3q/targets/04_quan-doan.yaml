@@ -3,7 +3,7 @@ quan_doan:
   threshold: 0.65
   state_threshold: 0.76
   max_steps: 30
-  wait_seconds: 0.8
+  wait_seconds: 0.35
   # Đường dẫn Quân đoàn tải chậm: chờ tối đa 24 ảnh mới (~19 giây).
   entrance_wait_attempts: 24
   # Màn chính Quân đoàn còn tải sau khi X xuất hiện; chờ Báo danh ổn định.

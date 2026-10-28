@@ -1,0 +1,12 @@
+# DC3Q Auto-Annotated YOLOv11 Dataset
+path: D:/Antigravity_Data/DC3Q_Yolo_Bot_Adb - 01/data/img/templates/trainning_yolo
+train: images/train
+val: images/val
+
+names:
+  0: monster
+  1: reward
+  2: npc
+  3: button
+  4: item
+  5: popup_close

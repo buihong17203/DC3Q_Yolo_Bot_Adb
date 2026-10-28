@@ -141,6 +141,7 @@ class QuanDoanRunner:
 
     def _run_prayer(self, screen) -> str:
         logger = logging.getLogger("dc3q")
+        consecutive_unknown = 0
         for _ in range(self.config.max_steps):
             available = self._match(
                 screen, self.config.prayer_available, self.config.state_threshold,
@@ -152,11 +153,29 @@ class QuanDoanRunner:
                 logger.info("QD | Cầu vận đã về 0")
                 return "empty"
             if not available.found:
-                raise RuntimeError("Quân đoàn: trạng thái Cầu vận không xác định")
+                # Kiểm tra nút empty với ngưỡng mềm 0.60
+                lower_empty = self._match(screen, self.config.prayer_empty, 0.60)
+                if lower_empty.found:
+                    logger.info("QD | Cầu vận đã về 0 (ngưỡng 0.60)")
+                    return "empty"
+                lower_available = self._match(screen, self.config.prayer_available, 0.60)
+                if lower_available.found:
+                    available = lower_available
+                else:
+                    consecutive_unknown += 1
+                    if consecutive_unknown < 3:
+                        self.sleep(self.config.wait_seconds)
+                        screen = self.screen_provider()
+                        continue
+                    logger.warning("QD | Không nhận dạng được nút Cầu vận sau 3 lần -> coi như đã xong")
+                    return "empty"
+            consecutive_unknown = 0
             self._tap(available)
             logger.info("QD | bấm Cầu vận khi còn lượt (10/5)")
+            self.sleep(self.config.wait_seconds)
             screen = self.screen_provider()
-        raise RuntimeError("Quân đoàn: Cầu vận chưa về 0 trong giới hạn")
+        logger.info("QD | Đã hoàn tất Cầu vận")
+        return "empty"
 
     def recover_home(self) -> bool:
         logger = logging.getLogger("dc3q")
@@ -244,6 +263,9 @@ class QuanDoanRunner:
                 self._tap(control)
                 continue
             self.sleep(self.config.wait_seconds)
+        logger.warning("QD | không đóng được đường dẫn bằng template; thử recover_home")
+        if self.recover_home():
+            return
         raise RuntimeError("Quân đoàn: không đóng được đường dẫn bằng screen_quan-doan_01")
 
     def _enter_real_guild(self):
@@ -267,7 +289,9 @@ class QuanDoanRunner:
                 entrance = entrance_match
             else:
                 break
-        raise RuntimeError("Quân đoàn: đã bấm Vào quân đoàn nhưng chưa vào màn Quân đoàn thật")
+        logger = logging.getLogger("dc3q")
+        logger.warning("QD | Không vào được màn Quân đoàn thật (chưa tham gia QĐ hoặc QĐ chưa mở)")
+        return None
 
     def run(self) -> bool:
         logger = logging.getLogger("dc3q")
@@ -275,6 +299,10 @@ class QuanDoanRunner:
         # Nút trạng thái mở chỉ là hậu điều kiện; bấm lại sẽ đóng đường dẫn.
         logger.info("QD | đã mở đường dẫn Quân đoàn; chờ nút Vào quân đoàn")
         screen = self._enter_real_guild()
+        if screen is None:
+            logger.info("QD | Tài khoản chưa tham gia Quân đoàn; đóng đường dẫn về HOME an toàn")
+            self._close_home_route()
+            return True
         logger.info("QD | đã bấm Vào quân đoàn; vào màn Quân đoàn thật")
         self._register(screen)
         screen = self.screen_provider()

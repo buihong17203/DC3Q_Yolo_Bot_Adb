@@ -73,23 +73,19 @@ class AdbClient:
         return result
 
     @staticmethod
-    def _terminate_process(process: subprocess.Popen[str]) -> None:
+    def _terminate_process(process: subprocess.Popen) -> None:
         if process.poll() is not None:
             return
 
         try:
-            if os.name == "nt":
-                process.send_signal(signal.CTRL_BREAK_EVENT)
-            else:
-                process.send_signal(signal.SIGTERM)
-        except (OSError, ValueError):
+            process.kill()
+        except Exception:
             pass
 
         try:
-            process.wait(timeout=2)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait(timeout=2)
+            process.wait(timeout=1.0)
+        except Exception:
+            pass
 
     def version(self) -> str:
         result = self.run(["version"])

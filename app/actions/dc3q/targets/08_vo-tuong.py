@@ -84,28 +84,41 @@ class VoTuongRunner:
 
     def _has_free_text(self, screen) -> bool:
         import unicodedata
-        from rapidocr_onnxruntime import RapidOCR
-        result, _ = RapidOCR()(self._screen_array(screen))
+        from app.vision.ocr import get_ocr_engine, to_numpy_image
+        engine = get_ocr_engine()
+        if engine is None:
+            return False
+        arr = self._screen_array(screen)
+        # Nút rút FREE nằm ở nửa dưới bên trái
+        roi = arr[350:520, 80:480] if arr.shape[0] >= 500 else arr
+        result, _ = engine(to_numpy_image(roi))
         text = " ".join(str(row[1]) for row in (result or []))
         plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
         logging.getLogger("dc3q").info("VT | OCR FREE=%r", text)
         return "mien" in plain and "phi" in plain
 
-    def _ocr_plain(self, screen, label: str) -> str:
+    def _ocr_plain(self, screen, label: str, roi=None) -> str:
         import unicodedata
-        from rapidocr_onnxruntime import RapidOCR
-        result, _ = RapidOCR()(self._screen_array(screen))
+        from app.vision.ocr import get_ocr_engine, to_numpy_image
+        engine = get_ocr_engine()
+        if engine is None:
+            return ""
+        arr = self._screen_array(screen)
+        if roi is not None:
+            x1, y1, x2, y2 = roi
+            arr = arr[y1:y2, x1:x2]
+        result, _ = engine(to_numpy_image(arr))
         text = " ".join(str(row[1]) for row in (result or []))
         plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
         logging.getLogger("dc3q").info("VT | OCR %s=%r", label, text)
         return plain
 
     def _has_exchange_popup_text(self, screen) -> bool:
-        plain = self._ocr_plain(screen, "popup đổi")
+        plain = self._ocr_plain(screen, "popup đổi", roi=(180, 100, 780, 450))
         return "phu cau nguyen" in plain and "doi" in plain
 
     def _has_insufficient_exchange_text(self, screen) -> bool:
-        plain = self._ocr_plain(screen, "thiếu Chiêu Hiền Lệnh")
+        plain = self._ocr_plain(screen, "thiếu Chiêu Hiền Lệnh", roi=(180, 100, 780, 450))
         return "chieu hien lenh" in plain and ("khong du" in plain or "khongdu" in plain)
 
     def _wait_exchange_popup(self, attempts: int = 4):
@@ -113,10 +126,12 @@ class VoTuongRunner:
         for _ in range(attempts):
             last = self.screen_provider()
             marker = self._first(last, self.config.exchange_popup)
-            if marker is not None or self._has_exchange_popup_text(last):
-                return last, marker or True
+            if marker is not None:
+                return last, marker
             if self._has_insufficient_exchange_text(last):
                 return last, False
+            if self._has_exchange_popup_text(last):
+                return last, True
             self.sleep(self.config.wait_seconds)
         return last, None
 
@@ -164,7 +179,11 @@ class VoTuongRunner:
         self._tap(back)
         screen, point = self._wait_first(self.config.point_markers)
         if point is None:
-            raise RuntimeError(f"Võ tướng: {name} Trở về nhưng chưa thấy Điểm tướng")
+            self.input.tap(910, 45)
+            self.sleep(self.config.wait_seconds)
+            screen, point = self._wait_first(self.config.point_markers, attempts=6)
+        if point is None:
+            logging.getLogger("dc3q").warning("Võ tướng: %s Trở về nhưng chưa thấy Điểm tướng; tiếp tục an toàn", name)
         logging.getLogger("dc3q").info("VT | %s đã trả phí; không bấm", name)
         return screen
 
@@ -183,7 +202,11 @@ class VoTuongRunner:
         self._tap(back)
         screen, point = self._wait_first(self.config.point_markers)
         if point is None:
-            raise RuntimeError(f"Võ tướng: {name} Trở về nhưng chưa thấy Điểm tướng")
+            self.input.tap(910, 45)
+            self.sleep(self.config.wait_seconds)
+            screen, point = self._wait_first(self.config.point_markers, attempts=6)
+        if point is None:
+            logging.getLogger("dc3q").warning("Võ tướng: %s Trở về nhưng chưa thấy Điểm tướng; tiếp tục an toàn", name)
         return screen
 
     def _run_exchange(self):
@@ -213,7 +236,8 @@ class VoTuongRunner:
                 "VT | nút + chưa chuyển trạng thái | lần=%d/2", attempt + 1,
             )
         if popup is None:
-            raise RuntimeError("Võ tướng: nút + chưa mở popup Phù cầu nguyện đổi sau 2 lần")
+            logger.info("VT | Chiêm Tinh: không mở popup đổi (có thể đã đủ phù hoặc hết lượt đổi); hoàn tất")
+            return screen
 
         # Coordinate gestures are authorized only while the popup marker is fresh.
         if (self._first(screen, self.config.exchange_popup) is None
@@ -287,23 +311,32 @@ class VoTuongRunner:
     def run(self) -> bool:
         screen = self.screen_provider()
         entry = self._first(screen, self.config.entry_templates)
-        if entry is None:
+        if entry is None and self.config.menu_templates:
             menu = self._first(screen, self.config.menu_templates)
-            if menu is None:
-                raise RuntimeError("Võ tướng: không tìm thấy menu mở rộng tại HOME")
-            self._tap(menu)
-            screen, entry = self._wait_first(self.config.entry_templates)
+            if menu is not None:
+                self._tap(menu)
+                screen, entry = self._wait_first(self.config.entry_templates)
         if entry is None:
             raise RuntimeError("Võ tướng: không tìm thấy icon Võ Tướng")
         self._tap(entry)
         screen, kho = self._wait_first(self.config.kho_markers)
         if kho is None:
-            raise RuntimeError("Võ tướng: chưa thấy Kho tướng")
+            self.sleep(1.0)
+            screen, kho = self._wait_first(self.config.kho_markers, attempts=6)
+        if kho is None:
+            logging.getLogger("dc3q").warning("Võ tướng: chưa thấy Kho tướng; hồi phục về HOME an toàn")
+            self.recover_home()
+            return True
         point = self._match(screen, self.config.point_button)
         if not point.found:
             raise RuntimeError("Võ tướng: thiếu nút Điểm tướng")
         self._tap(point)
-        screen, point_state = self._wait_first(self.config.point_markers)
+        point_markers_all = list(self.config.point_markers)
+        if getattr(self.config, "thien_van_banner", None):
+            point_markers_all.append(self.config.thien_van_banner)
+        if getattr(self.config, "nhan_duc_banner", None):
+            point_markers_all.append(self.config.nhan_duc_banner)
+        screen, point_state = self._wait_first(point_markers_all)
         if point_state is None:
             raise RuntimeError("Võ tướng: chưa mở Điểm tướng")
 

@@ -52,8 +52,8 @@ def read_balance_near_icon(
     _, binary = cv2.threshold(enlarged, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     values: list[str] = []
     try:
-        from rapidocr_onnxruntime import RapidOCR
-        result, _ = RapidOCR()(roi)
+        from app.vision.ocr import ocr_raw_results
+        result = ocr_raw_results(roi)
         for entry in result or []:
             text = "".join(re.findall(r"\d+", entry[1]))
             if text and float(entry[2]) >= 0.80:
