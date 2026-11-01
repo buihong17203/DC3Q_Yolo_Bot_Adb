@@ -10,3 +10,5 @@
 2026-11-02T00:42:45+07:00 | account=- | task=- | type=TASK | offline
 2026-11-02T00:42:45+07:00 | account=- | task=- | type=TASK | Game com.daichien.mobile bị crash/văng ra ngoài
 2026-11-02T00:42:45+07:00 | account=- | task=- | type=ACCOUNT | bad pass
+2026-11-02T01:03:26+07:00 | account=acc_001 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-02T01:03:34+07:00 | account=acc_001 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME

@@ -20,6 +20,7 @@ if sys.stderr and hasattr(sys.stderr, "reconfigure"):
 
 from app.adb import AdbClient, AdbError, AdbResolver
 from app.adb.commands import get_android_properties
+from app.core.power import prevent_sleep, restore_sleep
 
 
 LOGGER = logging.getLogger("dc3q")
@@ -103,6 +104,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--cleanup-monthly",
         action="store_true",
         help="Chủ động kích hoạt dọn dẹp các ghi chép/logs của tháng cũ trong docs và logs.",
+    )
+    parser.add_argument(
+        "--no-awake",
+        action="store_true",
+        help="Không bật tính năng chống Sleep máy tính khi chạy bot.",
     )
     return parser
 
@@ -402,7 +408,7 @@ def run_account_login_workflow(adb: AdbClient, devices, workflow_path: Path, wor
                 knb_icon=_resolve_project_path(root, "config/dc3q/item/item_knb.png"),
                 cutoff_hour=int(workflow.get("cutoff_hour", 22)),
                 cutoff_minute=int(workflow.get("cutoff_minute", 59)),
-                persistent_daily=bool(workflow.get("persistent_daily", True)),
+                persistent_daily=bool(workflow.get("persistent_daily", False)),
                 target_retry_limit=int(workflow.get("target_retry_limit", 3)),
                 out_game_title=_resolve_project_path(
                     root, workflow.get(
@@ -856,6 +862,9 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
 
+    if not args.no_awake:
+        prevent_sleep(keep_screen_on=True)
+
     try:
         return run(args)
     except KeyboardInterrupt:
@@ -867,6 +876,8 @@ def main() -> int:
     except Exception:
         LOGGER.exception("Lỗi không mong muốn.")
         return 1
+    finally:
+        restore_sleep()
 
 
 if __name__ == "__main__":

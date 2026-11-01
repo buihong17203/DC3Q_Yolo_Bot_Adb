@@ -781,6 +781,8 @@ class AccountLoginController:
                 continue
             if self.phase == AccountLoginPhase.EXHAUSTED:
                 if not self.config.persistent_daily:
+                    LOGGER = __import__("logging").getLogger("dc3q")
+                    LOGGER.info("EXHAUSTED | Toàn bộ tài khoản đã hoàn thành. Dừng chương trình theo yêu cầu.")
                     return
                 sleep(self.config.poll_seconds)
                 now = datetime.now(TIMEZONE)
