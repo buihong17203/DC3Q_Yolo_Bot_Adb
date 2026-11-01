@@ -11,17 +11,6 @@ class ImageFrame:
     path: Path | None = None
     width: int = 0
     height: int = 0
-    _gray: np.ndarray | None = None
-
-    @property
-    def gray(self) -> np.ndarray:
-        """Cached grayscale representation of the frame to eliminate redundant cv2.cvtColor across matcher checks."""
-        if self._gray is None:
-            if self.data.ndim == 3:
-                self._gray = cv2.cvtColor(self.data, cv2.COLOR_RGB2GRAY)
-            else:
-                self._gray = self.data
-        return self._gray
 
     @property
     def size(self) -> tuple[int, int]:
@@ -32,13 +21,7 @@ class ImageFrame:
         return self.data.shape
 
     def copy(self) -> ImageFrame:
-        return ImageFrame(
-            self.data.copy(),
-            self.path,
-            self.width,
-            self.height,
-            self._gray.copy() if self._gray is not None else None,
-        )
+        return ImageFrame(self.data.copy(), self.path, self.width, self.height)
 
     def save(self, target: str | Path) -> None:
         p = Path(target)

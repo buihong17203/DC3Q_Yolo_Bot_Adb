@@ -68,8 +68,15 @@ class NhiemVuRunner:
         ).lower().replace(" ", "")
 
     def _ocr_rows(self, screen):
-        from app.vision.ocr import ocr_raw_results
-        return ocr_raw_results(screen)
+        from rapidocr_onnxruntime import RapidOCR
+        import numpy as np
+
+        data = screen.data if hasattr(screen, "data") else screen
+        image = np.asarray(data.convert("RGB")) if hasattr(data, "convert") else np.asarray(data)
+        if self._rapid_ocr is None:
+            self._rapid_ocr = RapidOCR()
+        result, _ = self._rapid_ocr(image)
+        return result or []
 
     def _ocr_text(self, screen) -> str:
         return " ".join(self._plain(str(row[1])) for row in self._ocr_rows(screen))
@@ -97,27 +104,17 @@ class NhiemVuRunner:
         entry = self._first(screen, self.config.entry_templates)
         if entry is not None:
             return entry
-        # Thử tìm template với ngưỡng mềm hơn trong ROI góc trái
-        for template in self.config.entry_templates:
-            match = self._match(screen, template, threshold=0.45)
-            if match.found and match.x <= 80 and match.y <= 250:
-                return match
         point = self._ocr_center(screen, "nhiemvu", x_max=100)
-        if point is not None:
-            x, y = point
-            # Chữ 'Nhiệm vụ' nằm ở dưới icon; tap lệch lên 25px để trúng tâm icon
-            return type("OcrMatch", (), {"x": x - 1, "y": max(0, y - 25) - 1, "width": 2, "height": 2})()
-        # Fallback tọa độ chuẩn của icon Nhiệm vụ ở thanh trái HOME
-        return type("OcrMatch", (), {"x": 30, "y": 147, "width": 2, "height": 2})()
+        if point is None:
+            return None
+        x, y = point
+        return type("OcrMatch", (), {"x": x - 1, "y": y - 1, "width": 2, "height": 2})()
 
     def _is_blocking_popup(self, screen) -> bool:
-        if self._is_home(screen):
-            return False
-        text = self._ocr_text(screen).replace(" ", "")
-        if "nhannhiemvu" in text and "den" in text:
-            return True
         den = self._match(screen, self.config.blocked_popup_den, self.config.blocked_popup_threshold)
-        return den.found and "den" in text
+        if not den.found:
+            return False
+        return "nhannhiemvu" in self._ocr_text(screen).replace(" ", "")
 
     def _daily_tab_state(self, screen) -> str:
         opened = self._match(screen, self.config.daily_open, self.config.state_threshold)
@@ -129,23 +126,13 @@ class NhiemVuRunner:
         return "unknown"
 
     def _is_panel(self, screen) -> bool:
-        if self._daily_tab_state(screen) in ("open", "closed"):
-            return True
-        if self._first(screen, self.config.panel_markers) is not None:
-            return True
-        close = self._match(screen, self.config.close_template, 0.60)
-        if close.found:
-            return True
-        txt = self._ocr_text(screen)
-        return any(k in txt for k in ("hang ngay", "soi noi", "nhiem vu ngay", "thanh tuu"))
+        return self._daily_tab_state(screen) == "open"
 
     def _close_panel(self, screen) -> None:
         close = self._match(screen, self.config.close_template, self.config.state_threshold)
-        if close.found:
-            self._tap(close)
-        else:
-            self.input.tap(*self.config.close_point)
-            self.sleep(self.config.wait_seconds)
+        if not close.found:
+            raise RuntimeError("Nhiệm vụ: bảng Hằng ngày thiếu nút X đóng")
+        self._tap(close)
 
     def _all_matches(self, screen, template: Path, threshold: float):
         import cv2
@@ -224,20 +211,18 @@ class NhiemVuRunner:
     def _claim_task_once(self, claim):
         """Tap once, then wait for Claim control to change or popup to appear."""
         self._tap(claim)
-        for _ in range(4):
-            self.sleep(0.2)
+        for _ in range(6):
             screen = self.screen_provider()
-            # Fast check: nút Nhận đã biến mất -> nhận thành công ngay lập tức!
-            if not self._same_claim_control_present(screen, claim):
-                return screen
-            # Nếu nút vẫn còn, kiểm tra xem có popup chúc mừng chặn không
             if self._is_reward_popup(screen):
                 screen = self._dismiss_reward_popup(screen)
                 return screen
+            if not self._same_claim_control_present(screen, claim):
+                return screen
+            self.sleep(0.5)
         logger = logging.getLogger("dc3q")
         logger.warning("NV | bấm Nhận nhưng control chưa đổi kịp (có thể do lag); tiếp tục")
         self.input.tap(480, 270)
-        self.sleep(0.3)
+        self.sleep(0.5)
         return self.screen_provider()
 
 
@@ -276,12 +261,16 @@ class NhiemVuRunner:
                 ("unavailable", self._match_chest_roi(screen, unavailable, center_x)),
             ), key=lambda item: item[1].confidence, reverse=True)
             winner, match = ordered[0]
-            if winner == "available" and match.confidence >= 0.60:
-                return "available", match
-            if match.confidence >= self.config.state_threshold:
-                terminal_states.append(winner)
+            if match.confidence < self.config.state_threshold:
+                terminal_states.append("unknown")
+            elif winner == "available":
+                if match.confidence >= ordered[1][1].confidence + 0.03:
+                    return "available", match
+                terminal_states.append("unknown")
             else:
-                terminal_states.append("unavailable")
+                terminal_states.append(winner)
+        if "unknown" in terminal_states:
+            return "unknown", None
         if "unavailable" in terminal_states:
             return "unavailable", None
         return "claimed", None
@@ -316,29 +305,7 @@ class NhiemVuRunner:
         claim = self._match(screen, self.config.claim_button, self.config.state_threshold)
         return claim if claim.found else None
 
-    @property
-    def _reward_popup_template(self) -> Path:
-        return Path("data/img/templates/targets/10_nhiem-vu/screen/screen_nv_ruong_chucmungnhanduoc.png")
-
     def _is_reward_popup(self, screen) -> bool:
-        # 1. Thử match bằng template trong vài mili-giây
-        tpl = self._reward_popup_template
-        if tpl.is_file():
-            match = self._match(screen, tpl, threshold=0.70)
-            if match.found:
-                return True
-
-        # 2. Nếu fallback OCR, crop vùng tiêu đề popup ở giữa màn hình (y: 80..260, x: 200..760)
-        # Không bao giờ chạy RapidOCR toàn màn hình vì tốn tới 10s CPU
-        import numpy as np
-        data = screen.data if hasattr(screen, "data") else screen
-        img = np.asarray(data.convert("RGB")) if hasattr(data, "convert") else np.asarray(data)
-        if img.ndim == 3 and img.shape[0] > 260 and img.shape[1] > 760:
-            crop = img[80:260, 200:760]
-            from app.vision.ocr import ocr_extract_text
-            text = ocr_extract_text(crop).replace(" ", "")
-            return "chucmung" in text and "nhanduoc" in text
-
         text = self._ocr_text(screen)
         return "chucmung" in text and "nhanduoc" in text
 
@@ -379,7 +346,6 @@ class NhiemVuRunner:
         must_scroll_tasks = False
         phase = "TASKS"
         chest_tapped = False
-        home_wait_count = 0
 
         for _ in range(self.config.max_steps):
             screen = self.screen_provider()
@@ -388,24 +354,12 @@ class NhiemVuRunner:
                     raise RuntimeError("Nhiệm vụ: điểm bắt đầu không phải HOME")
                 entry = self._entry(screen)
                 if entry is None:
-                    self.sleep(1.0)
-                    screen = self.screen_provider()
-                    entry = self._entry(screen)
-                if entry is None:
-                    logger.warning("Nhiệm vụ: HOME thiếu control Nhiệm vụ; bỏ qua an toàn")
-                    return True
+                    raise RuntimeError("Nhiệm vụ: HOME thiếu control Nhiệm vụ")
                 self._tap(entry)
                 opened = True
                 continue
 
             panel = self._is_panel(screen)
-            if panel:
-                home_wait_count = 0
-
-            if self._is_home(screen) and not panel and destination_seen:
-                logger.info("NV | Hoàn tất nhận thưởng và đã về HOME an toàn")
-                return True
-
             if not panel and self._is_blocking_popup(screen):
                 destination_seen = True
                 logger.info("NV | popup nhiệm vụ chặn bảng Hằng ngày; đóng X, không bấm Đến")
@@ -426,13 +380,7 @@ class NhiemVuRunner:
             if self._is_home(screen) and not panel:
                 if destination_seen:
                     return True
-                home_wait_count += 1
-                if home_wait_count >= 3:
-                    logger.info("NV | Đã chờ 3 tick nhưng panel chưa mở; thử tap lại icon Nhiệm vụ tại HOME")
-                    opened = False
-                    home_wait_count = 0
-                    continue
-                logger.info("NV | HOME còn tồn tại ngay sau tap; chờ panel Nhiệm vụ render (%d/3)", home_wait_count)
+                logger.info("NV | HOME còn tồn tại ngay sau tap; chờ panel Nhiệm vụ render")
                 self.sleep(self.config.wait_seconds)
                 continue
 
@@ -497,7 +445,4 @@ class NhiemVuRunner:
                 self._close_panel(screen)
                 continue
 
-        logger.warning("Nhiệm vụ: vượt quá số bước cho phép; hồi phục về HOME an toàn")
-        if self.recover_home():
-            return True
         raise RuntimeError("Nhiệm vụ: vượt quá số bước cho phép")

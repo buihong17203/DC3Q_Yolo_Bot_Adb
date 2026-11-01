@@ -5,9 +5,10 @@ vo_tuong:
   state_margin: 0.05
   close_threshold: 0.54
   max_steps: 40
-  wait_seconds: 0.35
+  wait_seconds: 0.8
   home:
-    menu: []
+    menu:
+      - data/img/templates/stars/home/screen/screen_home_morong_chamthan.png
     entry:
       - data/img/templates/stars/home/screen/screen_vo-tuong_01.png
     markers:

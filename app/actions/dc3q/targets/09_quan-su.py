@@ -46,8 +46,6 @@ class QuanSuConfig:
     gt_find_opponent: Path | None = None
     gt_result_continue: Path | None = None
     gt_result_banner: Path | None = None
-    gt_bai_mien_chien_title: Path | None = None
-    gt_bai_mien_chien_confirm: Path | None = None
     gt_main_markers: list[Path] = ()
 
 
@@ -79,12 +77,14 @@ class QuanSuRunner:
         )
 
     def _ocr_rows(self, screen):
-        from app.vision.ocr import get_ocr_engine, to_numpy_image
-        engine = get_ocr_engine()
-        if engine is None:
-            return []
-        img = to_numpy_image(screen)
-        result, _ = engine(img)
+        from rapidocr_onnxruntime import RapidOCR
+        import numpy as np
+
+        data = screen.data if hasattr(screen, "data") else screen
+        image = np.asarray(data.convert("RGB")) if hasattr(data, "convert") else np.asarray(data)
+        if self._rapid_ocr is None:
+            self._rapid_ocr = RapidOCR()
+        result, _ = self._rapid_ocr(image)
         return result or []
 
     def _ocr_items(self, screen):
@@ -103,9 +103,7 @@ class QuanSuRunner:
 
     @staticmethod
     def _find(items, words: tuple[str, ...], *, x_min=0, x_max=9999, y_min=0, y_max=9999):
-        if callable(items):
-            items = items()
-        for text, x, y in (items or []):
+        for text, x, y in items:
             compact = text.replace(" ", "")
             if (x_min <= x <= x_max and y_min <= y <= y_max
                     and any(word.replace(" ", "") in compact for word in words)):
@@ -163,9 +161,7 @@ class QuanSuRunner:
     def _dismiss_exit_popup(self, screen) -> bool:
         items = self._ocr_items(screen)
         full_text = " ".join(text for text, _, _ in items).replace(" ", "")
-        if "thuquan" in full_text or "luibinh" in full_text or "muonlui" in full_text:
-            return False  # Cho phép xác nhận rút lui kết thúc trận đấu nhanh
-        if any(k in full_text for k in ("thoatgame", "roidi", "chuyendaisu")) or ("chuacong" in full_text and any(k in full_text for k in ("roi", "thoat", "thatsumuon"))):
+        if any(k in full_text for k in ("thoatgame", "chuacong", "chuyendaisu", "roidi")):
             huy_pos = self._find(items, ("huy", "huybo"), y_min=300)
             if huy_pos is not None:
                 self._tap(huy_pos)
@@ -232,7 +228,7 @@ class QuanSuRunner:
     def _retreat_confirm(self, screen):
         items = self._ocr_items(screen)
         full_text = " ".join(text for text, _, _ in items).replace(" ", "")
-        has_retreat_dialog = any(k in full_text for k in ("chiendau", "luibinh", "rutlui", "muonlui", "dabattau", "thuquan", "thatbai"))
+        has_retreat_dialog = any(k in full_text for k in ("chiendau", "luibinh", "rutlui", "muonlui", "dabattau"))
         xac_nhan = self._find(items, ("xac nhan", "xacnhan", "dong y"), x_min=450, y_min=250)
         if xac_nhan is not None:
             if has_retreat_dialog or len(full_text) < 100:
@@ -269,7 +265,7 @@ class QuanSuRunner:
             return hoi_thanh
         return self._find(
             items,
-            ("quay ve", "quayve", "tro ve", "trove", "roi khoi", "roikhoi", "hoan thanh"),
+            ("quay ve", "quayve", "tro ve", "trove", "roi khoi", "roikhoi", "hoan thanh", "thoat"),
             x_max=520, y_min=250,
         )
 
@@ -278,11 +274,9 @@ class QuanSuRunner:
             match_banner = self._match(screen, self.config.gt_result_banner)
             if match_banner.found:
                 return True
-        if self.config.gt_result_continue is not None:
-            match_cont = self._match(screen, self.config.gt_result_continue)
-            if match_cont.found:
-                return True
-        return False
+        items = self._ocr_items(screen)
+        full_text = " ".join(text for text, _, _ in items).replace(" ", "")
+        return any(k in full_text for k in ("thatbai", "chienbai", "chienthang", "thangloi", "tieptuc", "quayve", "roikhoi", "trove", "transau", "hoithanh", "bai", "thang"))
 
     @staticmethod
     def _is_battle_time() -> bool:
@@ -348,91 +342,6 @@ class QuanSuRunner:
         self.sleep(self.config.wait_seconds)
         return True
 
-    def _is_bai_mien_chien_popup(self, screen, items=None) -> bool:
-        if self.config.gt_bai_mien_chien_title is not None:
-            match = self._match(screen, self.config.gt_bai_mien_chien_title, threshold=0.70)
-            if match.found:
-                return True
-        if callable(items):
-            items = items()
-        items = items or []
-        full_text = "".join(text for text, _, _ in items).replace(" ", "")
-        return any(k in full_text for k in ("baimienchien", "phatdongcongkichsemat", "matbaimienchien")) or (
-            "baimien" in full_text and "congkich" in full_text
-        )
-
-    def _handle_bai_mien_chien_popup(self, screen, items) -> bool:
-        if callable(items):
-            items = items()
-        items = items or []
-        if not self._is_bai_mien_chien_popup(screen, items):
-            return False
-        logger = logging.getLogger("dc3q")
-        logger.info("QUAN_SU | phát hiện popup 'Bạn có Bài Miễn Chiến' -> bấm Xác nhận để tiếp tục")
-
-        # 1. Thử match nút Xác nhận bằng template
-        if self.config.gt_bai_mien_chien_confirm is not None:
-            btn_match = self._match(screen, self.config.gt_bai_mien_chien_confirm, threshold=0.70)
-            if btn_match.found:
-                self._tap(btn_match)
-                return True
-
-        # 2. Thử tìm nút Xác nhận qua OCR
-        btn_ocr = self._find(items, ("xac nhan", "xacnhan"), y_min=200)
-        if btn_ocr is not None:
-            self._tap(btn_ocr)
-            return True
-
-        # 3. Fallback: Nếu title match qua template, tính tọa độ nút Xác nhận dựa theo offset title
-        if self.config.gt_bai_mien_chien_title is not None:
-            title_match = self._match(screen, self.config.gt_bai_mien_chien_title, threshold=0.65)
-            if title_match.found:
-                cx = title_match.x + title_match.width // 2
-                cy = title_match.y + title_match.height // 2
-                self.input.tap(cx + 122, cy + 203)
-                return True
-
-        # 4. Chỉ fallback tọa độ mặc định nếu có bằng chứng popup rõ ràng (tránh tap mù)
-        full_text = "".join(text for text, _, _ in items).replace(" ", "")
-        if "baimienchien" in full_text or "phatdongcongkichsemat" in full_text:
-            self.input.tap(590, 344)
-            return True
-
-        return False
-
-    def _find_reward_button(self, screen, items) -> tuple[int, int] | None:
-        if callable(items):
-            items = items()
-        # 1. Thử bằng Template matching (chính xác cao với template nút Nhận thưởng)
-        reward_match = self._match(screen, self.config.reward_button, threshold=0.70)
-        if reward_match.found:
-            return (reward_match.x + reward_match.width // 2, reward_match.y + reward_match.height // 2)
-
-        # 2. Thử bằng RapidOCR: tìm nút "Nhận thưởng" hoặc "Nhận và mở" ở nửa dưới popup
-        point = self._find(
-            items,
-            ("nhan thuong", "nhanthuong", "nhan va mo", "nhanvamo"),
-            y_min=380,
-        )
-        if point is not None:
-            return point
-
-        return None
-
-    def _close_reward_detail(self, screen, items) -> None:
-        if callable(items):
-            items = items()
-        close = self._match(screen, self.config.close_template)
-        if close.found:
-            self._tap(close)
-        else:
-            close_btn = self._find(items, ("tro ve", "dong", "thoat"), y_max=150)
-            if close_btn is not None:
-                self._tap(close_btn)
-            else:
-                self.input.tap(806, 68)
-        self.sleep(self.config.wait_seconds)
-
     def recover_home(self, initial_screen=None) -> bool:
         for _ in range(8):
             screen = initial_screen if initial_screen is not None else self.screen_provider()
@@ -461,13 +370,13 @@ class QuanSuRunner:
             if complete is not None:
                 self._tap(complete)
                 continue
-            confirm = self._retreat_confirm(screen)
-            if confirm is not None:
-                self._tap(confirm)
-                continue
             retreat = self._find(items, ("rut lui", "thu quan"), x_max=300, y_min=200)
             if retreat is not None:
                 self._tap(retreat)
+                continue
+            confirm = self._retreat_confirm(screen)
+            if confirm is not None:
+                self._tap(confirm)
                 continue
             close_btn = self._find(items, ("tro ve", "dong", "thoat"), y_max=150)
             if close_btn is not None:
@@ -477,9 +386,7 @@ class QuanSuRunner:
             if hoi_thanh is not None:
                 self._tap(hoi_thanh)
                 continue
-            # Nút X góc trên phải của Giao Tranh (925, 49) hoặc Tranh Bá (910, 45)
-            self.input.tap(925, 49)
-            self.sleep(0.3)
+            # Nút X góc trên phải của Tranh Bá (910, 45)
             self.input.tap(910, 45)
             self.sleep(self.config.wait_seconds)
         screen = self.screen_provider()
@@ -489,11 +396,6 @@ class QuanSuRunner:
             if entry is not None:
                 self.input.tap(*self.config.military_close_point)
                 self.sleep(self.config.wait_seconds)
-            return True
-        # Thử đóng menu Quân sự tại HOME nếu đang mở
-        self.input.tap(*self.config.military_close_point)
-        self.sleep(self.config.wait_seconds)
-        if self._is_home(self.screen_provider()):
             return True
         return False
 
@@ -523,20 +425,11 @@ class QuanSuRunner:
         total_battles = None
         result_wait_steps = 0
         confirm_wait_steps = 0
-        next_battle_wait_steps = 0
-        battle_step = 0
         casted_in_battle: set[str] = set()
-        items: list[tuple[str, int, int]] = []
 
         for _ in range(self.config.max_steps):
             screen = self.screen_provider()
-            items = None
-
-            def get_items():
-                nonlocal items
-                if items is None:
-                    items = self._ocr_items(screen)
-                return items
+            items = self._ocr_items(screen) if phase not in ("OPEN_HOME_MENU", "OPEN_TRANH_BA") else []
 
             if phase == "OPEN_HOME_MENU":
                 # Kiểm tra nếu icon Tranh Bá đã sẵn sàng (menu đã mở trước đó)
@@ -559,7 +452,7 @@ class QuanSuRunner:
             if phase == "OPEN_TRANH_BA":
                 entry = self._first(screen, self.config.tranh_ba_entry)
                 if entry is None:
-                    entry_ocr = self._find(get_items(), ("tranh ba",), x_min=80, x_max=400, y_min=300, y_max=530)
+                    entry_ocr = self._find(self._ocr_items(screen), ("tranh ba",), x_min=80, x_max=400, y_min=300, y_max=530)
                     if entry_ocr is not None:
                         self.input.tap(*entry_ocr)
                         self.sleep(self.config.wait_seconds)
@@ -572,27 +465,21 @@ class QuanSuRunner:
                         logger.info("TRANH_BA | cấp=%s < 40 | menu Quân sự không có Tranh Bá (chưa mở khóa) -> bỏ qua an toàn", level)
                         self.recover_home(screen)
                         return True
-                    logger.info("TRANH_BA | menu Quân sự không có Tranh Bá (chưa mở hoặc không khả dụng, cấp=%s) -> bỏ qua an toàn", level or "N/A")
-                    self.recover_home(screen)
-                    return True
+                    raise RuntimeError("Tranh Bá: menu Quân sự thiếu icon Tranh Bá")
                 self._tap_tranh_ba(entry)
                 phase = "OPEN_REWARD"
                 continue
 
             if phase == "OPEN_REWARD":
                 if not self._is_main_panel(screen):
-                    if self._is_reward_detail(screen):
-                        phase = "CHECK_REWARD"
-                        continue
                     self.sleep(self.config.wait_seconds)
                     continue
                 reward_tab = self._match(screen, self.config.reward_tab)
                 if not reward_tab.found:
-                    # Nếu không tìm thấy tab thưởng bằng template, thử bằng OCR ở vùng thanh tab trên (y=100..220)
-                    reward_ocr = self._find(get_items(), ("thuong", "nhan thuong"), y_min=100, y_max=220)
+                    # Nếu không tìm thấy tab thưởng, thử bằng OCR
+                    reward_ocr = self._find(items, ("thuong", "nhan thuong"), y_min=300)
                     if reward_ocr is not None:
                         self._tap(reward_ocr)
-                        self.sleep(self.config.wait_seconds)
                         phase = "CHECK_REWARD"
                         continue
                     if is_low_level or not is_battle_allowed:
@@ -604,7 +491,6 @@ class QuanSuRunner:
                     phase = "MAIN_PANEL"
                     continue
                 self._tap(reward_tab)
-                self.sleep(self.config.wait_seconds)
                 phase = "CHECK_REWARD"
                 continue
 
@@ -612,39 +498,61 @@ class QuanSuRunner:
                 if not self._is_reward_detail(screen):
                     self.sleep(self.config.wait_seconds)
                     continue
-
-                # 1. Kiểm tra ưu tiên: Có nút Nhận thưởng (hoặc Nhận và mở) hay không
-                reward_point = self._find_reward_button(screen, get_items())
-                if reward_point is not None:
-                    self.input.tap(*reward_point)
-                    logger.info("TRANH_BA | phát hiện nút Nhận thưởng tại %s -> bấm nhận", reward_point)
-                    self.sleep(self.config.wait_seconds)
-                    phase = "VERIFY_CLAIMED"
+                if self._first(screen, self.config.unfinished_markers) is not None:
+                    logger.info("TRANH_BA | Chưa kết thúc: hôm nay đã nhận; không bấm")
+                    if is_low_level or not is_battle_allowed:
+                        if not self.recover_home(screen):
+                            raise RuntimeError("Tranh Bá: chưa đóng về HOME")
+                        logger.info("TRANH_BA | hoàn tất, đã về HOME")
+                        return True
+                    # Đóng popup Chi tiết thưởng về lại Main Panel
+                    close = self._match(screen, self.config.close_template)
+                    if close.found:
+                        self._tap(close)
+                    else:
+                        close_btn = self._find(items, ("tro ve", "dong", "thoat"), y_max=150)
+                        if close_btn is not None:
+                            self._tap(close_btn)
+                        else:
+                            self.input.tap(910, 45)
+                            self.sleep(self.config.wait_seconds)
+                    phase = "MAIN_PANEL"
                     continue
 
-                # 2. Nếu không có nút Nhận thưởng -> Tức là hôm nay đã nhận rồi (hoặc Chưa kết thúc)
-                logger.info("TRANH_BA | không có nút Nhận thưởng -> hôm nay đã nhận thưởng rồi -> đóng popup")
-                self._close_reward_detail(screen, get_items())
-                if is_low_level or not is_battle_allowed:
-                    if not self.recover_home(screen):
-                        raise RuntimeError("Tranh Bá: chưa đóng về HOME")
-                    logger.info("TRANH_BA | hoàn tất, đã về HOME")
-                    return True
-                phase = "MAIN_PANEL"
+                reward = self._match(screen, self.config.reward_button)
+                if not reward.found:
+                    # Kiểm tra xem có phải đã nhận rồi không
+                    if self._first(screen, self.config.unfinished_markers) is not None:
+                        phase = "MAIN_PANEL" if (not is_low_level and is_battle_allowed) else "CLOSE_HOME"
+                        continue
+                    if is_low_level:
+                        logger.info("TRANH_BA | cấp=%s < 40 | không thấy nút nhận thưởng (hôm nay đã nhận hoặc chưa mở) -> về HOME", level)
+                        self.recover_home(screen)
+                        return True
+                    raise RuntimeError("Tranh Bá: Chi tiết thưởng thiếu trạng thái")
+                self._tap(reward)
+                logger.info("TRANH_BA | bấm Nhận thưởng")
+                phase = "VERIFY_CLAIMED"
                 continue
 
             if phase == "VERIFY_CLAIMED":
-                logger.info("TRANH_BA | đã bấm nhận thưởng -> đóng popup thưởng")
-                # Dismiss nếu có popup Chúc mừng nhận được hiện đè lên
-                self.input.tap(480, 480)
-                self.sleep(self.config.wait_seconds)
-                screen = self.screen_provider()
-                self._close_reward_detail(screen, get_items())
+                logger.info("TRANH_BA | nhận thưởng thành công")
                 if is_low_level or not is_battle_allowed:
                     if not self.recover_home(screen):
                         raise RuntimeError("Tranh Bá: chưa đóng về HOME")
                     logger.info("TRANH_BA | hoàn tất, đã về HOME")
                     return True
+                # Đóng popup Chi tiết thưởng về Main Panel
+                close = self._match(screen, self.config.close_template)
+                if close.found:
+                    self._tap(close)
+                else:
+                    close_btn = self._find(items, ("tro ve", "dong", "thoat"), y_max=150)
+                    if close_btn is not None:
+                        self._tap(close_btn)
+                    else:
+                        self.input.tap(910, 45)
+                        self.sleep(self.config.wait_seconds)
                 phase = "MAIN_PANEL"
                 continue
 
@@ -655,10 +563,12 @@ class QuanSuRunner:
                 return True
 
             if phase == "MAIN_PANEL":
-                # Đóng popup Chi tiết thưởng nếu còn sót trên màn hình
-                if self._is_reward_detail(screen):
-                    self._close_reward_detail(screen, get_items())
-                    continue
+                # Kiểm tra nếu popup mua lượt 20 KNB đang hiển thị
+                if self._is_buy_turn_popup(items):
+                    logger.info("TRANH_BA | phát hiện popup hỏi tốn 20 KNB mua lượt -> đã hết lượt -> bấm Hủy và về HOME")
+                    self._dismiss_buy_turn_popup(items, screen)
+                    self.recover_home(screen)
+                    return True
 
                 if is_low_level:
                     logger.info("TRANH_BA | cấp=%s < 40 | không đánh tranh bá -> về HOME", level)
@@ -678,6 +588,8 @@ class QuanSuRunner:
                         total_battles = detected_hearts
                         logger.info("TRANH_BA | phát hiện số tim = %d -> thiết lập tổng số trận = %d", detected_hearts, total_battles)
                     else:
+                        # Thử đánh tối đa theo cấu hình (mặc định 5 trận).
+                        # Nếu tài khoản đã hết lượt, khi bấm Chiến đấu sẽ xuất hiện popup hỏi tốn 20 KNB mua lượt.
                         total_battles = self.config.battles or 5
                         logger.info("TRANH_BA | số tim=%d -> thiết lập tối đa %d trận (kiểm tra popup 20 KNB khi hết lượt)", detected_hearts, total_battles)
 
@@ -696,34 +608,22 @@ class QuanSuRunner:
                 continue
 
             if phase == "BATTLE_OR_FORMATION":
-                # Kiểm tra nếu xuất hiện popup Bài Miễn Chiến
-                if self._handle_bai_mien_chien_popup(screen, get_items()):
-                    logger.info("TRANH_BA | đã xác nhận popup 'Bạn có Bài Miễn Chiến' -> chuẩn bị vào BATTLE")
-                    self.sleep(self.config.wait_seconds)
-                    phase = "BATTLE"
-                    continue
-
-                # Kiểm tra nếu đã trực tiếp vào BATTLE
-                if self._is_battle_ended(screen) or self._find_uncast_tui_gam(screen) is not None:
-                    phase = "BATTLE"
-                    continue
+                # Kiểm tra nếu xuất hiện popup hết lượt: hỏi có tốn 20 KNB để mua 1 lượt không
+                if self._is_buy_turn_popup(items):
+                    logger.info("TRANH_BA | phát hiện popup hỏi tốn 20 KNB mua 1 lượt -> đã hết lượt miễn phí -> bấm Hủy và về HOME")
+                    self._dismiss_buy_turn_popup(items, screen)
+                    self.recover_home(screen)
+                    return True
 
                 # Kiểm tra nếu xuất hiện màn Xuất chiến
-                xuat_chien = self._find(get_items(), ("xuat chien",), x_min=600, y_min=350)
+                xuat_chien = self._find(items, ("xuat chien",), x_min=600, y_min=350)
                 if xuat_chien is not None:
                     self._tap(xuat_chien)
                     phase = "BATTLE"
                     continue
-
-                # Kiểm tra nếu xuất hiện popup hết lượt: hỏi có tốn 20 KNB để mua 1 lượt không
-                if self._is_buy_turn_popup(get_items()):
-                    logger.info("TRANH_BA | phát hiện popup hỏi tốn 20 KNB mua 1 lượt -> đã hết lượt miễn phí -> bấm Hủy và về HOME")
-                    self._dismiss_buy_turn_popup(get_items(), screen)
-                    self.recover_home(screen)
-                    return True
-
-                retreat = self._find(get_items(), ("rut lui", "thu quan"), x_max=300, y_min=200)
-                battle_text = " ".join(text for text, _, _ in get_items()).replace(" ", "")
+                # Kiểm tra nếu đã trực tiếp vào BATTLE
+                retreat = self._find(items, ("rut lui", "thu quan"), x_max=300, y_min=200)
+                battle_text = " ".join(text for text, _, _ in items).replace(" ", "")
                 if retreat is not None or any(marker in battle_text for marker in ("phongthu", "tancong", "thatbai")):
                     phase = "BATTLE"
                     continue
@@ -731,35 +631,39 @@ class QuanSuRunner:
                 continue
 
             if phase == "BATTLE":
-                if self._is_battle_ended(screen):
-                    phase = "RESULT"
-                    result_wait_steps = 0
-                    battle_step = 0
-                    continue
-
-                uncast = self._find_uncast_tui_gam(screen, exclude=casted_in_battle)
-                if uncast is not None:
-                    name, cx, cy = uncast
-                    self._cast_tui_gam(name, cx, cy)
-                    casted_in_battle.add(name)
-                    battle_step = 0
-                    continue
-
-                if not casted_in_battle and battle_step < 2:
-                    battle_step += 1
+                point = self._find(items, ("rut lui", "thu quan"), x_max=300, y_min=200)
+                battle_text = " ".join(text for text, _, _ in items).replace(" ", "")
+                if point is None or not any(marker in battle_text for marker in ("phongthu", "tancong", "thatbai")):
                     self.sleep(self.config.wait_seconds)
                     continue
 
-                logger.info("TRANH_BA | đã thả %d túi gấm (không còn túi gấm chưa thả) -> thực hiện rút lui", len(casted_in_battle))
-                thu_quan = self._find(self._ocr_items(screen), ("thu quan", "thuquan", "rut lui", "rutlui"), x_max=150, y_min=250)
-                if thu_quan is not None:
-                    self._tap(thu_quan)
-                else:
-                    self.input.tap(77, 361)
-                self.sleep(self.config.wait_seconds)
+                casts = 0
+                max_casts = 5
+                while casts < max_casts:
+                    uncast = self._find_uncast_tui_gam(screen, exclude=casted_in_battle)
+                    if uncast is None:
+                        logger.info("TRANH_BA | không còn túi gấm chưa thả (đã thả %d túi)", casts)
+                        break
+                    tg_name, tg_x, tg_y = uncast
+                    casted_in_battle.add(tg_name)
+                    self._cast_tui_gam(tg_name, tg_x, tg_y)
+                    casts += 1
+                    screen = self.screen_provider()
+                    if self._is_battle_ended(screen):
+                        phase = "RESULT"
+                        result_wait_steps = 0
+                        break
+
+                if phase == "RESULT":
+                    continue
+
+                logger.info("TRANH_BA | đã thả xong túi gấm -> thực hiện rút lui")
+                screen = self.screen_provider()
+                items = self._ocr_items(screen)
+                retreat_point = self._find(items, ("rut lui", "thu quan"), x_max=300, y_min=200) or point
+                self._tap(retreat_point)
                 phase = "CONFIRM_RETREAT"
                 confirm_wait_steps = 0
-                battle_step = 0
                 continue
 
             if phase == "CONFIRM_RETREAT":
@@ -771,7 +675,7 @@ class QuanSuRunner:
                         confirm_wait_steps = 0
                         continue
                     confirm_wait_steps += 1
-                    if confirm_wait_steps >= 2:
+                    if confirm_wait_steps >= 3:
                         logger.info("TRANH_BA | xác nhận rút lui (fallback 580, 350)")
                         self.input.tap(580, 350)
                         self.sleep(self.config.wait_seconds)
@@ -803,7 +707,7 @@ class QuanSuRunner:
 
                     # Các trận trước trận cuối: TUYỆT ĐỐI KHÔNG BẤM QUAY VỀ
                     result_wait_steps += 1
-                    if result_wait_steps >= 3:
+                    if result_wait_steps >= 4:
                         battles += 1
                         casted_in_battle.clear()
                         result_wait_steps = 0
@@ -830,7 +734,7 @@ class QuanSuRunner:
                     continue
 
                 result_wait_steps += 1
-                if result_wait_steps >= 3:
+                if result_wait_steps >= 4:
                     battles += 1
                     casted_in_battle.clear()
                     result_wait_steps = 0
@@ -846,22 +750,28 @@ class QuanSuRunner:
                 continue
 
             if phase == "NEXT_BATTLE_WAIT":
-                next_battle_wait_steps += 1
                 # 0. Nếu còn màn RESULT (tap chưa ăn)
                 continue_btn = self._result_continue(screen)
                 if continue_btn is not None:
                     self._tap(continue_btn)
                     continue
 
-                # 1. Đã vào trận BATTLE (có túi gấm chưa thả hoặc battle ended)
-                if self._find_uncast_tui_gam(screen) is not None or self._is_battle_ended(screen):
-                    next_battle_wait_steps = 0
+                # 1. Đã vào trận BATTLE
+                retreat = self._find(items, ("rut lui", "thu quan"), x_max=300, y_min=200)
+                battle_text = " ".join(text for text, _, _ in items).replace(" ", "")
+                if retreat is not None or any(marker in battle_text for marker in ("phongthu", "tancong", "thatbai")):
                     phase = "BATTLE"
                     continue
 
-                # 2. Ở màn hình Tranh Bá main panel
+                # 2. Ở màn hình Xuất chiến (FORMATION)
+                xuat_chien = self._find(items, ("xuat chien",), x_min=600, y_min=350)
+                if xuat_chien is not None:
+                    self._tap(xuat_chien)
+                    phase = "BATTLE"
+                    continue
+
+                # 3. Ở màn hình Tranh Bá main panel
                 if self._is_main_panel(screen):
-                    next_battle_wait_steps = 0
                     max_b = total_battles or self.config.battles
                     if battles < max_b:
                         battle_btn = self._find_tb_battle_btn(screen)
@@ -873,38 +783,26 @@ class QuanSuRunner:
                         phase = "CLOSE_HOME"
                         continue
 
-                # 3. Ở màn hình Xuất chiến (FORMATION)
-                xuat_chien = self._find(get_items(), ("xuat chien",), x_min=600, y_min=350)
-                if xuat_chien is not None:
-                    self._tap(xuat_chien)
-                    next_battle_wait_steps = 0
-                    phase = "BATTLE"
+                # 4. Nếu hết lượt
+                full_text = "".join(text for text, _, _ in items).replace(" ", "")
+                if "hetluot" in full_text or "khongconluot" in full_text:
+                    logger.info("TRANH_BA | đã hết lượt tranh bá -> về HOME")
+                    phase = "CLOSE_HOME"
                     continue
 
-                # 4. Kiểm tra popup mua lượt 20 KNB
-                if self._is_buy_turn_popup(get_items()):
-                    logger.info("TRANH_BA | phát hiện popup hỏi tốn 20 KNB mua lượt tại NEXT_BATTLE_WAIT -> đã hết lượt -> bấm Hủy và về HOME")
-                    self._dismiss_buy_turn_popup(get_items(), screen)
-                    self.recover_home(screen)
-                    return True
+                # 5. Nếu còn màn RESULT (tap chưa ăn)
+                continue_btn = self._result_continue(screen)
+                if continue_btn is not None:
+                    self._tap(continue_btn)
+                    continue
 
-                # 5. Nếu về HOME
+                # 6. Nếu về HOME
                 if self._is_home(screen):
                     if battles < self.config.battles:
                         phase = "OPEN_HOME_MENU"
                     else:
                         return True
                     continue
-
-                if next_battle_wait_steps >= 5:
-                    self.input.tap(640, 450)
-                    self.sleep(0.3)
-                    self.input.tap(480, 450)
-                    self.sleep(self.config.wait_seconds)
-                if next_battle_wait_steps >= 12:
-                    logger.warning("TRANH_BA | NEXT_BATTLE_WAIT quá 12 nhịp; thoát về HOME")
-                    self.recover_home(screen)
-                    return True
 
                 self.sleep(self.config.wait_seconds)
                 continue
@@ -915,9 +813,6 @@ class QuanSuRunner:
                 logger.info("TRANH_BA | hoàn tất, đã về HOME")
                 return True
 
-        logger.warning("TRANH_BA | Vượt quá %s bước tại %s, trận=%s; hồi phục về HOME an toàn", self.config.max_steps, phase, battles)
-        if self.recover_home():
-            return True
         raise RuntimeError(f"Tranh Bá: vượt quá {self.config.max_steps} bước tại {phase}, trận={battles}")
 
     def _gt_entry(self, screen):
@@ -999,26 +894,11 @@ class QuanSuRunner:
         reward_wait_steps = 0
         result_wait_steps = 0
         confirm_wait_steps = 0
-        next_battle_wait_steps = 0
-        battle_step = 0
         casted_in_battle: set[str] = set()
-        items: list[tuple[str, int, int]] = []
 
         for _ in range(self.config.max_steps):
             screen = self.screen_provider()
-            _lazy_items = None
-
-            def get_items():
-                nonlocal _lazy_items
-                if _lazy_items is None:
-                    _lazy_items = self._ocr_items(screen)
-                return _lazy_items
-
-            if phase in ("FORMATION", "FIND_OPPONENT") and self._handle_bai_mien_chien_popup(screen, get_items()):
-                logger.info("GIAO_TRANH | đã xác nhận popup 'Bạn có Bài Miễn Chiến' -> chuẩn bị vào BATTLE")
-                self.sleep(self.config.wait_seconds)
-                phase = "BATTLE"
-                continue
+            items = self._ocr_items(screen) if phase != "ENTRY" else []
 
             if phase == "ENTRY":
                 if not self._is_home(screen):
@@ -1029,12 +909,21 @@ class QuanSuRunner:
                 continue
 
             if phase == "FIND_OPPONENT":
+                complete = self._result_complete(screen)
+                if complete is not None:
+                    self._tap(complete)
+                    continue
                 if self.config.gt_find_opponent is not None:
                     match_btn = self._match(screen, self.config.gt_find_opponent)
                     if match_btn.found:
                         self._tap(match_btn)
                         phase = "FORMATION"
                         continue
+                point = self._find(items, ("tim doi thu",))
+                if point is not None:
+                    self._tap(point)
+                    phase = "FORMATION"
+                    continue
                 if self._is_home(screen):
                     entry_opened = False
                     for _ in range(3):
@@ -1046,106 +935,99 @@ class QuanSuRunner:
                     if not entry_opened:
                         raise RuntimeError("Giao Tranh: không mở lại được sau trận trước")
                     continue
-                # Bấm Tìm đối thủ / Xuất chiến tại tọa độ chuẩn (780, 480)
-                self.input.tap(780, 480)
+                full_text = "".join(text for text, _, _ in items).replace(" ", "")
+                if "hetluot" in full_text or "khongconluot" in full_text:
+                    logger.info("GIAO_TRANH | đã hết lượt giao tranh; chuyển nhận thưởng")
+                    phase = "REWARD"
+                    continue
                 self.sleep(self.config.wait_seconds)
-                phase = "FORMATION"
                 continue
 
             if phase == "FORMATION":
-                # Nút Xuất chiến ở (780, 480)
-                self.input.tap(780, 480)
-                self.sleep(self.config.wait_seconds)
+                point = self._find(items, ("xuat chien",), x_min=600, y_min=350)
+                if point is None:
+                    self.sleep(self.config.wait_seconds)
+                    continue
+                self._tap(point)
                 phase = "BATTLE"
                 continue
 
             if phase == "BATTLE":
-                if self._is_battle_ended(screen):
-                    phase = "RESULT"
-                    result_wait_steps = 0
-                    battle_step = 0
-                    continue
-
-                uncast = self._find_uncast_gt_tui_gam(screen, exclude=casted_in_battle)
-                if uncast is not None:
-                    name, cx, cy = uncast
-                    self._cast_tui_gam(name, cx, cy)
-                    casted_in_battle.add(name)
-                    battle_step = 0
-                    continue
-
-                if not casted_in_battle and battle_step < 2:
-                    battle_step += 1
+                point = self._find(items, ("rut lui", "thu quan"), x_max=300, y_min=200)
+                battle_text = " ".join(text for text, _, _ in items).replace(" ", "")
+                if point is None or not any(marker in battle_text for marker in ("phongthu", "tancong", "thatbai")):
                     self.sleep(self.config.wait_seconds)
                     continue
 
-                logger.info("GIAO_TRANH | đã thả %d túi gấm (không còn túi gấm chưa thả) -> thực hiện rút lui", len(casted_in_battle))
-                thu_quan = self._find(self._ocr_items(screen), ("thu quan", "thuquan", "rut lui", "rutlui"), x_max=150, y_min=250)
-                if thu_quan is not None:
-                    self._tap(thu_quan)
-                else:
-                    self.input.tap(77, 361)
-                self.sleep(self.config.wait_seconds)
+                casts = 0
+                max_casts = 5
+                while casts < max_casts:
+                    uncast = self._find_uncast_gt_tui_gam(screen, exclude=casted_in_battle)
+                    if uncast is None:
+                        logger.info("GIAO_TRANH | không còn túi gấm chưa thả (đã thả %d túi)", casts)
+                        break
+                    tg_name, tg_x, tg_y = uncast
+                    casted_in_battle.add(tg_name)
+                    self._cast_tui_gam(tg_name, tg_x, tg_y)
+                    casts += 1
+                    screen = self.screen_provider()
+                    if self._is_battle_ended(screen):
+                        phase = "RESULT"
+                        result_wait_steps = 0
+                        break
+
+                if phase == "RESULT":
+                    continue
+
+                logger.info("GIAO_TRANH | đã thả xong túi gấm -> thực hiện rút lui")
+                screen = self.screen_provider()
+                items = self._ocr_items(screen)
+                retreat_point = self._find(items, ("rut lui", "thu quan"), x_max=300, y_min=200) or point
+                self._tap(retreat_point)
                 phase = "CONFIRM_RETREAT"
                 confirm_wait_steps = 0
-                battle_step = 0
                 continue
 
             if phase == "CONFIRM_RETREAT":
                 point = self._retreat_confirm(screen)
-                if point is not None:
-                    self._tap(point)
+                if point is None:
+                    if self._is_battle_ended(screen):
+                        phase = "RESULT"
+                        result_wait_steps = 0
+                        confirm_wait_steps = 0
+                        continue
+                    confirm_wait_steps += 1
+                    if confirm_wait_steps >= 3:
+                        logger.info("GIAO_TRANH | xác nhận rút lui (fallback 580, 350)")
+                        self.input.tap(580, 350)
+                        self.sleep(self.config.wait_seconds)
+                        phase = "RESULT"
+                        result_wait_steps = 0
+                        confirm_wait_steps = 0
+                        continue
                     self.sleep(self.config.wait_seconds)
-                    phase = "RESULT"
-                    result_wait_steps = 0
-                    confirm_wait_steps = 0
                     continue
-
-                if self._is_battle_ended(screen):
-                    phase = "RESULT"
-                    result_wait_steps = 0
-                    confirm_wait_steps = 0
-                    continue
-
-                confirm_wait_steps += 1
-                if confirm_wait_steps >= 2:
-                    logger.info("GIAO_TRANH | xác nhận rút lui (fallback 586, 353)")
-                    self.input.tap(586, 353)
-                    self.sleep(self.config.wait_seconds)
-                    phase = "RESULT"
-                    result_wait_steps = 0
-                    confirm_wait_steps = 0
-                    continue
-
-                self.sleep(self.config.wait_seconds)
+                self._tap(point)
+                phase = "RESULT"
+                result_wait_steps = 0
+                confirm_wait_steps = 0
                 continue
 
             if phase == "RESULT":
                 is_last = (battles + 1 >= target_battles)
                 if not is_last:
-                    if self.config.gt_result_continue is not None:
-                        match_btn = self._match(screen, self.config.gt_result_continue)
-                        if match_btn.found:
-                            self._tap(match_btn)
-                            battles += 1
-                            casted_in_battle.clear()
-                            result_wait_steps = 0
-                            logger.info("GIAO_TRANH | hoàn tất trận=%d/%d -> chuẩn bị trận tiếp", battles, target_battles)
-                            phase = "NEXT_BATTLE_WAIT"
-                            continue
-
                     continue_btn = self._result_continue(screen)
                     if continue_btn is not None:
                         self._tap(continue_btn)
                         battles += 1
                         casted_in_battle.clear()
                         result_wait_steps = 0
-                        logger.info("GIAO_TRANH | hoàn tất trận=%d/%d -> chuẩn bị trận tiếp", battles, target_battles)
+                        logger.info("GIAO_TRANH | hoàn tất trận=%d/%d -> bấm TIẾP TỤC", battles, target_battles)
                         phase = "NEXT_BATTLE_WAIT"
                         continue
 
                     result_wait_steps += 1
-                    if result_wait_steps >= 3:
+                    if result_wait_steps >= 4:
                         battles += 1
                         casted_in_battle.clear()
                         result_wait_steps = 0
@@ -1160,26 +1042,25 @@ class QuanSuRunner:
                     self.sleep(self.config.wait_seconds)
                     continue
 
-                # Trận cuối (is_last): Mới bấm Hồi thành / Quay về
                 complete = self._result_complete(screen)
                 if complete is not None:
                     self._tap(complete)
                     battles += 1
                     casted_in_battle.clear()
                     result_wait_steps = 0
-                    logger.info("GIAO_TRANH | hoàn tất trận cuối %d/%d -> bấm QUAY VỀ", battles, target_battles)
+                    logger.info("GIAO_TRANH | hoàn tất trận=%d/%d -> bấm QUAY VỀ", battles, target_battles)
                     phase = "REWARD"
                     continue
 
                 result_wait_steps += 1
-                if result_wait_steps >= 3:
+                if result_wait_steps >= 4:
                     battles += 1
                     casted_in_battle.clear()
                     result_wait_steps = 0
-                    logger.info("GIAO_TRANH | hoàn tất trận cuối %d/%d -> bấm QUAY VỀ / HỒI THÀNH (fallback 823, 496)", battles, target_battles)
+                    logger.info("GIAO_TRANH | hoàn tất trận=%d/%d -> bấm QUAY VỀ / HỒI THÀNH (fallback 823, 496 và 320, 450)", battles, target_battles)
                     self.input.tap(823, 496)
                     self.sleep(0.3)
-                    self.input.tap(480, 480)
+                    self.input.tap(320, 450)
                     self.sleep(self.config.wait_seconds)
                     phase = "REWARD"
                     continue
@@ -1188,17 +1069,33 @@ class QuanSuRunner:
                 continue
 
             if phase == "NEXT_BATTLE_WAIT":
-                next_battle_wait_steps += 1
-                if self.config.gt_result_continue is not None:
-                    match_btn = self._match(screen, self.config.gt_result_continue)
-                    if match_btn.found:
-                        self._tap(match_btn)
-                        continue
+                continue_btn = self._result_continue(screen)
+                if continue_btn is not None:
+                    self._tap(continue_btn)
+                    continue
 
-                uncast = self._find_uncast_gt_tui_gam(screen)
-                if uncast is not None:
-                    next_battle_wait_steps = 0
+                retreat = self._find(items, ("rut lui", "thu quan"), x_max=300, y_min=200)
+                battle_text = " ".join(text for text, _, _ in items).replace(" ", "")
+                if retreat is not None or any(marker in battle_text for marker in ("phongthu", "tancong", "thatbai")):
                     phase = "BATTLE"
+                    continue
+
+                xuat_chien = self._find(items, ("xuat chien",), x_min=600, y_min=350)
+                if xuat_chien is not None:
+                    self._tap(xuat_chien)
+                    phase = "BATTLE"
+                    continue
+
+                tim_doi_thu = self._find(items, ("tim doi thu",))
+                if tim_doi_thu is not None:
+                    self._tap(tim_doi_thu)
+                    phase = "FORMATION"
+                    continue
+
+                full_text = "".join(text for text, _, _ in items).replace(" ", "")
+                if "hetluot" in full_text or "khongconluot" in full_text:
+                    logger.info("GIAO_TRANH | đã hết lượt giao tranh; chuyển nhận thưởng")
+                    phase = "REWARD"
                     continue
 
                 if self._is_home(screen):
@@ -1208,12 +1105,7 @@ class QuanSuRunner:
                         phase = "HOME"
                     continue
 
-                # Bấm Xuất chiến hoặc Tìm đối thủ ở (780, 480)
-                self.input.tap(780, 480)
                 self.sleep(self.config.wait_seconds)
-                if next_battle_wait_steps >= 4:
-                    phase = "BATTLE"
-                    next_battle_wait_steps = 0
                 continue
 
             if phase == "REWARD":
@@ -1222,7 +1114,6 @@ class QuanSuRunner:
                 if self._is_home(screen):
                     logger.info("GIAO_TRANH | đủ %d trận, đã ở HOME", battles)
                     return True
-                items = self._ocr_items(screen)
                 point = self._find(items, ("da ro", "tro ve", "trdve"), x_min=250, y_min=300)
                 if point is not None:
                     self._tap(point)
@@ -1267,7 +1158,6 @@ class QuanSuRunner:
                 if complete is not None:
                     self._tap(complete)
                     continue
-                items = self._ocr_items(screen)
                 hoi_thanh = self._find(items, ("hoi thanh", "hoithanh"), y_min=400)
                 if hoi_thanh is not None:
                     self._tap(hoi_thanh)
@@ -1278,30 +1168,13 @@ class QuanSuRunner:
                     self._tap(close_btn)
                     self.sleep(self.config.wait_seconds)
                     continue
-                # Đóng Giao Tranh bằng nút X đỏ ở góc trên phải (925, 49)
-                self.input.tap(925, 49)
-                self.sleep(self.config.wait_seconds)
-                screen = self.screen_provider()
-                if self._is_home(screen):
-                    if self._first(screen, self.config.tranh_ba_entry) is not None:
-                        self.input.tap(*self.config.military_close_point)
-                        self.sleep(self.config.wait_seconds)
-                    return True
-                # Thử nút Hồi thành (824, 495) nếu vẫn đang ở bảng kết quả trận
-                self.input.tap(824, 495)
+                self.input.tap(820, 495)
                 self.sleep(self.config.wait_seconds)
                 screen = self.screen_provider()
                 if self._is_home(screen):
                     return True
                 continue
 
-        logger.warning("GIAO_TRANH | Vượt quá %s bước tại %s, trận=%s; hồi phục về HOME an toàn", self.config.max_steps, phase, battles)
-        if battles >= target_battles:
-            logger.info("GIAO_TRANH | Đã hoàn tất đủ %d/%d trận; hồi phục HOME và hoàn tất thành công", battles, target_battles)
-            self.recover_home()
-            return True
-        if self.recover_home():
-            return True
         raise RuntimeError(f"Giao Tranh: vượt quá {self.config.max_steps} bước tại {phase}, trận={battles}")
 
     def run(self) -> bool:

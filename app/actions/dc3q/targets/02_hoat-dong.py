@@ -61,36 +61,10 @@ class HoatDongConfig:
     tax_claimed: Path
     reward_marker: Path
     reward_dismiss: Path
-    attendance_boxes: list[tuple[int, int, int, int]] | None = None
     threshold: float = 0.65
     state_threshold: float = 0.76
     max_steps: int = 50
     wait_seconds: float = 0.8
-    only_attendance: bool = False
-
-
-# Tọa độ ô vuông chuẩn 30 ngày (x1, y1, x2, y2) trên màn hình 960x540
-ATTENDANCE_BOXES: list[tuple[int, int, int, int]] = [
-    # Hàng 1: Ngày 1 - 9 (y: 201 -> 271)
-    (240, 201, 310, 271), (315, 201, 385, 271), (390, 201, 460, 271),
-    (465, 201, 535, 271), (540, 201, 610, 271), (615, 201, 685, 271),
-    (690, 201, 760, 271), (765, 201, 835, 271), (840, 201, 910, 271),
-    # Hàng 2: Ngày 10 - 18 (y: 276 -> 346)
-    (240, 276, 310, 346), (315, 276, 385, 346), (390, 276, 460, 346),
-    (465, 276, 535, 346), (540, 276, 610, 346), (615, 276, 685, 346),
-    (690, 276, 760, 346), (765, 276, 835, 346), (840, 276, 910, 346),
-    # Hàng 3: Ngày 19 - 27 (y: 352 -> 422)
-    (240, 352, 310, 422), (315, 352, 385, 422), (390, 352, 460, 422),
-    (465, 352, 535, 422), (540, 352, 610, 422), (615, 352, 685, 422),
-    (690, 352, 760, 422), (765, 352, 835, 422), (840, 352, 910, 422),
-    # Hàng 4: Ngày 28 - 30 (y: 427 -> 497)
-    (240, 427, 310, 497), (315, 427, 385, 497), (390, 427, 460, 497),
-]
-
-ATTENDANCE_COORDINATES: list[tuple[int, int]] = [
-    # Tâm của từng ô vuông để tap
-    ((x1 + x2) // 2, (y1 + y2) // 2) for x1, y1, x2, y2 in ATTENDANCE_BOXES
-]
 
 
 class HoatDongRunner:
@@ -288,10 +262,7 @@ class HoatDongRunner:
                         break
                     self.sleep(self.config.wait_seconds)
                 else:
-                    logger.warning("HD | Quà online: bấm Nhận nhưng chưa xuất hiện popup thưởng; tap an toàn để tiếp tục")
-                    self.input.tap(480, 480)
-                    self.sleep(self.config.wait_seconds)
-                    screen = self.screen_provider()
+                    raise RuntimeError("Hoạt động: Quà online bấm Nhận nhưng chưa xuất hiện thưởng")
                 if claims > 4:
                     raise RuntimeError("Hoạt động: Quà online vượt quá 4 mốc cố định")
             claimable, unavailable, claimed = self._online_counts(screen)
@@ -309,69 +280,30 @@ class HoatDongRunner:
 
     def _open_attendance_tab(self, screen):
         """Attendance is visible below Quà online; tap it directly, never scroll sidebar."""
-        logger = logging.getLogger("dc3q")
-        for attempt in range(6):
-            state, open_match, closed_match = self._tab_state(
-                screen, self.config.attendance_tabs, self.config.attendance_open
-            )
-            if state == "open" and open_match is not None and open_match.confidence >= 0.90 and open_match.y >= 350:
-                logger.info("HD | tab Điểm danh đã mở sẵn")
-                return screen
-
-            if state == "closed" and closed_match is not None and closed_match.confidence >= self.config.threshold:
-                self._tap(closed_match)
-                break
-            tab = self._best(screen, self.config.attendance_tabs)
-            if tab is not None and tab.confidence >= self.config.threshold:
-                self._tap(tab)
-                break
-            pos = self._find_ocr_center(screen, ["diemdanh", "diem danh"], x_max=250)
-            if pos:
-                self.input.tap(*pos)
-                self.sleep(self.config.wait_seconds)
-                break
-            self.sleep(0.5)
-            screen = self.screen_provider()
-        else:
+        tab = self._best(screen, self.config.attendance_tabs)
+        if tab is None or tab.confidence < self.config.threshold:
             raise RuntimeError("Hoạt động: không nhận diện được nút Điểm danh")
-
-        for attempt_idx in range(12):
+        self._tap(tab)
+        for _ in range(8):
             verify = self.screen_provider()
-            v_state, v_open, _ = self._tab_state(
-                verify, self.config.attendance_tabs, self.config.attendance_open
-            )
-            if v_state == "open" and v_open is not None and v_open.confidence >= 0.85 and v_open.y >= 330:
+            if self._first(verify, self.config.attendance_open) is not None:
                 return verify
-            if self._find_ocr_center(verify, ["tich luy", "bao danh", "tichluy", "baodanh", "dadiemdanh", "diemdanh"], x_min=250):
-                return verify
-            if attempt_idx == 4:
-                # Thử tap lại tab Điểm danh nếu lần đầu bị miss hoặc trễ animation
-                tab = self._best(verify, self.config.attendance_tabs)
-                if tab and tab.confidence >= 0.65:
-                    self._tap(tab)
             self.sleep(self.config.wait_seconds)
         raise RuntimeError("Hoạt động: bấm Điểm danh nhưng nội dung chưa mở")
 
     def _open_online_tab(self, screen):
         """Open Quà online using its control, then prove its content state."""
-        states = (
-            self.config.online_claimable,
-            self.config.online_unavailable,
-            self.config.online_claimed,
-        )
-        if any(self._match(screen, template, self.config.state_threshold).found for template in states):
-            return screen
         tab = self._best(screen, self.config.online_tabs)
         if tab is None or tab.confidence < self.config.threshold:
-            pos = self._find_ocr_center(screen, ["quaonline", "online"], x_max=250)
-            if pos:
-                self.input.tap(*pos)
-            else:
-                raise RuntimeError("Hoạt động: không nhận diện được nút Quà online")
-        else:
-            self._tap(tab)
+            raise RuntimeError("Hoạt động: không nhận diện được nút Quà online")
+        self._tap(tab)
         for _ in range(8):
             verify = self.screen_provider()
+            states = (
+                self.config.online_claimable,
+                self.config.online_unavailable,
+                self.config.online_claimed,
+            )
             if any(self._match(verify, template, self.config.state_threshold).found for template in states):
                 return verify
             self.sleep(self.config.wait_seconds)
@@ -404,10 +336,7 @@ class HoatDongRunner:
             if self._match(screen, self.config.newcomer_reward_marker).found:
                 dismiss = self._match(screen, self.config.newcomer_reward_dismiss)
                 if not dismiss.found:
-                    logging.getLogger("dc3q").info("HD | Tân thủ thấy thưởng nhưng thiếu nút đóng; tap an toàn (480, 500)")
-                    self.input.tap(480, 500)
-                    self.sleep(self.config.wait_seconds)
-                    return self.screen_provider()
+                    raise RuntimeError("Hoạt động/Tân thủ: thấy thưởng nhưng thiếu vùng đóng an toàn")
                 self._tap(dismiss)
                 return self.screen_provider()
             if claimed is not None and self._match(screen, claimed, self.config.state_threshold).found:
@@ -458,11 +387,8 @@ class HoatDongRunner:
             ("seven_day", "Quà 7 ngày", self.config.newcomer_seven_day_tabs, self.config.newcomer_seven_day_open),
             ("login", "Đăng nhập tích lũy", self.config.newcomer_login_tabs, self.config.newcomer_login_open),
         ):
-            state, _, _ = self._tab_state(screen, tabs, opened)
-            if state != "open" and not self._first(screen, tabs):
-                continue
             try:
-                screen = self._open_tab(screen, tabs, opened, name, scroll_if_missing=False)
+                screen = self._open_tab(screen, tabs, opened, name, scroll_if_missing=True)
                 screen = self._claim_newcomer_single_reward(screen, kind)
             except Exception as exc:
                 logger.warning("HD | Tân thủ/%s không khả dụng hoặc hoàn tất: %s", name, exc)
@@ -516,58 +442,17 @@ class HoatDongRunner:
         raise RuntimeError(f"Hoạt động: bấm {name} nhưng chưa thấy tab mở và tab trước đóng")
 
     @staticmethod
-    def _plain(text: str) -> str:
-        import unicodedata
-        return "".join(
-            char for char in unicodedata.normalize("NFKD", text)
-            if not unicodedata.combining(char)
-        ).lower()
-
-    def _ocr_rows(self, screen):
-        from app.vision.ocr import get_ocr_engine, to_numpy_image
-        engine = get_ocr_engine()
-        if engine is None:
-            return []
-        image = to_numpy_image(screen)
-        result, _ = engine(image)
-        return result or []
-
-    def _find_ocr_center(
-        self, screen, keywords: str | list[str],
-        y_min: int = 0, y_max: int = 9999,
-        x_min: int = 0, x_max: int = 9999,
-    ) -> tuple[int, int] | None:
-        if isinstance(keywords, str):
-            keywords = [keywords]
-        clean_keys = [self._plain(k).replace(" ", "") for k in keywords]
-        for row in self._ocr_rows(screen):
-            text = self._plain(str(row[1])).replace(" ", "")
-            if any(k in text for k in clean_keys):
-                points = row[0]
-                x = int(sum(point[0] for point in points) / len(points))
-                y = int(sum(point[1] for point in points) / len(points))
-                if x_min <= x <= x_max and y_min <= y <= y_max:
-                    return x, y
-        return None
-
-    @staticmethod
     def _tick_pixels(cell) -> int:
-        """Count the invariant green tick color in the central check area; ignore reward artwork."""
+        """Count the invariant dark-green tick color in the central check area; ignore reward artwork."""
         import cv2
         import numpy as np
 
-        if hasattr(cell, "data"):
-            cell = cell.data
         if hasattr(cell, "convert") and not hasattr(cell, "shape"):
             cell = np.asarray(cell.convert("RGB"))
-        else:
-            cell = np.asarray(cell)
-        if cell.ndim != 3 or cell.shape[2] != 3:
-            return 0
         ch, cw = cell.shape[:2]
         center = cell[int(ch * 0.2):int(ch * 0.8), int(cw * 0.2):int(cw * 0.8)]
         hsv = cv2.cvtColor(center, cv2.COLOR_RGB2HSV)
-        mask = cv2.inRange(hsv, (25, 80, 50), (45, 255, 220))
+        mask = cv2.inRange(hsv, (31, 103, 121), (40, 255, 146))
         return int(cv2.countNonZero(mask))
 
     @staticmethod
@@ -578,23 +463,24 @@ class HoatDongRunner:
 
         if hasattr(cell, "convert") and not hasattr(cell, "shape"):
             cell = np.asarray(cell.convert("RGB"))
-        else:
-            cell = np.asarray(cell)
-        if cell.ndim == 3 and cell.shape[2] == 3:
-            bgr = cv2.cvtColor(cell, cv2.COLOR_RGB2BGR)
-        else:
-            bgr = cell
-        maximum = bgr.max(axis=2)
-        minimum = bgr.min(axis=2)
+        maximum = cell.max(axis=2)
+        minimum = cell.min(axis=2)
         pale = ((maximum > 180) & ((maximum - minimum) < 45)).astype("uint8")
-        green = cv2.inRange(bgr, (0, 100, 0), (150, 255, 180))
+        green = cv2.inRange(cell, (0, 100, 0), (150, 255, 180))
         return int(cv2.countNonZero(pale)), int(cv2.countNonZero(green))
 
     def _attendance_cells(self, screen):
         data = screen.data if hasattr(screen, "data") else screen
-        boxes = self.config.attendance_boxes or ATTENDANCE_BOXES
+        x1, y1, x2, y2 = self.config.attendance_grid
+        width, height = x2 - x1, y2 - y1
         cells = []
-        for left, top, right, bottom in boxes:
+        for index in range(30):
+            # Live board is 9 columns × 4 rows: 1–27, then 28–30.
+            row, col = divmod(index, 9)
+            left = x1 + round(col * width / 9)
+            right = x1 + round((col + 1) * width / 9)
+            top = y1 + round(row * height / 4)
+            bottom = y1 + round((row + 1) * height / 4)
             cells.append(
                 data.crop((left, top, right, bottom))
                 if hasattr(data, "crop") else data[top:bottom, left:right]
@@ -610,7 +496,7 @@ class HoatDongRunner:
             )
             if makeup and makeup.found:
                 states.append("makeup")
-            elif self._tick_pixels(cell) >= 100:
+            elif self._tick_pixels(cell) >= 150:
                 states.append("tick")
             else:
                 states.append("blank")
@@ -625,7 +511,7 @@ class HoatDongRunner:
         cells = self._attendance_cells(screen)
         if not cells:
             return False
-        return self._tick_pixels(cells[0]) < 100
+        return self._tick_pixels(cells[0]) < 150
 
     def _saved_attendance_candidate(self, screen) -> int | None:
         saved = self.attendance_day()
@@ -671,30 +557,15 @@ class HoatDongRunner:
 
         left = array(self._attendance_cells(before)[index])
         right = array(self._attendance_cells(after)[index])
-        diff = cv2.absdiff(left, right)
-        diff_mean = float(diff.mean())
-        changed_pixels = int(np.count_nonzero(diff > 25))
-        logging.getLogger("dc3q").info(
-            "HD | Kiểm tra ô %d thay đổi: diff_mean=%.2f | changed_pixels=%d",
-            index + 1, diff_mean, changed_pixels,
-        )
-        return diff_mean >= 4.0 or changed_pixels >= 80
+        return float(cv2.absdiff(left, right).mean()) >= 3.0
 
     def _tap_attendance(self, index: int) -> None:
-        boxes = self.config.attendance_boxes or ATTENDANCE_BOXES
-        if 0 <= index < len(boxes):
-            x1, y1, x2, y2 = boxes[index]
-            self.input.tap((x1 + x2) // 2, (y1 + y2) // 2)
-        elif 0 <= index < len(ATTENDANCE_COORDINATES):
-            x, y = ATTENDANCE_COORDINATES[index]
-            self.input.tap(x, y)
-        else:
-            x1, y1, x2, y2 = self.config.attendance_grid
-            row, col = divmod(index, 9)
-            self.input.tap(
-                x1 + round((col + 0.5) * (x2 - x1) / 9),
-                y1 + round((row + 0.5) * (y2 - y1) / 4),
-            )
+        x1, y1, x2, y2 = self.config.attendance_grid
+        row, col = divmod(index, 9)
+        self.input.tap(
+            x1 + round((col + 0.5) * (x2 - x1) / 9),
+            y1 + round((row + 0.5) * (y2 - y1) / 4),
+        )
         self.sleep(self.config.wait_seconds)
 
     def _milestone_state(self, screen, roi: tuple[int, int, int, int]):
@@ -714,14 +585,12 @@ class HoatDongRunner:
             return "unknown", match, runner_up
         return state, match, runner_up
 
-    def _claim_attendance_milestones(self, screen, current_days: int = 30):
+    def _claim_attendance_milestones(self, screen):
         """Claim only proven 10/20/30-day rewards, then verify each one."""
         logger = logging.getLogger("dc3q")
         self._drain_rewards()
         screen = self.screen_provider()
         for day, roi in zip((10, 20, 30), self.config.attendance_milestone_rois):
-            if current_days < day:
-                continue
             state, match, runner_up = self._milestone_state(screen, roi)
             logger.info(
                 "HD | Báo danh tích lũy %d ngày | trạng_thái=%s | điểm=%.3f | cạnh_tranh=%.3f",
@@ -744,7 +613,7 @@ class HoatDongRunner:
                     break
                 self.sleep(self.config.wait_seconds)
             else:
-                logger.warning("HD | nhận quà tích lũy %d ngày nhưng chưa thấy Đã nhận; tiếp tục tiến trình", day)
+                raise RuntimeError(f"Hoạt động: nhận quà tích lũy {day} ngày nhưng chưa thấy Đã nhận")
         self._drain_rewards()
         return screen
 
@@ -794,12 +663,9 @@ class HoatDongRunner:
                 continue
             if self._first(screen, self.config.panel_markers) is not None:
                 close = self._match(screen, self.config.close_template)
-                if close.found:
-                    self._tap(close)
-                else:
-                    logger.info("HD | recovery đóng Hoạt động bằng tọa độ chuẩn (926, 69)")
-                    self.input.tap(926, 69)
-                    self.sleep(self.config.wait_seconds)
+                if not close.found:
+                    return False
+                self._tap(close)
                 logger.info("HD | recovery đóng Hoạt động")
                 continue
             if self._first(screen, self.config.home_markers) is not None:
@@ -812,151 +678,127 @@ class HoatDongRunner:
         logger = logging.getLogger("dc3q")
         self.soft_errors = []
         screen = self.screen_provider()
+        entry = self._first(screen, self.config.entry_templates)
+        if entry is None:
+            closed = self._match(screen, self.config.menu_templates[0])
+            opened = self._match(screen, self.config.menu_templates[1])
+            if opened.found and opened.confidence >= closed.confidence:
+                raise RuntimeError("Hoạt động: menu đang mở nhưng thiếu icon Hoạt động")
+            if not closed.found or closed.confidence <= opened.confidence:
+                raise RuntimeError("Hoạt động: không xác định được trạng thái menu HOME")
+            self._tap(closed)
+            screen, entry = self._wait_for(self.config.entry_templates)
+        if entry is None:
+            raise RuntimeError("Hoạt động: menu đã mở nhưng thiếu icon Hoạt động")
+        self._tap(entry)
+        logger.info("HD | mở Hoạt động")
 
-        markers = list(self.config.panel_markers) + list(self.config.welfare_tabs) + list(self.config.newcomer_open) + list(self.config.newcomer_tabs)
-        if getattr(self.config, "panel_close", None):
-            markers.append(self.config.panel_close)
-
-        # Nếu panel Hoạt Động chưa mở thì mở từ HOME
-        if self._first(screen, markers) is None and not self._find_ocr_center(screen, ["phucloi", "phuc loi", "diemdanh", "diem danh"]):
-            entry = self._first(screen, self.config.entry_templates)
-            if entry is None:
-                closed = self._match(screen, self.config.menu_templates[0])
-                opened = self._match(screen, self.config.menu_templates[1])
-                if opened.found and opened.confidence >= closed.confidence:
-                    raise RuntimeError("Hoạt động: menu đang mở nhưng thiếu icon Hoạt động")
-                if not closed.found or closed.confidence <= opened.confidence:
-                    raise RuntimeError("Hoạt động: không xác định được trạng thái menu HOME")
-                self._tap(closed)
-                screen, entry = self._wait_for(self.config.entry_templates)
-            if entry is None:
-                raise RuntimeError("Hoạt động: menu đã mở nhưng thiếu icon Hoạt động")
-            self._tap(entry)
-            logger.info("HD | mở Hoạt động")
-
-            screen, panel = self._wait_for(markers)
-            if panel is None:
-                if not self._find_ocr_center(screen, ["phucloi", "phuc loi", "tanthu", "tan thu"]):
-                    raise RuntimeError("Hoạt động: bấm icon nhưng panel chưa mở sau khi chờ")
-
+        screen, panel = self._wait_for(self.config.panel_markers)
+        if panel is None:
+            raise RuntimeError("Hoạt động: bấm icon nhưng panel chưa mở sau khi chờ")
         # panel_markers are the selected Phúc lợi images. Their appearance is
         # already the visual postcondition; do not re-classify/click this tab.
-        logger.info("HD | xác nhận Hoạt động/Phúc lợi đã mở")
+        logger.info("HD | xác nhận Phúc lợi đã mở")
 
-        if not self.config.only_attendance:
-            screen = self._open_tab(
-                screen, self.config.national_tabs, self.config.national_open,
-                "Lễ bao quốc vận",
-            )
-            for _ in range(8):
-                free = self._match(screen, self.config.national_free, self.config.state_threshold)
-                claimed = self._match(screen, self.config.national_claimed, self.config.state_threshold)
-                if free.found or claimed.found:
-                    break
-                self.sleep(self.config.wait_seconds)
-                screen = self.screen_provider()
-            else:
-                raise RuntimeError("Hoạt động: Lễ bao quốc vận chưa ổn định, không xác định được trạng thái")
-            if free.found and free.confidence > claimed.confidence:
-                self._tap(free)
-                logger.info("HD | nhận Lễ bao quốc vận miễn phí")
-                screen = self._settle_claim([self.config.national_claimed])
-            elif claimed.found:
-                logger.info("HD | Lễ bao quốc vận không còn nút miễn phí")
-            else:
-                raise RuntimeError("Hoạt động: trạng thái Lễ bao quốc vận xung đột")
-
-            try:
-                screen = self._open_online_tab(screen)
-                logger.info("HD | đã mở tab Quà online")
-                self._claim_online(screen)
-            except Exception as exc:
-                self.soft_errors.append(f"Quà online: {exc}")
-                logger.error("HD | Quà online lỗi; tiếp tục Điểm danh: %s", exc)
+        screen = self._open_tab(
+            screen, self.config.national_tabs, self.config.national_open,
+            "Lễ bao quốc vận",
+        )
+        for _ in range(8):
+            free = self._match(screen, self.config.national_free, self.config.state_threshold)
+            claimed = self._match(screen, self.config.national_claimed, self.config.state_threshold)
+            if free.found or claimed.found:
+                break
+            self.sleep(self.config.wait_seconds)
             screen = self.screen_provider()
+        else:
+            raise RuntimeError("Hoạt động: Lễ bao quốc vận chưa ổn định, không xác định được trạng thái")
+        if free.found and free.confidence > claimed.confidence:
+            self._tap(free)
+            logger.info("HD | nhận Lễ bao quốc vận miễn phí")
+            screen = self._settle_claim([self.config.national_claimed])
+        elif claimed.found:
+            logger.info("HD | Lễ bao quốc vận không còn nút miễn phí")
+        else:
+            raise RuntimeError("Hoạt động: trạng thái Lễ bao quốc vận xung đột")
+
+        try:
+            screen = self._open_online_tab(screen)
+            logger.info("HD | đã mở tab Quà online")
+            self._claim_online(screen)
+        except Exception as exc:
+            self.soft_errors.append(f"Quà online: {exc}")
+            logger.error("HD | Quà online lỗi; tiếp tục Điểm danh: %s", exc)
+        screen = self.screen_provider()
 
         screen = self._open_attendance_tab(screen)
-        logger.info("HD | đã mở Điểm danh trực tiếp")
+        logger.info("HD | đã mở Điểm danh trực tiếp sau Quà online")
         states = self._attendance_states(screen)
-        ticked_indices = [i for i, state in enumerate(states) if state in {"tick", "makeup"}]
-        last_ticked_day = max(ticked_indices) + 1 if ticked_indices else 0
         candidate = self._resolve_attendance_candidate(screen, states)
         logger.info(
-            "HD | Điểm danh đã_lưu=%s | đã_tick=%d ngày (max=%d) | candidate_ô=%s",
+            "HD | Điểm danh đã_lưu=%s | marked=%s | candidate=%s",
             self.attendance_day(),
-            len(ticked_indices),
-            last_ticked_day,
+            [i + 1 for i, state in enumerate(states) if state in {"tick", "makeup"}],
             None if candidate is None else candidate + 1,
         )
         if candidate is not None:
             before = screen
             self._tap_attendance(candidate)
             changed = False
-            # Chờ 0.6s để game cập nhật đóng dấu tick trực tiếp lên ô candidate
-            self.sleep(0.6)
-            for _ in range(4):
+            verify = before
+            for _ in range(10):
                 verify = self.screen_provider()
+                if self._reward(verify):
+                    changed = True
+                    verify = self.screen_provider()
+                    break
                 if self._attendance_changed(before, verify, candidate):
                     changed = True
+                    self.sleep(0.5)
+                    post = self.screen_provider()
+                    if self._reward(post):
+                        verify = self.screen_provider()
+                    else:
+                        verify = post
                     break
-                cand_cells = self._attendance_cells(verify)
-                if candidate < len(cand_cells) and self._tick_pixels(cand_cells[candidate]) >= 100:
-                    changed = True
-                    break
-                self.sleep(0.3)
-
+                self.sleep(self.config.wait_seconds)
+            self._drain_rewards()
             verify = self.screen_provider()
             if changed:
-                new_day = candidate + 1
-                self.save_attendance_day(new_day)
-                logger.info("HD | Điểm danh ô %d THÀNH CÔNG (ảnh ô đã thay đổi sau khi bấm) -> cập nhật Diem-Danh=%d", new_day, new_day)
+                self.save_attendance_day(candidate + 1)
+                logger.info("HD | điểm danh ô %d thành công", candidate + 1)
             else:
-                actual_day = last_ticked_day if last_ticked_day > 0 else 1
-                self.save_attendance_day(actual_day)
-                logger.info("HD | Ô %d không đổi (hôm nay đã điểm danh từ trước) -> giữ nguyên Diem-Danh=%d", candidate + 1, actual_day)
+                logger.info("HD | ô %d không đổi; giữ nguyên ngày điểm danh đã lưu", candidate + 1)
             screen = verify
-        elif len(ticked_indices) == 30:
-            if not self._attendance_reset(screen):
-                self.save_attendance_day(30)
-                logger.info("HD | Đã hoàn tất đủ 30 ngày điểm danh -> ghi nhận Diem-Danh=30")
         else:
             logger.info("HD | không có ngày điểm danh an toàn từ dữ liệu đã lưu")
 
-        current_attendance_day = max(
-            last_ticked_day,
-            (candidate + 1) if (candidate is not None and changed) else 0,
-            self.attendance_day() or 0,
-        )
-        screen = self._claim_attendance_milestones(screen, current_days=current_attendance_day)
+        screen = self._claim_attendance_milestones(screen)
 
-        if not self.config.only_attendance:
-            if self._tax_window_open():
-                screen = self._open_tab(
-                    screen, self.config.tax_tabs, self.config.tax_open,
-                    "Trưng thu thuế", scroll_if_missing=True,
-                    required_closed=self.config.attendance_tabs,
-                )
-                logger.info("HD | đã mở tab Trưng thu thuế")
-                self._claim_tax(screen)
-            else:
-                logger.info("HD | bỏ qua Trưng thu thuế ngoài khung giờ")
+        if self._tax_window_open():
+            screen = self._open_tab(
+                screen, self.config.tax_tabs, self.config.tax_open,
+                "Trưng thu thuế", scroll_if_missing=True,
+                required_closed=self.config.attendance_tabs,
+            )
+            logger.info("HD | đã mở tab Trưng thu thuế")
+            self._claim_tax(screen)
+        else:
+            logger.info("HD | bỏ qua Trưng thu thuế ngoài khung giờ")
 
-            screen = self.screen_provider()
-            newcomer = self._open_newcomer_if_present(screen)
-            if newcomer is not None:
-                logger.info("HD | phát hiện tab Tân thủ")
-                screen = self._process_newcomer(newcomer)
-                logger.info("HD | Tân thủ hoàn tất; trở lại Phúc lợi")
+        screen = self.screen_provider()
+        newcomer = self._open_newcomer_if_present(screen)
+        if newcomer is not None:
+            logger.info("HD | phát hiện tab Tân thủ")
+            screen = self._process_newcomer(newcomer)
+            logger.info("HD | Tân thủ hoàn tất; trở lại Phúc lợi")
 
         self._drain_rewards()
         screen = self.screen_provider()
         close = self._match(screen, self.config.close_template)
-        if close.found:
-            self._tap(close)
-        else:
-            logger.info("HD | thiếu match nút đóng; thử tap tọa độ chuẩn (926, 69)")
-            self.input.tap(926, 69)
-            self.sleep(self.config.wait_seconds)
+        if not close.found:
+            raise RuntimeError("Hoạt động: thiếu nút đóng")
+        self._tap(close)
         logger.info("HD | đóng Hoạt động")
         for attempt in range(8):
             screen = self.screen_provider()
@@ -970,7 +812,4 @@ class HoatDongRunner:
                     logger.info("HD | panel Hoạt động vẫn mở sau %d nhịp, tap lại nút đóng", attempt + 1)
                     self._tap(retry_close)
             self.sleep(self.config.wait_seconds)
-        if self.recover_home():
-            logger.info("HD | recover_home thành công sau khi đóng Hoạt động")
-            return True
         raise RuntimeError("Hoạt động: đóng xong nhưng chưa về HOME")

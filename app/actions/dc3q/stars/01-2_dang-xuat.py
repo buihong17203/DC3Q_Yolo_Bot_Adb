@@ -112,7 +112,7 @@ class AccountLogoutAction:
         _, score, _, location = cv2.minMaxLoc(result)
         # Small edge HUD crops vary slightly with animation/compression. The
         # configured threshold (default 0.60) in dang-xuat.yaml applies here.
-        anchor_threshold = 0.55
+        anchor_threshold = max(0.55, threshold)
         LOGGER.info(
             "VISION | ảnh_hiện_tại=<ADB frame mới nhất> vs mẫu=%s | mục_đích=logout_home_anchor | "
             "độ_khớp=%.3f | ngưỡng=%.3f | nhận_diện=%s | kết_luận=%s | vị_trí=(%d,%d,%d,%d)",
@@ -122,8 +122,7 @@ class AccountLogoutAction:
             sx1 + location[0], sy1 + location[1], scaled.shape[1], scaled.shape[0],
         )
         if score < anchor_threshold:
-            norm_x, norm_y = templates.avatar_fallback_normalized
-            return round(norm_x * width), round(norm_y * height)
+            return None
         anchor_center = (
             sx1 + location[0] + scaled.shape[1] // 2,
             sy1 + location[1] + scaled.shape[0] // 2,
@@ -152,20 +151,6 @@ class AccountLogoutAction:
                     threshold=login_threshold,
                 ).state == LoginScreenState.LOGIN_SCREEN
 
-            # Dismiss 'Thoát game' popup only when in UNKNOWN state (avoid expensive full-screen OCR on every frame)
-            if unknown_hits >= 2:
-                try:
-                    from app.vision.ocr import ocr_extract_text
-                    txt = ocr_extract_text(screen)
-                    if any(p in txt for p in ("roi di", "thoat game", "that su muon")):
-                        LOGGER.info("LOGOUT | Phát hiện popup Thoát game -> bấm Hủy tại (370, 354)")
-                        self.input.tap(370, 354)
-                        time.sleep(1.0)
-                        unknown_hits = 0
-                        continue
-                except Exception:
-                    pass
-
             matches = {
                 "login": at_login,
                 "confirm": self._match(screen, tpls.confirm_dtk, threshold).found,
@@ -185,27 +170,7 @@ class AccountLogoutAction:
                 anchor_home_hits = 0
                 self._find_and_tap(screen, tpls.confirm_dtk, threshold)
                 confirmed_dtk = True
-                LOGGER.info("LOGOUT | Đã bấm Xác nhận Đổi tài khoản; chờ màn hình Đăng nhập xuất hiện")
-                for _wait in range(15):
-                    time.sleep(0.8)
-                    screen = screen_provider()
-                    if login_detector is not None and login_detector.detect(
-                        screen,
-                        login_templates=login_templates,
-                        logged_in_templates=[],
-                        threshold=login_threshold,
-                    ).state == LoginScreenState.LOGIN_SCREEN:
-                        LOGGER.info("LOGOUT | Đã về màn hình Đăng nhập sau Xác nhận")
-                        return True
-                    if _wait >= 5:
-                        try:
-                            from app.vision.ocr import ocr_extract_text
-                            txt = ocr_extract_text(screen)
-                            if "dang nhap" in txt or "tai khoan" in txt or "mat khau" in txt:
-                                LOGGER.info("LOGOUT | OCR xác nhận màn hình Đăng nhập")
-                                return True
-                        except Exception:
-                            pass
+                time.sleep(1.5)
             elif state == "switch":
                 anchor_home_hits = 0
                 self._find_and_tap(screen, tpls.open_dtk, threshold)
@@ -216,33 +181,7 @@ class AccountLogoutAction:
                 anchor_home_hits = 0
                 self._find_and_tap(screen, tpls.open_tuychon, threshold)
             elif state == "home" and avatar is not None:
-                if confirmed_dtk:
-                    confirm_wait_hits = getattr(self, "_confirm_wait_hits", 0) + 1
-                    self._confirm_wait_hits = confirm_wait_hits
-                    if confirm_wait_hits <= 4:
-                        LOGGER.info("LOGOUT | Đã xác nhận đổi tài khoản; chờ màn hình đăng nhập (%d/4)...", confirm_wait_hits)
-                        time.sleep(1.0)
-                        continue
-                    else:
-                        LOGGER.warning("LOGOUT | Đã xác nhận nhưng vẫn ở HOME sau 4 lần chờ; thử đăng xuất lại!")
-                        confirmed_dtk = False
-                        self._confirm_wait_hits = 0
                 anchor_home_hits += 1
-                if anchor_home_hits >= 2:
-                    # Check for popups blocking avatar tap (enemy raid, profile update)
-                    try:
-                        p_dqtk = self.vision.find_template(
-                            screen, "dqtk_close",
-                            Path("data/img/templates/random-events/pop-up_random/enemy-raid/screen/screen_dqtk_button_dong.png"),
-                            0.65
-                        ).match
-                        if p_dqtk.found:
-                            LOGGER.info("LOGOUT | Đóng popup Địch quân tập kích tại (%d, %d)", p_dqtk.x + p_dqtk.width//2, p_dqtk.y + p_dqtk.height//2)
-                            self.input.tap(p_dqtk.x + p_dqtk.width//2, p_dqtk.y + p_dqtk.height//2)
-                            time.sleep(1.0)
-                            continue
-                    except Exception:
-                        pass
                 if anchor_home_hits <= 3:
                     self.input.tap(*avatar)
                 else:
@@ -265,9 +204,9 @@ class AccountLogoutAction:
                 # budget; never mistake a temporary UNKNOWN frame for failure.
                 unknown_hits += 1
                 if not confirmed_dtk and unknown_hits % 6 == 0 and unknown_hits < max_attempts * 6:
-                    LOGGER.info("LOGOUT | Chưa nhận diện được lớp đăng xuất sau %d tick; thử đóng popup tại (370, 354)", unknown_hits)
+                    LOGGER.info("LOGOUT | Chưa nhận diện được lớp đăng xuất sau %d tick; thử bấm BACK để đóng popup che khuất", unknown_hits)
                     try:
-                        self.input.tap(370, 354)
+                        self.input.keyevent("KEYCODE_BACK")
                     except Exception:
                         pass
                 if unknown_hits >= max_attempts * 6:
@@ -289,12 +228,4 @@ class AccountLogoutAction:
         ).state == LoginScreenState.LOGIN_SCREEN:
             LOGGER.info("LOGOUT | LOGIN xuất hiện tại kiểm tra frame cuối")
             return True
-        try:
-            from app.vision.ocr import ocr_extract_text
-            txt = ocr_extract_text(final_screen)
-            if "dang nhap" in txt or "tai khoan" in txt:
-                LOGGER.info("LOGOUT | OCR xác nhận màn hình Đăng nhập")
-                return True
-        except Exception:
-            pass
         raise RuntimeError("Đăng xuất quá số bước cho phép; chưa về màn hình đăng nhập")

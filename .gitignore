@@ -3,9 +3,6 @@ __pycache__/
 *.py[cod]
 *.log
 *.tmp
-.pytest_cache/
-.ruff_cache/
-/*.png
 .idea/
 .vscode/
 data/accounts/*

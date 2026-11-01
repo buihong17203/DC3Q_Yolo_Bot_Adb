@@ -72,7 +72,7 @@ class XaGiaoRunner:
         return screen
 
     def recover_home(self) -> bool:
-        for attempt in range(12):
+        for _ in range(12):
             screen = self.screen_provider()
             if self._first(
                 screen, self.config.home_markers, self.config.home_threshold,
@@ -80,11 +80,10 @@ class XaGiaoRunner:
                 return True
             if self._first(screen, self.config.panel_markers) is not None:
                 close = self._match(screen, self.config.close_template)
-                if close.found:
-                    self._tap(close)
-                    continue
-            if attempt >= 6:
-                self.input.tap(932, 28)
+                if not close.found:
+                    return False
+                self._tap(close)
+                continue
             self.sleep(self.config.wait_seconds)
         return False
 
@@ -105,21 +104,17 @@ class XaGiaoRunner:
             closed = self._match(screen, self.config.menu_templates[0])
             opened = self._match(screen, self.config.menu_templates[1])
             if opened.found and opened.confidence >= closed.confidence:
-                logging.getLogger("dc3q").info("Xã giao: menu đang mở nhưng thiếu icon Xã giao -> bỏ qua an toàn")
-                return None
+                raise RuntimeError("Xã giao: menu đang mở nhưng thiếu icon Xã giao")
             if not closed.found or closed.confidence <= opened.confidence:
-                logging.getLogger("dc3q").info("Xã giao: không xác định được trạng thái menu HOME -> bỏ qua an toàn")
-                return None
+                raise RuntimeError("Xã giao: không xác định được trạng thái menu HOME")
             self._tap(closed)
             screen, entry = self._wait_for(self.config.entry_templates)
         if entry is None:
-            logging.getLogger("dc3q").info("Xã giao: không tìm thấy nút mở Bạn bè -> bỏ qua an toàn")
-            return None
+            raise RuntimeError("Xã giao: không tìm thấy nút mở Bạn bè")
         self._tap(entry)
         screen, friend = self._wait_for(self.config.friend_templates)
         if friend is None:
-            logging.getLogger("dc3q").info("Xã giao: mở menu nhưng không thấy nút Bạn bè -> bỏ qua an toàn")
-            return None
+            raise RuntimeError("Xã giao: mở menu nhưng không thấy nút Bạn bè")
         self._tap(friend)
         return self._prove(self.config.panel_markers, "Xã giao: bấm mở nhưng chưa thấy danh sách Bạn bè")
 
@@ -159,9 +154,6 @@ class XaGiaoRunner:
 
     def run(self) -> bool:
         screen = self._open_panel()
-        if screen is None:
-            self.recover_home()
-            return True
         self._give_hearts(screen)
         screen = self.screen_provider()
         close = self._match(screen, self.config.close_template)
@@ -173,8 +165,9 @@ class XaGiaoRunner:
             screen, self.config.entry_templates,
             self.config.social_control_threshold,
         )
-        if social is not None:
-            self._tap(social)
+        if social is None:
+            raise RuntimeError("Xã giao: đóng Bạn bè xong nhưng thiếu icon Xã giao để đóng menu")
+        self._tap(social)
         if not self.recover_home():
             raise RuntimeError("Xã giao: không recover_home được")
         return True

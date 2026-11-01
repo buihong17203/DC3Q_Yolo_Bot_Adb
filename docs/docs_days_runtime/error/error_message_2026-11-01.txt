@@ -1,0 +1,220 @@
+2026-11-01T01:11:53+07:00 | account=acc_001 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T01:12:00+07:00 | account=acc_001 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T01:27:40+07:00 | account=acc_001 | task=TT_A7_Chien_Hon | type=TASK | home target error: Trường thành A7_chien-hon: thấy kết quả nhưng thiếu nút đóng
+2026-11-01T01:44:27+07:00 | account=acc_001 | task=Nhiem_Vu | type=TASK | home target error: Nhiệm vụ: vượt quá số bước cho phép
+2026-11-01T01:46:20+07:00 | account=acc_002 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn
+2026-11-01T01:47:10+07:00 | account=acc_002 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T01:47:15+07:00 | account=acc_002 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T02:00:05+07:00 | account=acc_002 | task=TT_A3_Chua_Cong | type=TASK | home target error: TT_A3_CHUA_CONG: không recover được HOME
+2026-11-01T02:07:36+07:00 | account=acc_002 | task=TT_A6_Than_Binh | type=TASK | home target error: TT_A6_THAN_BINH: không recover được HOME
+2026-11-01T02:28:27+07:00 | account=acc_003 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T02:28:33+07:00 | account=acc_003 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T02:30:26+07:00 | account=acc_003 | task=Khong_Gian_Ca_Nhan | type=TASK | home target error: Không gian cá nhân: không đọc được số thư trước khi Xóa
+2026-11-01T02:40:49+07:00 | account=acc_003 | task=TT_A3_Chua_Cong | type=TASK | home target error: TT_A3_CHUA_CONG: không recover được HOME
+2026-11-01T02:59:03+07:00 | account=acc_004 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T02:59:09+07:00 | account=acc_004 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T03:04:17+07:00 | account=acc_004 | task=TT_A1_Bao_Vat | type=TASK | home target error: Trường thành A1: đội đủ nhưng thiếu nút Chấp hành
+2026-11-01T03:23:37+07:00 | account=acc_005 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn
+2026-11-01T03:24:32+07:00 | account=acc_005 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T03:24:38+07:00 | account=acc_005 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T03:32:32+07:00 | account=acc_005 | task=Vo_Tuong | type=TASK | home target error: Võ tướng: Thiên Vận Trở về nhưng chưa thấy Điểm tướng
+2026-11-01T03:43:09+07:00 | account=acc_005 | task=Giao_Tranh | type=TASK | home target error: Giao Tranh: vượt quá 60 bước tại REWARD, trận=5
+2026-11-01T03:43:25+07:00 | account=acc_005 | task=Nhiem_Vu | type=TASK | home target error: Nhiệm vụ: HOME thiếu control Nhiệm vụ
+2026-11-01T03:46:22+07:00 | account=acc_006 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T03:46:27+07:00 | account=acc_006 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T04:12:06+07:00 | account=acc_006 | task=Giao_Tranh | type=TASK | home target error: Giao Tranh: vượt quá 60 bước tại FORMATION, trận=0
+2026-11-01T04:16:07+07:00 | account=acc_007 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn
+2026-11-01T04:17:01+07:00 | account=acc_007 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T04:17:07+07:00 | account=acc_007 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T04:44:48+07:00 | account=acc_008 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T04:44:54+07:00 | account=acc_008 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T05:06:51+07:00 | account=acc_008 | task=Giao_Tranh | type=TASK | home target error: Giao Tranh: vượt quá 60 bước tại FORMATION, trận=0
+2026-11-01T05:18:36+07:00 | account=acc_008 | task=Nhiem_Vu | type=TASK | home target error: Nhiệm vụ: vượt quá số bước cho phép
+2026-11-01T05:21:44+07:00 | account=acc_009 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T05:21:49+07:00 | account=acc_009 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T05:35:53+07:00 | account=acc_009 | task=Vo_Tuong | type=TASK | home target error: Võ tướng: Thiên Vận Trở về nhưng chưa thấy Điểm tướng
+2026-11-01T05:47:45+07:00 | account=acc_010 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T05:47:51+07:00 | account=acc_010 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T06:02:40+07:00 | account=acc_010 | task=Vo_Tuong | type=TASK | home target error: Võ tướng: Thiên Vận Trở về nhưng chưa thấy Điểm tướng
+2026-11-01T06:16:01+07:00 | account=acc_011 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T06:16:07+07:00 | account=acc_011 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T06:22:28+07:00 | account=acc_011 | task=TT_A1_Bao_Vat | type=TASK | home target error: Trường thành A1: đội đủ nhưng thiếu nút Chấp hành
+2026-11-01T06:41:30+07:00 | account=acc_012 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T06:41:36+07:00 | account=acc_012 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T07:07:33+07:00 | account=acc_013 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T07:07:38+07:00 | account=acc_013 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T07:28:22+07:00 | account=acc_013 | task=Tranh_Ba | type=TASK | home target error: Tranh Bá: vượt quá 60 bước tại NEXT_BATTLE_WAIT, trận=1
+2026-11-01T07:47:46+07:00 | account=acc_013 | task=Nhiem_Vu | type=TASK | home target error: Nhiệm vụ: vượt quá số bước cho phép
+2026-11-01T07:50:47+07:00 | account=acc_014 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T07:50:53+07:00 | account=acc_014 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T08:07:17+07:00 | account=acc_014 | task=Tranh_Ba | type=TASK | home target error: Tranh Bá: vượt quá 60 bước tại NEXT_BATTLE_WAIT, trận=1
+2026-11-01T08:26:23+07:00 | account=acc_015 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T08:26:28+07:00 | account=acc_015 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T08:41:55+07:00 | account=acc_015 | task=Tranh_Ba | type=TASK | home target error: Tranh Bá: vượt quá 60 bước tại NEXT_BATTLE_WAIT, trận=1
+2026-11-01T09:02:21+07:00 | account=acc_015 | task=Nhiem_Vu | type=TASK | home target error: Nhiệm vụ: vượt quá số bước cho phép
+2026-11-01T09:05:24+07:00 | account=acc_016 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T09:05:30+07:00 | account=acc_016 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T09:20:45+07:00 | account=acc_016 | task=Tranh_Ba | type=TASK | home target error: Tranh Bá: vượt quá 60 bước tại NEXT_BATTLE_WAIT, trận=1
+2026-11-01T09:38:06+07:00 | account=acc_017 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: vượt quá số bước cho phép
+2026-11-01T09:38:29+07:00 | account=acc_017 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: bấm icon nhưng panel chưa mở sau khi chờ
+2026-11-01T09:38:54+07:00 | account=acc_017 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: bấm icon nhưng panel chưa mở sau khi chờ
+2026-11-01T09:40:01+07:00 | account=acc_017 | task=Quan_Doan | type=TASK | home target error: Quân đoàn: bấm giữa cạnh phải nhưng chưa thấy Vào quân đoàn
+2026-11-01T09:40:27+07:00 | account=acc_017 | task=Xa_Giao | type=TASK | home target error: Xã giao: mở menu nhưng không thấy nút Bạn bè
+2026-11-01T09:40:53+07:00 | account=acc_017 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T09:42:00+07:00 | account=acc_017 | task=Vo_Tuong | type=TASK | home target error: Võ tướng: chưa thấy Kho tướng
+2026-11-01T09:42:26+07:00 | account=acc_017 | task=Tranh_Ba | type=TASK | home target error: Tranh Bá: menu Quân sự thiếu icon Tranh Bá
+2026-11-01T09:43:03+07:00 | account=acc_017 | task=Giao_Tranh | type=TASK | home target error: Giao Tranh: HOME/menu Quân sự thiếu control Giao Tranh
+2026-11-01T09:43:17+07:00 | account=acc_017 | task=Nhiem_Vu | type=TASK | home target error: Nhiệm vụ: HOME thiếu control Nhiệm vụ
+2026-11-01T09:44:45+07:00 | account=acc_017 | task=ACCOUNT | type=ACCOUNT | logout error: Đăng xuất quá số bước cho phép; chưa về màn hình đăng nhập
+2026-11-01T11:11:32+07:00 | account=acc_018 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T11:11:37+07:00 | account=acc_018 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T11:16:24+07:00 | account=acc_018 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T11:22:29+07:00 | account=acc_019 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T11:22:34+07:00 | account=acc_019 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T11:27:34+07:00 | account=acc_019 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T11:33:27+07:00 | account=acc_020 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T11:33:32+07:00 | account=acc_020 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T11:38:14+07:00 | account=acc_020 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T11:42:58+07:00 | account=acc_021 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn
+2026-11-01T11:43:50+07:00 | account=acc_021 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T11:43:55+07:00 | account=acc_021 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T11:49:31+07:00 | account=acc_021 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T11:55:07+07:00 | account=acc_022 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T11:55:12+07:00 | account=acc_022 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T11:59:21+07:00 | account=acc_022 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T12:04:56+07:00 | account=acc_023 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T12:05:00+07:00 | account=acc_023 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T12:09:56+07:00 | account=acc_023 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T12:15:09+07:00 | account=acc_024 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T12:15:13+07:00 | account=acc_024 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T12:18:56+07:00 | account=acc_024 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T12:23:03+07:00 | account=acc_025 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn
+2026-11-01T12:23:48+07:00 | account=acc_025 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T12:23:52+07:00 | account=acc_025 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T12:28:49+07:00 | account=acc_025 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T12:33:59+07:00 | account=acc_026 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T12:34:03+07:00 | account=acc_026 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T12:38:01+07:00 | account=acc_026 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T12:43:15+07:00 | account=acc_027 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T12:43:19+07:00 | account=acc_027 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T12:47:10+07:00 | account=acc_027 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T12:52:27+07:00 | account=acc_028 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T12:52:31+07:00 | account=acc_028 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T12:57:18+07:00 | account=acc_028 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T13:01:42+07:00 | account=acc_029 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn
+2026-11-01T13:02:29+07:00 | account=acc_029 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T13:02:33+07:00 | account=acc_029 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T13:09:45+07:00 | account=acc_029 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T13:15:27+07:00 | account=acc_030 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T13:15:32+07:00 | account=acc_030 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T13:21:11+07:00 | account=acc_030 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T13:25:25+07:00 | account=acc_031 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn
+2026-11-01T13:26:13+07:00 | account=acc_031 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T13:26:18+07:00 | account=acc_031 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T13:28:55+07:00 | account=acc_031 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T13:34:13+07:00 | account=acc_048 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T13:34:18+07:00 | account=acc_048 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T13:40:19+07:00 | account=acc_048 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T13:44:55+07:00 | account=acc_049 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn
+2026-11-01T13:45:45+07:00 | account=acc_049 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T13:45:49+07:00 | account=acc_049 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T13:50:44+07:00 | account=acc_049 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T13:54:53+07:00 | account=acc_050 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn
+2026-11-01T13:55:41+07:00 | account=acc_050 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T13:55:45+07:00 | account=acc_050 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T13:57:53+07:00 | account=acc_050 | task=TT_A1_Bao_Vat | type=TASK | home target error: Trường thành A1: đội đủ nhưng thiếu nút Chấp hành
+2026-11-01T13:59:07+07:00 | account=acc_050 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T14:05:12+07:00 | account=acc_051 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T14:05:18+07:00 | account=acc_051 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T14:09:30+07:00 | account=acc_051 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T14:14:06+07:00 | account=acc_052 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn
+2026-11-01T14:14:53+07:00 | account=acc_052 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T14:14:58+07:00 | account=acc_052 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T14:20:41+07:00 | account=acc_052 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T14:27:04+07:00 | account=acc_053 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T14:27:10+07:00 | account=acc_053 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T14:29:43+07:00 | account=acc_053 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T14:42:21+07:00 | account=acc_054 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T14:42:27+07:00 | account=acc_054 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T14:48:11+07:00 | account=acc_054 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T14:53:55+07:00 | account=acc_055 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T14:53:59+07:00 | account=acc_055 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T14:57:24+07:00 | account=acc_055 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T15:02:57+07:00 | account=acc_056 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T15:03:02+07:00 | account=acc_056 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T15:07:46+07:00 | account=acc_056 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T15:13:17+07:00 | account=acc_057 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T15:13:21+07:00 | account=acc_057 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T15:18:08+07:00 | account=acc_057 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T15:23:42+07:00 | account=acc_058 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T15:23:47+07:00 | account=acc_058 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T15:29:35+07:00 | account=acc_058 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T15:35:07+07:00 | account=acc_059 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T15:35:12+07:00 | account=acc_059 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T15:39:56+07:00 | account=acc_059 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T15:45:32+07:00 | account=acc_060 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T15:45:37+07:00 | account=acc_060 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T15:51:37+07:00 | account=acc_060 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T15:55:58+07:00 | account=acc_061 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn
+2026-11-01T15:56:45+07:00 | account=acc_061 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T15:56:50+07:00 | account=acc_061 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T16:02:22+07:00 | account=acc_061 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T16:07:51+07:00 | account=acc_062 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T16:07:56+07:00 | account=acc_062 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T16:14:56+07:00 | account=acc_062 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T16:19:18+07:00 | account=acc_063 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn
+2026-11-01T16:20:06+07:00 | account=acc_063 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T16:20:11+07:00 | account=acc_063 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T16:27:15+07:00 | account=acc_063 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T16:31:42+07:00 | account=acc_064 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn
+2026-11-01T16:32:32+07:00 | account=acc_064 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T16:32:37+07:00 | account=acc_064 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T16:35:26+07:00 | account=acc_064 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T16:41:02+07:00 | account=acc_065 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T16:41:06+07:00 | account=acc_065 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T16:44:39+07:00 | account=acc_065 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T16:49:02+07:00 | account=acc_066 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn
+2026-11-01T16:49:52+07:00 | account=acc_066 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T16:49:56+07:00 | account=acc_066 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T16:56:12+07:00 | account=acc_066 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T17:00:39+07:00 | account=acc_067 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn
+2026-11-01T17:01:28+07:00 | account=acc_067 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T17:01:33+07:00 | account=acc_067 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T17:03:45+07:00 | account=acc_067 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T17:09:28+07:00 | account=acc_068 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T17:09:33+07:00 | account=acc_068 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T17:16:10+07:00 | account=acc_068 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T17:21:53+07:00 | account=acc_069 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T17:21:58+07:00 | account=acc_069 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T17:27:30+07:00 | account=acc_069 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T17:31:57+07:00 | account=acc_070 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn
+2026-11-01T17:32:50+07:00 | account=acc_070 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T17:32:55+07:00 | account=acc_070 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T17:37:34+07:00 | account=acc_070 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T17:43:16+07:00 | account=acc_071 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T17:43:21+07:00 | account=acc_071 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T17:50:24+07:00 | account=acc_071 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T17:56:02+07:00 | account=acc_072 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T17:56:07+07:00 | account=acc_072 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T18:01:34+07:00 | account=acc_072 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T18:06:18+07:00 | account=acc_073 | task=Tam_Quoc_Lenh | type=TASK | home target error: Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn
+2026-11-01T18:07:10+07:00 | account=acc_073 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T18:07:15+07:00 | account=acc_073 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T18:12:38+07:00 | account=acc_073 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T18:18:19+07:00 | account=acc_074 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T18:18:24+07:00 | account=acc_074 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T18:22:41+07:00 | account=acc_074 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T21:40:48+07:00 | account=acc_075 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T21:40:54+07:00 | account=acc_075 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T21:47:43+07:00 | account=acc_075 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T21:56:30+07:00 | account=acc_076 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T21:56:35+07:00 | account=acc_076 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T22:00:17+07:00 | account=acc_076 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T22:06:19+07:00 | account=acc_077 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T22:06:24+07:00 | account=acc_077 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T22:10:16+07:00 | account=acc_077 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T22:16:53+07:00 | account=acc_078 | task=Hoat_Dong | type=TASK | home target error: Hoạt động: nhận quà tích lũy 30 ngày nhưng chưa thấy Đã nhận
+2026-11-01T22:16:59+07:00 | account=acc_078 | task=Cua_Hang | type=TASK | home target error: Cửa hàng: không xác định được trạng thái menu HOME
+2026-11-01T22:20:48+07:00 | account=acc_078 | task=TT_A3_Chua_Cong | type=TASK | home target error: Trường thành A3: thiếu anchor Tướng ấn/Vệ Tướng
+2026-11-01T22:23:28+07:00 | account=acc_078 | task=TT_A4_Ve_Tuong | type=TASK | home target error: TT_A4_VE_TUONG: không recover được HOME
+2026-11-01T22:25:33+07:00 | account=acc_078 | task=TT_A4_Ve_Tuong | type=ACCOUNT | restart error: ADB timeout sau 15.0s: adb -s emulator-5554 shell input keyevent KEYCODE_ESCAPE

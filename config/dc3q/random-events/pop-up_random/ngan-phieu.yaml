@@ -1,0 +1,16 @@
+rules:
+  - Chỉ xử lý khi nhận diện title Ngân phiếu hoặc các tab tài nguyên Tiền / Lương thảo / Bảo Châu.
+  - Bấm nút X màu đỏ cam ở góc trên phải để đóng popup.
+  - Sau khi đóng, tiếp tục luồng bot.
+
+scenario:
+  - Tìm title Ngân phiếu hoặc nút X đóng.
+  - Bấm tâm nút X đóng.
+  - Chờ popup đóng và tiếp tục luồng.
+
+SET_NGAN_PHIEU:
+  state: data/img/templates/random-events/pop-up_random/ngan-phieu/screen/screen_nganphieu_title.png
+  close: data/img/templates/random-events/pop-up_random/ngan-phieu/screen/screen_nganphieu_button_dong.png
+  threshold: 0.70
+  timeout_seconds: 10
+  max_attempts: 1

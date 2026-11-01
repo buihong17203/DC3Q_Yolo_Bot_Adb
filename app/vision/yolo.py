@@ -4,25 +4,26 @@ from pathlib import Path
 from typing import Any
 import logging
 
-LOGGER = logging.getLogger("dc3q.yolo")
+LOGGER = logging.getLogger("dc3q")
 
-DEFAULT_MODEL_PATH = Path("data/img/yolo/yolo11n.pt")
-BEST_MODEL_PATH = Path("data/img/yolo/dc3q_yolo11_best.pt")
-BEST_ONNX_PATH = Path("data/img/yolo/dc3q_yolo11_best.onnx")
-RUNS_BEST_PATH = Path("data/img/yolo/runs/dc3q_yolo11/weights/best.pt")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_MODEL_PATH = PROJECT_ROOT / "data" / "img" / "yolo" / "yolo26n.pt"
 
 
 def resolve_default_yolo_model() -> Path | None:
-    """Tự động ưu tiên ONNX runtime (nhanh nhất trên CPU ~170ms), sau đó đến fine-tune PyTorch (best.pt), cuối cùng là base weights."""
-    if BEST_ONNX_PATH.exists():
-        return BEST_ONNX_PATH
-    if BEST_MODEL_PATH.exists():
-        return BEST_MODEL_PATH
-    if RUNS_BEST_PATH.exists():
-        return RUNS_BEST_PATH
-    if DEFAULT_MODEL_PATH.exists():
-        return DEFAULT_MODEL_PATH
-    return None
+    """Tìm mô hình YOLO tốt nhất hiện có trong dự án (ưu tiên v26, sau đó v11)."""
+    candidates = [
+        PROJECT_ROOT / "data" / "img" / "yolo" / "dc3q_yolo26_best.pt",
+        PROJECT_ROOT / "data" / "img" / "yolo" / "dc3q_yolo26_best.onnx",
+        PROJECT_ROOT / "data" / "img" / "yolo" / "yolo26n.pt",
+        PROJECT_ROOT / "data" / "img" / "yolo" / "dc3q_yolo11_best.pt",
+        PROJECT_ROOT / "data" / "img" / "yolo" / "dc3q_yolo11_best.onnx",
+        PROJECT_ROOT / "data" / "img" / "yolo" / "yolo11n.pt",
+    ]
+    for p in candidates:
+        if p.is_file():
+            return p
+    return DEFAULT_MODEL_PATH if DEFAULT_MODEL_PATH.is_file() else None
 
 
 @dataclass
@@ -36,117 +37,80 @@ class YoloDetection:
     y2: float
 
     @property
-    def width(self) -> float:
-        return max(0.0, self.x2 - self.x1)
-
-    @property
-    def height(self) -> float:
-        return max(0.0, self.y2 - self.y1)
-
-    @property
-    def center_x(self) -> float:
-        return (self.x1 + self.x2) / 2.0
-
-    @property
-    def center_y(self) -> float:
-        return (self.y1 + self.y2) / 2.0
+    def box(self) -> tuple[int, int, int, int]:
+        return int(self.x1), int(self.y1), int(self.x2), int(self.y2)
 
     @property
     def center(self) -> tuple[int, int]:
-        """Tọa độ tâm (x, y) nguyên để click ADB."""
-        return int(round(self.center_x)), int(round(self.center_y))
+        return int((self.x1 + self.x2) / 2), int((self.y1 + self.y2) / 2)
 
     @property
-    def box(self) -> tuple[int, int, int, int]:
-        """Tọa độ hộp (x1, y1, x2, y2) nguyên."""
-        return int(round(self.x1)), int(round(self.y1)), int(round(self.x2)), int(round(self.y2))
+    def width(self) -> int:
+        return int(self.x2 - self.x1)
+
+    @property
+    def height(self) -> int:
+        return int(self.y2 - self.y1)
 
 
 class YoloDetector:
-    """YOLO11 / YOLO Object Detector adapter boundary.
-    Hỗ trợ phát hiện đối tượng game UI, quái, vật phẩm trên màn hình ADB.
+    """YOLO Detection Adapter hỗ trợ YOLO26 (YOLOv26) và các thế hệ YOLO trước.
+    Tối ưu hóa chạy CPU/ONNX cho bot giả lập.
     """
 
-    def __init__(self, model_path: str | Path | None = None, device: str | None = None):
+    def __init__(self, model_path: str | Path | None = None):
         self.model_path = Path(model_path) if model_path else resolve_default_yolo_model()
-        self.device = device
         self.model = None
 
     @property
     def is_loaded(self) -> bool:
         return self.model is not None
 
-    def load(self, model_path: str | Path | None = None) -> YoloDetector:
-        if model_path:
-            self.model_path = Path(model_path)
-        if self.model_path is None:
-            raise ValueError("Chưa cấu hình model_path cho YOLO11")
-
+    def load(self) -> YoloDetector:
+        if self.model_path is None or not self.model_path.exists():
+            resolved = resolve_default_yolo_model()
+            if resolved and resolved.exists():
+                self.model_path = resolved
+            else:
+                raise ValueError(f"Không tìm thấy model_path: {self.model_path}")
         try:
             from ultralytics import YOLO
         except ImportError as exc:
-            raise RuntimeError("Cần cài đặt ultralytics để chạy YOLO: pip install ultralytics") from exc
+            raise RuntimeError("Cần cài đặt ultralytics: pip install ultralytics") from exc
 
-        LOGGER.info("Đang nạp mô hình YOLO11 từ: %s", self.model_path)
+        LOGGER.info("YOLO | Đang nạp mô hình: %s", self.model_path)
         self.model = YOLO(str(self.model_path))
         return self
 
-    def predict(
-        self,
-        image: Any,
-        confidence: float = 0.25,
-        iou: float = 0.45,
-        device: str | None = None,
-        imgsz: int = 640,
-    ) -> list[YoloDetection]:
+    def predict(self, image: Any, confidence: float = 0.25, imgsz: int = 640) -> list[YoloDetection]:
         if self.model is None:
-            raise RuntimeError("YOLO model chưa load. Vui lòng gọi detector.load() trước.")
-
-        pred_device = device if device is not None else self.device
-        results = self.model.predict(
-            image,
-            conf=confidence,
-            iou=iou,
-            device=pred_device,
-            imgsz=imgsz,
-            verbose=False,
-        )
-
-        detections: list[YoloDetection] = []
+            self.load()
+        results = self.model.predict(image, conf=confidence, imgsz=imgsz, verbose=False)
+        out: list[YoloDetection] = []
         for result in results:
             names = result.names
             boxes = getattr(result, "boxes", None)
             if boxes is None:
                 continue
             for b in boxes:
-                raw_xyxy = b.xyxy[0]
-                xyxy = raw_xyxy.tolist() if hasattr(raw_xyxy, "tolist") else list(raw_xyxy)
+                xyxy = b.xyxy[0].tolist()
                 cls = int(b.cls[0])
                 conf = float(b.conf[0])
-                label = str(names.get(cls, cls)) if isinstance(names, dict) else str(names[cls])
-                detections.append(YoloDetection(cls, label, conf, *xyxy))
+                label_name = str(names.get(cls, cls)) if isinstance(names, dict) else str(names[cls])
+                out.append(YoloDetection(cls, label_name, conf, *xyxy))
+        return out
 
-        return detections
+    def find_first(self, image: Any, label: str, confidence: float = 0.25) -> YoloDetection | None:
+        """Tìm đối tượng đầu tiên khớp với nhãn yêu cầu."""
+        detections = self.predict(image, confidence=confidence)
+        label_lower = label.lower()
+        for det in detections:
+            if det.label.lower() == label_lower:
+                return det
+        return None
 
-    def find_by_label(
-        self,
-        image: Any,
-        label: str,
-        confidence: float = 0.25,
-    ) -> list[YoloDetection]:
-        """Lọc danh sách các đối tượng khớp với label cụ thể."""
-        all_dets = self.predict(image, confidence=confidence)
-        label_lower = label.strip().lower()
-        return [d for d in all_dets if d.label.lower() == label_lower]
-
-    def find_first(
-        self,
-        image: Any,
-        label: str,
-        confidence: float = 0.25,
-    ) -> YoloDetection | None:
-        """Tìm đối tượng đầu tiên khớp label (hoặc có độ tin cậy cao nhất)."""
-        matches = self.find_by_label(image, label, confidence=confidence)
-        if not matches:
-            return None
-        return max(matches, key=lambda d: d.confidence)
+    def find_all(self, image: Any, label: str, confidence: float = 0.25) -> list[YoloDetection]:
+        """Tìm tất cả đối tượng khớp với nhãn yêu cầu."""
+        detections = self.predict(image, confidence=confidence)
+        label_lower = label.lower()
+        return [det for det in detections if det.label.lower() == label_lower]

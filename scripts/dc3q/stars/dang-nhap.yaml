@@ -22,7 +22,7 @@ runtime_archive_dir: docs/docs_days_runtime
 reset_hour: 23
 cutoff_hour: 22
 cutoff_minute: 59
-persistent_daily: true
+persistent_daily: false
 target_retry_limit: 3
 out_game_title: data/img/templates/stars/out_game/screen/screen_out_game_title.jpg
 out_game_confirm: data/img/templates/stars/out_game/screen/screen_out_game_button_xacnhan.png

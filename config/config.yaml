@@ -8,10 +8,6 @@ vision:
   template_threshold: 0.85
 yolo:
   enabled: false
-  version: "11"
-  model: data/img/yolo/yolo11n.pt
-  confidence: 0.25
-  iou: 0.45
-  device: ""
+  model: data/img/yolo/yolo26n.pt
 accounts:
   path: data/accounts/accounts.csv

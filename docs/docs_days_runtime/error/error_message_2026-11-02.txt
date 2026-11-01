@@ -1,0 +1,12 @@
+2026-11-02T00:34:53+07:00 | account=acc_001 | task=- | type=ACCOUNT | Máy chủ từ chối tài khoản
+2026-11-02T00:34:56+07:00 | account=- | task=- | type=TASK | Game com.daichien.mobile bị crash/văng ra ngoài
+2026-11-02T00:35:01+07:00 | account=- | task=- | type=TASK | Kẹt popup
+2026-11-02T00:35:01+07:00 | account=- | task=- | type=TASK | offline
+2026-11-02T00:35:01+07:00 | account=- | task=- | type=TASK | Game com.daichien.mobile bị crash/văng ra ngoài
+2026-11-02T00:35:01+07:00 | account=- | task=- | type=ACCOUNT | bad pass
+2026-11-02T00:42:38+07:00 | account=acc_001 | task=- | type=ACCOUNT | Máy chủ từ chối tài khoản
+2026-11-02T00:42:41+07:00 | account=- | task=- | type=TASK | Game com.daichien.mobile bị crash/văng ra ngoài
+2026-11-02T00:42:45+07:00 | account=- | task=- | type=TASK | Kẹt popup
+2026-11-02T00:42:45+07:00 | account=- | task=- | type=TASK | offline
+2026-11-02T00:42:45+07:00 | account=- | task=- | type=TASK | Game com.daichien.mobile bị crash/văng ra ngoài
+2026-11-02T00:42:45+07:00 | account=- | task=- | type=ACCOUNT | bad pass

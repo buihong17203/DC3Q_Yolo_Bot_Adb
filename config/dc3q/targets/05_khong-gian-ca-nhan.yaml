@@ -3,7 +3,7 @@ khong_gian_ca_nhan:
   threshold: 0.65
   state_threshold: 0.80
   max_steps: 24
-  wait_seconds: 0.35
+  wait_seconds: 0.8
   # Panel tải chậm: đợi trạng thái Like toàn bộ hoàn thiện rồi mới bấm.
   state_wait_attempts: 24
   home:

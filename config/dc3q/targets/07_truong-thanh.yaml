@@ -2,7 +2,7 @@ truong_thanh:
   enabled: true
   threshold: 0.70
   max_steps: 60
-  wait_seconds: 0.35
+  wait_seconds: 0.8
   # A1-A7 là các checkpoint độc lập; thiếu công trình thì skip an toàn.
   skipped_subflows: []
   state_threshold: 0.80
@@ -15,7 +15,6 @@ truong_thanh:
     markers:
       - data/img/templates/stars/home/screen/screen_chien-tranh_01.png
       - data/img/templates/stars/home/screen/screen_chien-tranh_02.png
-      - data/img/templates/stars/home/screen/screen_noi-chinh_01.png
   bonus_continue:
     templates:
       - data/img/templates/targets/07_truong-thanh/A4_ve-tuong/screen/screen_vt_tcc_anmanhinhdetieptuc.jpg
@@ -110,7 +109,7 @@ truong_thanh:
     result:
       - data/img/templates/targets/07_truong-thanh/A3_chua-cong/screen/screen_cc_nhapbatkydedong.png
     result_dismiss_point: [480, 500]
-    close_point: [932, 28]
+    close_point: [926, 34]
   a4:
     hub_entry:
       - data/img/templates/stars/home/screen/screen_ve-tuong.png

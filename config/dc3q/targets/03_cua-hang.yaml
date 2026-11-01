@@ -4,8 +4,8 @@ cua_hang:
   state_threshold: 0.76
   paid_threshold: 0.90
   max_steps: 30
-  wait_seconds: 0.35
-  limited_wait_seconds: 0.8
+  wait_seconds: 0.8
+  limited_wait_seconds: 2.5
   home:
     menu:
       - data/img/templates/stars/home/screen/screen_home_menu_sukien_dangdong.png

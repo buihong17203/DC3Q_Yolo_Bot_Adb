@@ -63,27 +63,24 @@ class TamQuocLenhRunner:
         self._nguyen_balance_saved = False
 
     def _save_tab_balance(self, screen, kind: str) -> None:
-        try:
-            if kind == "que" and not self._que_balance_saved:
-                value = read_balance_near_icon(
-                    screen, Path("config/dc3q/item/item_quelanh.png"),
-                    (28, 0, 95, 42), search_roi=(190, 45, 360, 160), threshold=.30,
-                )
-                if self.save_que_balance:
-                    self.save_que_balance(value)
-                self._que_balance_saved = True
-                logging.getLogger("dc3q").info("TQL | lưu Que-Lanh=%d", value)
-            elif kind == "diem" and not self._nguyen_balance_saved:
-                value = read_balance_near_icon(
-                    screen, Path("config/dc3q/item/item_nguyenlinhngoc.png"),
-                    (28, 0, 110, 48), search_roi=(190, 45, 360, 160), threshold=.30,
-                )
-                if self.save_nguyen_balance:
-                    self.save_nguyen_balance(value)
-                self._nguyen_balance_saved = True
-                logging.getLogger("dc3q").info("TQL | lưu Nguyen-Linh-Ngoc=%d", value)
-        except Exception as exc:
-            logging.getLogger("dc3q").warning("TQL | Không đọc được số dư %s (%s); bỏ qua an toàn", kind, exc)
+        if kind == "que" and not self._que_balance_saved:
+            value = read_balance_near_icon(
+                screen, Path("config/dc3q/item/item_quelanh.png"),
+                (28, 0, 95, 42), search_roi=(190, 45, 360, 160), threshold=.50,
+            )
+            if self.save_que_balance:
+                self.save_que_balance(value)
+            self._que_balance_saved = True
+            logging.getLogger("dc3q").info("TQL | lưu Que-Lanh=%d", value)
+        elif kind == "diem" and not self._nguyen_balance_saved:
+            value = read_balance_near_icon(
+                screen, Path("config/dc3q/item/item_nguyenlinhngoc.png"),
+                (28, 0, 110, 48), search_roi=(190, 45, 360, 160), threshold=.50,
+            )
+            if self.save_nguyen_balance:
+                self.save_nguyen_balance(value)
+            self._nguyen_balance_saved = True
+            logging.getLogger("dc3q").info("TQL | lưu Nguyen-Linh-Ngoc=%d", value)
 
     def _match(self, screen, template: Path, threshold: float | None = None):
         return self.vision.find_template(
@@ -91,9 +88,9 @@ class TamQuocLenhRunner:
             self.config.threshold if threshold is None else threshold,
         ).match
 
-    def _first(self, screen, templates: list[Path], threshold: float | None = None):
+    def _first(self, screen, templates: list[Path]):
         for template in templates:
-            match = self._match(screen, template, threshold=threshold)
+            match = self._match(screen, template)
             if match.found:
                 return match
         return None
@@ -213,10 +210,8 @@ class TamQuocLenhRunner:
                 if inactive.found:
                     return_control = self._match(screen, self.config.inactivity_return)
                     if not return_control.found:
-                        logger.warning("TQL | thấy popup mất liên hệ nhưng thiếu nút Về lãnh địa; tap fallback (480, 360)")
-                        self.input.tap(480, 360)
-                    else:
-                        self._tap(return_control)
+                        raise RuntimeError("Tam Quốc Lệnh: thấy popup mất liên hệ nhưng thiếu nút Về lãnh địa")
+                    self._tap(return_control)
                     logger.info("TQL | bấm Về lãnh địa sau popup mất liên hệ")
                     unknown = 0
                     continue
@@ -235,10 +230,8 @@ class TamQuocLenhRunner:
                 panel_seen = True
                 dismiss = self._match(screen, self.config.reward_dismiss)
                 if not dismiss.found:
-                    logger.info("TQL | thấy thưởng nhưng thiếu template dismiss; tap vùng an toàn (480, 480)")
-                    self.input.tap(480, 480)
-                else:
-                    self._tap(dismiss)
+                    raise RuntimeError("Tam Quốc Lệnh: thấy thưởng nhưng thiếu vùng đóng an toàn")
+                self._tap(dismiss)
                 completed_action = waiting_for
                 settled = self.screen_provider()
                 if completed_action == "que":
@@ -254,21 +247,7 @@ class TamQuocLenhRunner:
                 continue
 
             if not opened:
-                entry = self._first(screen, self.config.entry_templates, threshold=0.75)
-                if entry is None:
-                    # OCR fallback for Tam Quốc Lệnh icon
-                    try:
-                        from app.vision.ocr import ocr_raw_results
-                        for row in ocr_raw_results(screen):
-                            txt = str(row[1]).lower().replace(" ", "")
-                            if "tamquoclenh" in txt or ("tamquoc" in txt and "lenh" in txt):
-                                pts = row[0]
-                                cx = int(sum(p[0] for p in pts) / len(pts))
-                                cy = int(sum(p[1] for p in pts) / len(pts))
-                                entry = type("OcrMatch", (), {"x": cx - 1, "y": cy - 1, "width": 2, "height": 2})()
-                                break
-                    except Exception:
-                        pass
+                entry = self._first(screen, self.config.entry_templates)
                 if entry is not None:
                     self._tap(entry)
                     logger.info("TQL | mở Tam Quốc Lệnh")
@@ -288,53 +267,20 @@ class TamQuocLenhRunner:
                 self.sleep(self.config.wait_seconds)
                 continue
 
-            # Verify panel is open
-            if opened and not panel_seen:
-                close = self._match(screen, self.config.close_template, threshold=0.70)
-                if close.found or self._first(screen, self.config.panel_markers) is not None:
-                    panel_seen = True
-                else:
-                    unknown += 1
-                    if unknown >= 4:
-                        logger.warning("TQL | Đã bấm mở nhưng sau 4 tick không thấy panel TQL; đóng sub-screen và thử lại")
-                        self.input.tap(932, 28)
-                        self.sleep(self.config.wait_seconds)
-                        opened = False
-                        unknown = 0
-                        continue
-                    self.sleep(self.config.wait_seconds)
-                    continue
-
             if not que_done:
                 if not que_tab_opened:
-                    open_match = self._first(screen, self.config.que_boi_open, threshold=0.78)
-                    closed_match = self._first(screen, self.config.que_boi_tabs, threshold=0.60)
-                    if open_match is not None and (closed_match is None or open_match.confidence > closed_match.confidence):
-                        que_tab_opened = True
-                        panel_seen = True
-                        logger.info("TQL | tab Quẻ bói đã mở sẵn")
-                        continue
                     tab = self._first(screen, self.config.que_boi_tabs)
                     if tab is not None:
                         panel_seen = True
                         self._tap(tab)
                         verify = None
-                        for attempt in range(8):
-                            self.sleep(self.config.wait_seconds)
+                        for _ in range(8):
                             verify = self.screen_provider()
-                            om = self._first(verify, self.config.que_boi_open, threshold=0.78)
-                            if om is not None:
+                            if self._first(verify, self.config.que_boi_open) is not None:
                                 break
-                            if attempt == 4:
-                                self._tap(tab)
+                            self.sleep(self.config.wait_seconds)
                         else:
-                            state_check, _, _ = self._action_state(
-                                verify, self.config.que_boi_free, self.config.que_boi_paid,
-                            )
-                            if state_check in ("free", "paid"):
-                                logger.info("TQL | Quẻ bói đã mở (state=%s)", state_check)
-                            else:
-                                raise RuntimeError("Tam Quốc Lệnh: bấm Quẻ bói nhưng tab chưa mở sau khi chờ")
+                            raise RuntimeError("Tam Quốc Lệnh: bấm Quẻ bói nhưng tab chưa mở sau khi chờ")
                         que_tab_opened = True
                         logger.info("TQL | mở tab Quẻ bói")
                         continue
@@ -369,34 +315,18 @@ class TamQuocLenhRunner:
 
             if not diem_done:
                 if not diem_tab_opened:
-                    open_match = self._first(screen, self.config.diem_binh_open, threshold=0.78)
-                    closed_match = self._first(screen, self.config.diem_binh_tabs, threshold=0.60)
-                    if open_match is not None and (closed_match is None or open_match.confidence > closed_match.confidence):
-                        diem_tab_opened = True
-                        panel_seen = True
-                        logger.info("TQL | tab Điểm binh đã mở sẵn")
-                        continue
                     tab = self._first(screen, self.config.diem_binh_tabs)
                     if tab is not None:
                         panel_seen = True
                         self._tap(tab)
                         verify = None
-                        for attempt in range(8):
-                            self.sleep(self.config.wait_seconds)
+                        for _ in range(8):
                             verify = self.screen_provider()
-                            om = self._first(verify, self.config.diem_binh_open, threshold=0.78)
-                            if om is not None:
+                            if self._first(verify, self.config.diem_binh_open) is not None:
                                 break
-                            if attempt == 4:
-                                self._tap(tab)
+                            self.sleep(self.config.wait_seconds)
                         else:
-                            state_check, _, _ = self._action_state(
-                                verify, self.config.diem_binh_free, self.config.diem_binh_paid,
-                            )
-                            if state_check in ("free", "paid"):
-                                logger.info("TQL | Điểm binh đã mở (state=%s)", state_check)
-                            else:
-                                raise RuntimeError("Tam Quốc Lệnh: bấm Điểm binh nhưng tab chưa mở sau khi chờ")
+                            raise RuntimeError("Tam Quốc Lệnh: bấm Điểm binh nhưng tab chưa mở sau khi chờ")
                         diem_tab_opened = True
                         logger.info("TQL | mở tab Điểm binh")
                         continue
